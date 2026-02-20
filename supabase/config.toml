@@ -1,1 +1,7 @@
 project_id = "pnmxqvaafdecqmeradfc"
+
+[functions.brain-chat]
+verify_jwt = false
+
+[functions.analyze-brain]
+verify_jwt = false
