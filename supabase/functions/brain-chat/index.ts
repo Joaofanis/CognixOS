@@ -58,39 +58,60 @@ serve(async (req) => {
 
     systemPrompt += `\n\nContexto de Conhecimento de "${brain.name}":\n${contextTexts}`;
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://ai-second-brain.lovable.app", // For tracking
-        "X-Title": "AI Second Brain",
-      },
-      body: JSON.stringify({
-        model: "qwen/qwen-2.5-72b-instruct:free",
-        messages: [{ role: "system", content: systemPrompt }, ...messages],
-        stream: true,
-        temperature: 0.7,
-        max_tokens: 1500,
-      }),
-    });
+    const models = [
+      "qwen/qwen-2.5-72b-instruct:free",
+      "google/gemma-2-9b-it:free",
+      "mistralai/mistral-7b-instruct:free",
+      "nvidia/nemotron-4-340b-instruct:free",
+      "liquid/lfm-2.5-1.2b-thinking:free",
+      "stepfun/step-3.5-flash:free",
+      "arcee-ai/trinity-large-preview:free"
+    ];
 
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Limite de requisições excedido. Tente novamente em alguns segundos." }), {
+    let lastError = null;
+    let response = null;
+
+    for (const model of models) {
+      try {
+        const aiResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://ai-second-brain.lovable.app",
+            "X-Title": "AI Second Brain",
+          },
+          body: JSON.stringify({
+            model,
+            messages: [{ role: "system", content: systemPrompt }, ...messages],
+            stream: true,
+            temperature: 0.7,
+            max_tokens: 1500,
+          }),
+        });
+
+        if (aiResponse.ok) {
+          response = aiResponse;
+          break;
+        } else {
+          lastError = { status: aiResponse.status, text: await aiResponse.text(), model };
+          if (aiResponse.status !== 429 && aiResponse.status !== 503) break; // Don't retry for non-transient errors
+          console.warn(`Model ${model} failed with ${aiResponse.status}. Trying next...`);
+        }
+      } catch (e) {
+        lastError = e;
+        console.error(`Fetch error for model ${model}:`, e);
+      }
+    }
+
+    if (!response) {
+      if (lastError?.status === 429) {
+        return new Response(JSON.stringify({ error: "Todos os modelos gratuitos estão congestionados. Tente novamente em alguns segundos." }), {
           status: 429,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "Créditos insuficientes. Adicione créditos ao workspace." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      const t = await response.text();
-      console.error("AI error:", response.status, t);
-      return new Response(JSON.stringify({ error: "Erro no gateway de IA" }), {
+      return new Response(JSON.stringify({ error: "Erro ao conectar com provedores de IA. Tente mudar o modelo ou aguarde." }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
