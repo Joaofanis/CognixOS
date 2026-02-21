@@ -24,6 +24,9 @@ export function useBrainChat({
   const [conversationId, setConversationId] = useState<string | null>(null);
 
   const loadHistory = async (convId: string) => {
+    setMessages([]); // Clear current while loading
+    setConversationId(convId);
+    
     const { data: msgs } = await supabase
       .from("messages")
       .select("role, content")
@@ -32,8 +35,12 @@ export function useBrainChat({
 
     if (msgs) {
       setMessages(msgs as Message[]);
-      setConversationId(convId);
     }
+  };
+
+  const resetChat = () => {
+    setMessages([]);
+    setConversationId(null);
   };
 
   const sendMessage = async (input: string) => {
@@ -170,5 +177,6 @@ export function useBrainChat({
     sendMessage,
     conversationId,
     loadHistory,
+    resetChat,
   };
 }

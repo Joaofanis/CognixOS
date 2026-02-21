@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Loader2, RefreshCw, BarChart3, Brain as BrainIcon } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 import {
@@ -93,49 +93,99 @@ export default function BrainAnalysis({ brainId }: Props) {
       ) : (
         <div className="grid gap-6 md:grid-cols-2">
           {/* Radar Chart */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Traços de Personalidade</CardTitle>
+          <Card className="glass border-primary/10 overflow-hidden">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <BrainIcon className="h-4 w-4 text-primary" />
+                Traços de Personalidade
+              </CardTitle>
             </CardHeader>
             <CardContent>
               {radarData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <RadarChart data={radarData}>
-                    <PolarGrid stroke="hsl(var(--border))" />
-                    <PolarAngleAxis dataKey="trait" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-                    <PolarRadiusAxis angle={30} domain={[0, 10]} tick={{ fontSize: 10 }} />
+                <ResponsiveContainer width="100%" height={350}>
+                  <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
+                    <PolarGrid stroke="hsla(var(--primary), 0.1)" />
+                    <PolarAngleAxis 
+                      dataKey="trait" 
+                      tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))", fontWeight: 500 }} 
+                    />
+                    <PolarRadiusAxis 
+                      angle={30} 
+                      domain={[0, 10]} 
+                      tick={false}
+                      axisLine={false}
+                    />
                     <Radar
+                      name="Personalidade"
                       dataKey="value"
                       stroke="hsl(var(--primary))"
                       fill="hsl(var(--primary))"
-                      fillOpacity={0.2}
-                      strokeWidth={2}
+                      fillOpacity={0.3}
+                      strokeWidth={3}
                     />
                   </RadarChart>
                 </ResponsiveContainer>
               ) : (
-                <p className="text-sm text-muted-foreground text-center py-8">Sem dados</p>
+                <p className="text-sm text-muted-foreground text-center py-8 italic">Dados de personalidade indisponíveis</p>
               )}
             </CardContent>
           </Card>
 
           {/* Bar Chart */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Temas Frequentes</CardTitle>
+          <Card className="glass border-primary/10 overflow-hidden">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 text-primary" />
+                Temas Frequentes
+              </CardTitle>
             </CardHeader>
             <CardContent>
               {themes && themes.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={themes} layout="vertical">
-                    <XAxis type="number" tick={{ fontSize: 11 }} />
-                    <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 11 }} />
-                    <Tooltip />
-                    <Bar dataKey="count" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                <ResponsiveContainer width="100%" height={350}>
+                  <BarChart 
+                    data={themes} 
+                    layout="vertical" 
+                    margin={{ left: 20, right: 30, top: 10, bottom: 10 }}
+                  >
+                    <XAxis type="number" hide />
+                    <YAxis 
+                      dataKey="name" 
+                      type="category" 
+                      width={140} 
+                      tick={{ 
+                        fontSize: 11, 
+                        fill: "hsl(var(--muted-foreground))",
+                        fontWeight: 500
+                      }}
+                      axisLine={false}
+                      tickLine={false}
+                      // Funcao de truncagem para nomes muito longos
+                      tickFormatter={(value) => value.length > 25 ? `${value.substring(0, 22)}...` : value}
+                    />
+                    <Tooltip 
+                      cursor={{ fill: 'rgba(var(--primary), 0.05)' }} 
+                      contentStyle={{ 
+                        backgroundColor: 'rgba(var(--background), 0.8)',
+                        backdropFilter: 'blur(8px)',
+                        borderRadius: '12px',
+                        border: '1px solid rgba(var(--primary), 0.2)',
+                        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+                        padding: '10px'
+                      }}
+                      itemStyle={{ color: 'hsl(var(--primary))', fontWeight: 'bold' }}
+                      labelStyle={{ color: 'hsl(var(--foreground))', marginBottom: '4px' }}
+                    />
+                    <Bar 
+                      dataKey="count" 
+                      fill="hsl(var(--primary))" 
+                      radius={[0, 8, 8, 0]} 
+                      barSize={24}
+                      className="transition-all duration-300 hover:opacity-80"
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
-                <p className="text-sm text-muted-foreground text-center py-8">Sem dados</p>
+                <p className="text-sm text-muted-foreground text-center py-8 italic">Sem dados suficientes para análise temática</p>
               )}
             </CardContent>
           </Card>

@@ -1,42 +1,34 @@
 import { useState, useRef, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BrainType } from "@/lib/brain-types";
-import { Send, Loader2, User, Bot } from "lucide-react";
+import { Send, Loader2, User, Bot, PlusCircle } from "lucide-react";
 import ReactMarkdown from "react-markdown";
-import { useBrainChat } from "@/hooks/useBrainChat";
+import { Message } from "@/hooks/useBrainChat";
 
 interface Props {
   brainId: string;
   brainType: BrainType;
   brainName: string;
+  messages: Message[];
+  isStreaming: boolean;
+  sendMessage: (input: string) => void;
+  onNewChat: () => void;
+  conversationId: string | null;
 }
 
-export default function ChatInterface({ brainId, brainType, brainName }: Props) {
+export default function ChatInterface({ 
+  brainId, 
+  brainType, 
+  brainName,
+  messages,
+  isStreaming,
+  sendMessage,
+  onNewChat,
+  conversationId
+}: Props) {
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
-  const { messages, isStreaming, sendMessage, loadHistory, conversationId } = useBrainChat({
-    brainId,
-  });
-
-  // Load latest conversation on mount
-  useEffect(() => {
-    const fetchLatest = async () => {
-      const { data } = await supabase
-        .from("conversations")
-        .select("id")
-        .eq("brain_id", brainId)
-        .order("updated_at", { ascending: false })
-        .limit(1)
-        .single();
-
-      if (data) {
-        loadHistory(data.id);
-      }
-    };
-    fetchLatest();
-  }, [brainId]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -70,6 +62,15 @@ export default function ChatInterface({ brainId, brainType, brainName }: Props) 
               <p className="text-sm text-muted-foreground max-w-xs mx-auto mt-2">
                 Comece uma nova conversa ou continue de onde parou.
               </p>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={onNewChat}
+                className="mt-6 rounded-full gap-2 border-primary/20 hover:bg-primary/5 hover:border-primary/40 transition-all"
+              >
+                <PlusCircle className="h-4 w-4" />
+                Nova Conversa
+              </Button>
             </div>
           </div>
         )}
@@ -131,7 +132,10 @@ export default function ChatInterface({ brainId, brainType, brainName }: Props) 
               disabled={isStreaming}
               className="pr-12 py-6 bg-background/50 border-border focus-visible:ring-primary/20 transition-all rounded-xl"
             />
-            <div className="absolute right-2 top-1/2 -translate-y-1/2">
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+              {!conversationId && messages.length > 0 && (
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground mr-1" />
+              )}
               <Button 
                 type="submit" 
                 size="icon" 
