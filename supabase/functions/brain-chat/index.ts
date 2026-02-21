@@ -67,7 +67,7 @@ serve(async (req) => {
         "X-Title": "AI Second Brain",
       },
       body: JSON.stringify({
-        model: "qwen/qwen3-next-80b-a3b-instruct:free",
+        model: "qwen/qwen-2.5-72b-instruct:free",
         messages: [{ role: "system", content: systemPrompt }, ...messages],
         stream: true,
         temperature: 0.7,
