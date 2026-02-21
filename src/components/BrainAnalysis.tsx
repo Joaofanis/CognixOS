@@ -18,9 +18,6 @@ import {
   YAxis,
   Tooltip,
   Cell,
-  defs,
-  linearGradient,
-  stop,
 } from "recharts";
 
 interface Props {

@@ -19,6 +19,7 @@ export type Database = {
           brain_id: string
           frequent_themes: Json | null
           id: string
+          knowledge_areas: Json | null
           personality_traits: Json | null
           updated_at: string
         }
@@ -26,6 +27,7 @@ export type Database = {
           brain_id: string
           frequent_themes?: Json | null
           id?: string
+          knowledge_areas?: Json | null
           personality_traits?: Json | null
           updated_at?: string
         }
@@ -33,6 +35,7 @@ export type Database = {
           brain_id?: string
           frequent_themes?: Json | null
           id?: string
+          knowledge_areas?: Json | null
           personality_traits?: Json | null
           updated_at?: string
         }
@@ -90,6 +93,7 @@ export type Database = {
           description: string | null
           id: string
           name: string
+          tags: string[] | null
           type: Database["public"]["Enums"]["brain_type"]
           updated_at: string
           user_id: string
@@ -99,6 +103,7 @@ export type Database = {
           description?: string | null
           id?: string
           name: string
+          tags?: string[] | null
           type: Database["public"]["Enums"]["brain_type"]
           updated_at?: string
           user_id: string
@@ -108,6 +113,7 @@ export type Database = {
           description?: string | null
           id?: string
           name?: string
+          tags?: string[] | null
           type?: Database["public"]["Enums"]["brain_type"]
           updated_at?: string
           user_id?: string
