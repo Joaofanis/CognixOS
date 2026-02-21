@@ -81,81 +81,107 @@ serve(async (req) => {
 
     const allText = texts.map((t) => t.content).join("\n\n");
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "qwen/qwen-2.5-72b-instruct:free",
-        messages: [
-          {
-            role: "system",
-            content: "Você é um analista de personalidade. Analise os textos e extraia dados estruturados.",
+    const models = [
+      "meta-llama/llama-3.3-70b-instruct:free",
+      "nvidia/nemotron-3-nano-30b-a3b:free",
+      "arcee-ai/trinity-large-preview:free",
+      "stepfun/step-3.5-flash:free",
+    ];
+
+    let result = null;
+    let lastError = null;
+
+    for (const model of models) {
+      try {
+        console.log(`analyze-brain: trying model ${model}`);
+        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+            "Content-Type": "application/json",
           },
-          {
-            role: "user",
-            content: `Analise os seguintes textos de uma pessoa e extraia:\n1. Traços de personalidade (escala 0-10): extroversão, criatividade, pragmatismo, empatia, assertividade, curiosidade, disciplina, otimismo\n2. Temas mais frequentes (lista com nome e contagem estimada)\n\nTextos:\n${allText}`,
-          },
-        ],
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "save_analysis",
-              description: "Save personality analysis results",
-              parameters: {
-                type: "object",
-                properties: {
-                  personality_traits: {
+          body: JSON.stringify({
+            model,
+            messages: [
+              {
+                role: "system",
+                content: "Você é um analista de personalidade. Analise os textos e extraia dados estruturados.",
+              },
+              {
+                role: "user",
+                content: `Analise os seguintes textos de uma pessoa e extraia:\n1. Traços de personalidade (escala 0-10): extroversão, criatividade, pragmatismo, empatia, assertividade, curiosidade, disciplina, otimismo\n2. Temas mais frequentes (lista com nome e contagem estimada)\n\nTextos:\n${allText}`,
+              },
+            ],
+            tools: [
+              {
+                type: "function",
+                function: {
+                  name: "save_analysis",
+                  description: "Save personality analysis results",
+                  parameters: {
                     type: "object",
                     properties: {
-                      extroversão: { type: "number" },
-                      criatividade: { type: "number" },
-                      pragmatismo: { type: "number" },
-                      empatia: { type: "number" },
-                      assertividade: { type: "number" },
-                      curiosidade: { type: "number" },
-                      disciplina: { type: "number" },
-                      otimismo: { type: "number" },
-                    },
-                    required: ["extroversão", "criatividade", "pragmatismo", "empatia", "assertividade", "curiosidade", "disciplina", "otimismo"],
-                  },
-                  frequent_themes: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        name: { type: "string" },
-                        count: { type: "number" },
+                      personality_traits: {
+                        type: "object",
+                        properties: {
+                          extroversão: { type: "number" },
+                          criatividade: { type: "number" },
+                          pragmatismo: { type: "number" },
+                          empatia: { type: "number" },
+                          assertividade: { type: "number" },
+                          curiosidade: { type: "number" },
+                          disciplina: { type: "number" },
+                          otimismo: { type: "number" },
+                        },
+                        required: ["extroversão", "criatividade", "pragmatismo", "empatia", "assertividade", "curiosidade", "disciplina", "otimismo"],
                       },
-                      required: ["name", "count"],
+                      frequent_themes: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            name: { type: "string" },
+                            count: { type: "number" },
+                          },
+                          required: ["name", "count"],
+                        },
+                      },
                     },
+                    required: ["personality_traits", "frequent_themes"],
                   },
                 },
-                required: ["personality_traits", "frequent_themes"],
               },
-            },
-          },
-        ],
-        tool_choice: { type: "function", function: { name: "save_analysis" } },
-      }),
-    });
-
-    if (!response.ok) {
-      const t = await response.text();
-      console.error("AI error:", response.status, t);
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Modelo temporariamente limitado. Tente novamente em alguns segundos." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+            ],
+            tool_choice: { type: "function", function: { name: "save_analysis" } },
+          }),
         });
+
+        if (!response.ok) {
+          const t = await response.text();
+          console.error(`Model ${model} failed: ${response.status}`, t);
+          lastError = { status: response.status, text: t };
+          if (response.status === 401 || response.status === 403) break;
+          continue;
+        }
+
+        result = await response.json();
+        console.log(`analyze-brain: success with model ${model}`);
+        break;
+      } catch (e) {
+        console.error(`Fetch error for model ${model}:`, e);
+        lastError = { error: e instanceof Error ? e.message : String(e) };
       }
-      throw new Error("Erro ao analisar com IA");
     }
 
-    const result = await response.json();
+    if (!result) {
+      const msg = lastError?.status === 429
+        ? "Limite de requisições excedido. Tente novamente em alguns segundos."
+        : "Falha ao conectar com todos os provedores de IA.";
+      return new Response(JSON.stringify({ error: msg }), {
+        status: lastError?.status || 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     const toolCall = result.choices?.[0]?.message?.tool_calls?.[0];
     if (!toolCall) throw new Error("IA não retornou análise estruturada");
 
