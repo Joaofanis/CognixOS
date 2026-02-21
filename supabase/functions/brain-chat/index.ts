@@ -39,19 +39,27 @@ serve(async (req) => {
     if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY not configured");
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Verify User JWT
+    // Verify User JWT using getClaims
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
     const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    const { data: claimsData, error: authError } = await userClient.auth.getClaims(token);
     
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized", details: authError }), {
+    if (authError || !claimsData?.claims) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const userId = claimsData.claims.sub as string;
+
+    // Use service role for data operations
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Get brain info and verify ownership
     const { data: brain, error: brainErr } = await supabase
@@ -67,7 +75,7 @@ serve(async (req) => {
       });
     }
 
-    if (brain.user_id !== user.id) {
+    if (brain.user_id !== userId) {
       return new Response(JSON.stringify({ error: "Forbidden: You don't own this brain" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
