@@ -45,7 +45,12 @@ export default function BrainAnalysis({ brainId }: Props) {
       const { data, error } = await supabase.functions.invoke("analyze-brain", {
         body: { brainId },
       });
-      if (error) throw error;
+      if (error) {
+        // supabase.functions.invoke wraps non-2xx as error
+        const msg = typeof data === "object" && data?.error ? data.error : error.message;
+        throw new Error(msg || "Erro ao gerar análise");
+      }
+      if (data?.error) throw new Error(data.error);
       refetch();
       toast.success("Análise gerada!");
     } catch (err: any) {
