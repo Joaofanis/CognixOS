@@ -106,13 +106,11 @@ serve(async (req) => {
     systemPrompt += `\n\nContexto de Conhecimento de "${brain.name}":\n${contextTexts}`;
 
     const models = [
-      "qwen/qwen-2.5-72b-instruct:free",
-      "google/gemma-2-9b-it:free",
-      "mistralai/mistral-7b-instruct:free",
+      "meta-llama/llama-3.3-70b-instruct:free",
       "nvidia/nemotron-3-nano-30b-a3b:free",
-      "liquid/lfm-2.5-1.2b-thinking:free",
+      "arcee-ai/trinity-large-preview:free",
       "stepfun/step-3.5-flash:free",
-      "arcee-ai/trinity-large-preview:free"
+      "z-ai/glm-4.5-air:free",
     ];
 
     let lastErrorInfo = null;
