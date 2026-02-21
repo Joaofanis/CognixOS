@@ -45,7 +45,7 @@ const CustomBarTooltip = ({ active, payload, label }: any) => {
         <p style={{ color: "rgba(255,255,255,0.95)", fontSize: 13, fontWeight: 600, marginBottom: 4 }}>
           {label}
         </p>
-        <p style={{ color: "#a78bfa", fontSize: 13, fontWeight: 700 }}>
+        <p style={{ color: "#F5BE40", fontSize: 13, fontWeight: 700 }}>
           {payload[0].value} menções
         </p>
       </div>
@@ -71,7 +71,7 @@ const CustomRadarTooltip = ({ active, payload }: any) => {
         <p style={{ color: "rgba(255,255,255,0.9)", fontSize: 12, fontWeight: 600 }}>
           {payload[0].payload.trait}
         </p>
-        <p style={{ color: "#a78bfa", fontSize: 14, fontWeight: 700 }}>
+        <p style={{ color: "#4D83F0", fontSize: 14, fontWeight: 700 }}>
           {payload[0].value} / 10
         </p>
       </div>
@@ -195,11 +195,11 @@ export default function BrainAnalysis({ brainId }: Props) {
                   <RadarChart cx="50%" cy="50%" outerRadius="78%" data={radarData}>
                     <defs>
                       <radialGradient id="radarFill" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
-                        <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.5} />
-                        <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.1} />
+                        <stop offset="0%" stopColor="hsl(var(--jade))" stopOpacity={0.55} />
+                        <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.08} />
                       </radialGradient>
                     </defs>
-                    <PolarGrid stroke="hsla(var(--primary), 0.12)" />
+                    <PolarGrid stroke="hsla(var(--primary), 0.10)" />
                     <PolarAngleAxis
                       dataKey="trait"
                       tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))", fontWeight: 600 }}
@@ -213,12 +213,12 @@ export default function BrainAnalysis({ brainId }: Props) {
                     <Radar
                       name="Personalidade"
                       dataKey="value"
-                      stroke="hsl(var(--primary))"
+                      stroke="hsl(var(--jade))"
                       fill="url(#radarFill)"
                       fillOpacity={1}
                       strokeWidth={2.5}
-                      dot={{ fill: "hsl(var(--primary))", r: 4, strokeWidth: 0 }}
-                      activeDot={{ fill: "hsl(var(--primary))", r: 6, strokeWidth: 2, stroke: "white" }}
+                      dot={{ fill: "hsl(var(--jade))", r: 4, strokeWidth: 0 }}
+                      activeDot={{ fill: "hsl(var(--accent))", r: 6, strokeWidth: 2, stroke: "white" }}
                     />
                     <Tooltip content={<CustomRadarTooltip />} />
                   </RadarChart>
@@ -232,20 +232,27 @@ export default function BrainAnalysis({ brainId }: Props) {
               {/* Trait Score Pills */}
               {radarData.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1.5 justify-center">
-                  {radarData.map((d) => (
-                    <span
-                      key={d.trait}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold"
-                      style={{
-                        background: `hsla(var(--primary), ${0.08 + (d.value / 10) * 0.15})`,
-                        color: `hsl(var(--primary))`,
-                        border: `1px solid hsla(var(--primary), ${0.15 + (d.value / 10) * 0.2})`,
-                      }}
-                    >
-                      {d.trait}
-                      <span className="opacity-70">{d.value}</span>
-                    </span>
-                  ))}
+                  {radarData.map((d) => {
+                    const isHigh = d.value >= 7;
+                    return (
+                      <span
+                        key={d.trait}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold"
+                        style={{
+                          background: isHigh
+                            ? `hsla(var(--accent), 0.18)`
+                            : `hsla(var(--jade), ${0.08 + (d.value / 10) * 0.14})`,
+                          color: isHigh ? `hsl(var(--accent))` : `hsl(var(--jade))`,
+                          border: isHigh
+                            ? `1px solid hsla(var(--accent), 0.35)`
+                            : `1px solid hsla(var(--jade), ${0.15 + (d.value / 10) * 0.2})`,
+                        }}
+                      >
+                        {d.trait}
+                        <span className="opacity-75 font-bold">{d.value}</span>
+                      </span>
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
@@ -270,8 +277,9 @@ export default function BrainAnalysis({ brainId }: Props) {
                   >
                     <defs>
                       <linearGradient id={BAR_GRADIENT_ID} x1="0" y1="0" x2="1" y2="0">
-                        <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.85} />
-                        <stop offset="100%" stopColor="hsl(var(--accent))" stopOpacity={1} />
+                        <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={1} />
+                        <stop offset="60%" stopColor="hsl(var(--accent))" stopOpacity={0.95} />
+                        <stop offset="100%" stopColor="hsl(var(--jade))" stopOpacity={0.9} />
                       </linearGradient>
                     </defs>
                     <XAxis type="number" hide domain={[0, "dataMax"]} />
