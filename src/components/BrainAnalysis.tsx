@@ -42,8 +42,12 @@ export default function BrainAnalysis({ brainId }: Props) {
   const generateAnalysis = async () => {
     setGenerating(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       const { data, error } = await supabase.functions.invoke("analyze-brain", {
         body: { brainId },
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`
+        }
       });
       if (error) {
         // supabase.functions.invoke wraps non-2xx as error
