@@ -99,6 +99,12 @@ serve(async (req) => {
     if (!response.ok) {
       const t = await response.text();
       console.error("AI error:", response.status, t);
+      if (response.status === 429) {
+        return new Response(JSON.stringify({ error: "Modelo temporariamente limitado. Tente novamente em alguns segundos." }), {
+          status: 429,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       throw new Error("Erro ao analisar com IA");
     }
 
