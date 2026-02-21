@@ -57,6 +57,13 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        // Jewel palette extras
+        jade: {
+          DEFAULT: "hsl(var(--jade))",
+        },
+        gold: {
+          DEFAULT: "hsl(var(--gold))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

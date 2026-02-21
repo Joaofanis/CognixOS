@@ -19,11 +19,13 @@ export default function Dashboard() {
   const [showCreate, setShowCreate] = useState(false);
 
   const { data: brains, isLoading } = useQuery({
-    queryKey: ["brains"],
+    queryKey: ["brains", user?.id],
+    enabled: !!user,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("brains")
         .select("*")
+        .eq("user_id", user!.id)
         .order("updated_at", { ascending: false });
       if (error) throw error;
       return data;
@@ -104,7 +106,7 @@ export default function Dashboard() {
           </div>
           <Button
             onClick={() => setShowCreate(true)}
-            className="h-12 px-6 gap-2 rounded-2xl bg-gradient-to-r from-primary to-violet-500 hover:from-primary/90 hover:to-violet-500/90 shadow-lg shadow-primary/25 hover:shadow-primary/40 active:scale-[0.98] transition-all text-white font-semibold"
+            className="h-12 px-6 gap-2 rounded-2xl gradient-jewel hover:opacity-90 shadow-lg shadow-primary/25 hover:shadow-primary/40 active:scale-[0.98] transition-all text-white font-semibold"
           >
             <Plus className="h-5 w-5" />
             Criar Cérebro
@@ -117,7 +119,7 @@ export default function Dashboard() {
             variant={filterType === "all" ? "default" : "outline"}
             className={`cursor-pointer shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${
               filterType === "all"
-                ? "bg-gradient-to-r from-primary to-violet-500 border-transparent text-white shadow-md shadow-primary/20"
+                ? "gradient-jewel border-transparent text-white shadow-md shadow-primary/20"
                 : "hover:border-primary/50 hover:text-primary"
             }`}
             onClick={() => setFilterType("all")}
@@ -135,7 +137,7 @@ export default function Dashboard() {
               variant={filterType === key ? "default" : "outline"}
               className={`cursor-pointer shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${
                 filterType === key
-                  ? "bg-gradient-to-r from-primary to-violet-500 border-transparent text-white shadow-md shadow-primary/20"
+                  ? "gradient-jewel border-transparent text-white shadow-md shadow-primary/20"
                   : "hover:border-primary/50 hover:text-primary"
               }`}
               onClick={() => setFilterType(key)}
@@ -173,7 +175,7 @@ export default function Dashboard() {
             </p>
             <Button
               onClick={() => setShowCreate(true)}
-              className="rounded-2xl px-8 py-5 bg-gradient-to-r from-primary to-violet-500 text-white shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all"
+              className="rounded-2xl px-8 py-5 gradient-jewel text-white shadow-lg shadow-primary/25 hover:opacity-90 transition-all"
             >
               Começar Agora
             </Button>
@@ -193,7 +195,7 @@ export default function Dashboard() {
                   {/* Gradient border on hover */}
                   <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-primary/0 to-accent/0 group-hover:from-primary/20 group-hover:to-accent/10 transition-all duration-500 pointer-events-none" />
                   
-                  <div className="h-full border border-border/40 bg-card/70 backdrop-blur-sm hover:border-primary/30 transition-all duration-300 rounded-3xl overflow-hidden p-5 space-y-4">
+                  <div className="h-full min-h-[160px] border border-border/60 bg-card shadow-sm hover:border-primary/40 hover:shadow-md transition-all duration-300 rounded-3xl overflow-hidden p-5 space-y-4">
                     {/* Top row */}
                     <div className="flex items-center gap-4">
                       <div className="flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/15 to-accent/10 group-hover:from-primary/25 group-hover:to-accent/20 transition-all shadow-sm border border-primary/10 p-3">
@@ -220,7 +222,7 @@ export default function Dashboard() {
                     )}
 
                     {/* Bottom accent bar */}
-                    <div className="h-0.5 rounded-full bg-gradient-to-r from-primary/0 via-primary/0 to-primary/0 group-hover:from-primary/60 group-hover:via-accent/40 group-hover:to-primary/0 transition-all duration-500" />
+                    <div className="h-0.5 rounded-full bg-gradient-to-r from-primary/0 via-primary/0 to-primary/0 group-hover:from-primary/70 group-hover:via-accent/50 group-hover:to-jade/30 transition-all duration-500" />
                   </div>
                 </div>
               );
