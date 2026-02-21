@@ -79,12 +79,17 @@ serve(async (req) => {
       });
     }
 
-    const allText = texts.map((t) => t.content).join("\n\n");
+    // Truncate text to ~30k characters (~8k tokens) to fit model context limits
+    const MAX_CHARS = 30000;
+    let allText = texts.map((t) => t.content).join("\n\n");
+    if (allText.length > MAX_CHARS) {
+      allText = allText.slice(0, MAX_CHARS) + "\n\n[...texto truncado por limite de contexto]";
+      console.log(`analyze-brain: truncated text from ${texts.map(t=>t.content).join("").length} to ${MAX_CHARS} chars`);
+    }
 
     const models = [
       "meta-llama/llama-3.3-70b-instruct:free",
       "nvidia/nemotron-3-nano-30b-a3b:free",
-      "arcee-ai/trinity-large-preview:free",
       "stepfun/step-3.5-flash:free",
     ];
 
