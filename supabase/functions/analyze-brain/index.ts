@@ -7,6 +7,27 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+/** Try to extract a JSON object from a raw text that may contain markdown fences. */
+function extractJSON(text: string): Record<string, unknown> | null {
+  if (!text) return null;
+  // Remove markdown code fences if present
+  const cleaned = text.replace(/```(?:json)?\s*([\s\S]*?)```/g, "$1").trim();
+  // Try full string first
+  const candidates = [cleaned, text];
+  for (const candidate of candidates) {
+    const start = candidate.indexOf("{");
+    const end = candidate.lastIndexOf("}");
+    if (start !== -1 && end !== -1 && end > start) {
+      try {
+        return JSON.parse(candidate.slice(start, end + 1));
+      } catch {
+        // ignore
+      }
+    }
+  }
+  return null;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -87,14 +108,35 @@ serve(async (req) => {
       console.log(`analyze-brain: truncated text from ${texts.map(t=>t.content).join("").length} to ${MAX_CHARS} chars`);
     }
 
+    const SYSTEM_PROMPT = `Você é um analista de personalidade especialista. Analise os textos fornecidos e retorne APENAS um objeto JSON válido, sem nenhum texto adicional, sem markdown, sem explicações. O JSON deve ter exatamente esta estrutura:
+{
+  "personality_traits": {
+    "extroversão": <número 0-10>,
+    "criatividade": <número 0-10>,
+    "pragmatismo": <número 0-10>,
+    "empatia": <número 0-10>,
+    "assertividade": <número 0-10>,
+    "curiosidade": <número 0-10>,
+    "disciplina": <número 0-10>,
+    "otimismo": <número 0-10>
+  },
+  "frequent_themes": [
+    {"name": "<tema>", "count": <número inteiro>}
+  ]
+}`;
+
+    const USER_PROMPT = `Analise os seguintes textos de uma pessoa e retorne o JSON estruturado conforme instrução do sistema:\n\nTextos:\n${allText}`;
+
     const models = [
       "meta-llama/llama-3.3-70b-instruct:free",
       "nvidia/nemotron-3-nano-30b-a3b:free",
       "stepfun/step-3.5-flash:free",
+      "google/gemma-3-27b-it:free",
+      "mistralai/mistral-7b-instruct:free",
     ];
 
-    let result = null;
-    let lastError = null;
+    let analysisData: { personality_traits: Record<string, number>; frequent_themes: Array<{ name: string; count: number }> } | null = null;
+    let lastError: { status?: number; text?: string; error?: string } | null = null;
 
     for (const model of models) {
       try {
@@ -108,56 +150,12 @@ serve(async (req) => {
           body: JSON.stringify({
             model,
             messages: [
-              {
-                role: "system",
-                content: "Você é um analista de personalidade. Analise os textos e extraia dados estruturados.",
-              },
-              {
-                role: "user",
-                content: `Analise os seguintes textos de uma pessoa e extraia:\n1. Traços de personalidade (escala 0-10): extroversão, criatividade, pragmatismo, empatia, assertividade, curiosidade, disciplina, otimismo\n2. Temas mais frequentes (lista com nome e contagem estimada)\n\nTextos:\n${allText}`,
-              },
+              { role: "system", content: SYSTEM_PROMPT },
+              { role: "user", content: USER_PROMPT },
             ],
-            tools: [
-              {
-                type: "function",
-                function: {
-                  name: "save_analysis",
-                  description: "Save personality analysis results",
-                  parameters: {
-                    type: "object",
-                    properties: {
-                      personality_traits: {
-                        type: "object",
-                        properties: {
-                          extroversão: { type: "number" },
-                          criatividade: { type: "number" },
-                          pragmatismo: { type: "number" },
-                          empatia: { type: "number" },
-                          assertividade: { type: "number" },
-                          curiosidade: { type: "number" },
-                          disciplina: { type: "number" },
-                          otimismo: { type: "number" },
-                        },
-                        required: ["extroversão", "criatividade", "pragmatismo", "empatia", "assertividade", "curiosidade", "disciplina", "otimismo"],
-                      },
-                      frequent_themes: {
-                        type: "array",
-                        items: {
-                          type: "object",
-                          properties: {
-                            name: { type: "string" },
-                            count: { type: "number" },
-                          },
-                          required: ["name", "count"],
-                        },
-                      },
-                    },
-                    required: ["personality_traits", "frequent_themes"],
-                  },
-                },
-              },
-            ],
-            tool_choice: { type: "function", function: { name: "save_analysis" } },
+            temperature: 0.2,
+            max_tokens: 1500,
+            response_format: { type: "json_object" },
           }),
         });
 
@@ -169,28 +167,51 @@ serve(async (req) => {
           continue;
         }
 
-        result = await response.json();
-        console.log(`analyze-brain: success with model ${model}`);
-        break;
+        const result = await response.json();
+        const rawContent: string = result.choices?.[0]?.message?.content || "";
+        console.log(`analyze-brain: raw content from ${model}:`, rawContent.slice(0, 200));
+
+        const parsed = extractJSON(rawContent);
+        if (
+          parsed &&
+          parsed.personality_traits &&
+          typeof parsed.personality_traits === "object" &&
+          Array.isArray(parsed.frequent_themes)
+        ) {
+          analysisData = parsed as typeof analysisData;
+          console.log(`analyze-brain: success with model ${model}`);
+          break;
+        } else {
+          console.warn(`Model ${model} returned invalid structure:`, rawContent.slice(0, 300));
+          lastError = { error: "Invalid JSON structure from model" };
+        }
       } catch (e) {
         console.error(`Fetch error for model ${model}:`, e);
         lastError = { error: e instanceof Error ? e.message : String(e) };
       }
     }
 
-    if (!result) {
+    if (!analysisData) {
       const msg = lastError?.status === 429
         ? "Limite de requisições excedido. Tente novamente em alguns segundos."
-        : "Falha ao conectar com todos os provedores de IA.";
+        : "Nenhum modelo de IA conseguiu gerar uma análise estruturada. Tente novamente.";
       return new Response(JSON.stringify({ error: msg }), {
-        status: lastError?.status || 500,
+        status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const toolCall = result.choices?.[0]?.message?.tool_calls?.[0];
-    if (!toolCall) throw new Error("IA não retornou análise estruturada");
 
-    const analysisData = JSON.parse(toolCall.function.arguments);
+    // Ensure numeric values in personality_traits
+    const traits = analysisData.personality_traits;
+    for (const key of Object.keys(traits)) {
+      traits[key] = Number(traits[key]) || 0;
+    }
+
+    // Ensure numeric counts in themes and sort descending
+    const themes = analysisData.frequent_themes
+      .map((t: { name: string; count: number }) => ({ name: String(t.name), count: Number(t.count) || 1 }))
+      .sort((a: { count: number }, b: { count: number }) => b.count - a.count)
+      .slice(0, 15);
 
     // Upsert analysis
     const { error: upsertErr } = await supabase
@@ -198,8 +219,8 @@ serve(async (req) => {
       .upsert(
         {
           brain_id: brainId,
-          personality_traits: analysisData.personality_traits,
-          frequent_themes: analysisData.frequent_themes,
+          personality_traits: traits,
+          frequent_themes: themes,
           updated_at: new Date().toISOString(),
         },
         { onConflict: "brain_id" }
@@ -212,7 +233,7 @@ serve(async (req) => {
     });
   } catch (e) {
     console.error("analyze-brain error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Erro" }), {
+    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Erro interno" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
