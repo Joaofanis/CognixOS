@@ -32,39 +32,46 @@ serve(async (req) => {
       .from("brain_texts")
       .select("content")
       .eq("brain_id", brainId)
-      .order("created_at", { ascending: true });
+      .order("created_at", { ascending: false }) // Newer first
+      .limit(50); // Simple limit for now
 
     const contextTexts = texts?.map((t) => t.content).join("\n\n---\n\n") || "";
 
     // Build system prompt based on brain type
     let systemPrompt = "";
+    const baseInstruction = "\n\nUse APENAS o contexto fornecido abaixo. Se a informação não estiver lá, admita honestamente que não sabe. Mantenha as respostas concisas e úteis.";
+
     switch (brain.type) {
       case "person_clone":
-        systemPrompt = `Você é um clone de "${brain.name}". Responda EXATAMENTE como esta pessoa responderia, usando o estilo, tom, vocabulário e personalidade dela. Use APENAS os textos fornecidos como base para entender quem é essa pessoa. Nunca quebre o personagem. Se não souber algo com base nos textos, diga que não tem informação suficiente sobre isso.`;
+        systemPrompt = `Você é a personificação digital de "${brain.name}". Seu objetivo é emular perfeitamente o estilo de escrita, vocabulário, gírias, tom emocional e personalidade desta pessoa. ${baseInstruction}`;
         break;
       case "knowledge_base":
-        systemPrompt = `Você é um assistente especializado em "${brain.name}". Use EXCLUSIVAMENTE os dados técnicos e informações fornecidos nos textos abaixo para responder. Não invente informações. Se algo não estiver nos textos, diga que não tem essa informação na base de conhecimento.`;
+        systemPrompt = `Você é um Assistente especializado em "${brain.name}". Atue como um especialista técnico altamente preciso. ${baseInstruction}`;
         break;
       case "philosophy":
-        systemPrompt = `Você segue a filosofia/conceitos de "${brain.name}". Responda sempre alinhado com os conceitos e linha de pensamento descrita nos textos fornecidos. Aplique esses conceitos para responder perguntas e dar conselhos.`;
+        systemPrompt = `Você é um mentor que segue estritamente a linha de raciocínio de "${brain.name}". Suas respostas devem ser reflexivas e baseadas nos princípios filosóficos encontrados no contexto. ${baseInstruction}`;
         break;
       case "practical_guide":
-        systemPrompt = `Você é um guia prático sobre "${brain.name}". Use os dados e procedimentos fornecidos nos textos para orientar o usuário passo a passo. Seja prático, direto e baseie-se exclusivamente nos textos fornecidos.`;
+        systemPrompt = `Você é um guia instrucional prático para "${brain.name}". Responda com passos claros, listas e orientações diretas para execução. ${baseInstruction}`;
         break;
     }
 
-    systemPrompt += `\n\n--- TEXTOS DE REFERÊNCIA ---\n\n${contextTexts}`;
+    systemPrompt += `\n\nContexto de Conhecimento de "${brain.name}":\n${contextTexts}`;
 
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${OPENROUTER_API_KEY}`,
         "Content-Type": "application/json",
+        "HTTP-Referer": "https://ai-second-brain.lovable.app", // For tracking
+        "X-Title": "AI Second Brain",
       },
       body: JSON.stringify({
         model: "qwen/qwen3-next-80b-a3b-instruct:free",
         messages: [{ role: "system", content: systemPrompt }, ...messages],
         stream: true,
+        temperature: 0.7,
+        max_tokens: 1500,
       }),
     });
 
