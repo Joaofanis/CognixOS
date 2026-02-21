@@ -47,6 +47,7 @@ import {
 } from "@/components/ui/sheet";
 import EditBrainDialog from "@/components/EditBrainDialog";
 import { useBrainChat } from "@/hooks/useBrainChat";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
 
 export default function BrainDetail() {
@@ -57,6 +58,7 @@ export default function BrainDetail() {
   const [showEdit, setShowEdit] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const isMobile = useIsMobile();
 
   const { 
     messages, 
@@ -160,30 +162,30 @@ export default function BrainDetail() {
   const isPersonClone = brain.type === "person_clone";
 
   const renderHistoryContent = () => (
-    <div className="flex-1 flex flex-col h-full bg-card/30 backdrop-blur-sm animate-in slide-in-from-right duration-300">
-      <div className="p-4 border-b flex items-center justify-between bg-card/50">
-        <h3 className="font-semibold text-sm">Conversas Recentes</h3>
-        <Button variant="ghost" size="icon" className="h-6 w-6 hidden sm:flex" onClick={() => setShowHistory(false)}>
+    <div className="flex-1 flex flex-col h-full bg-card/50 backdrop-blur-xl animate-in slide-in-from-right duration-300">
+      <div className="px-4 py-3.5 border-b border-border/50 flex items-center justify-between">
+        <h3 className="font-bold text-sm text-gradient">Conversas Recentes</h3>
+        <Button variant="ghost" size="icon" className="h-7 w-7 hidden sm:flex rounded-xl hover:bg-muted" onClick={() => setShowHistory(false)}>
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
-      <div className="p-3 border-b">
+      <div className="p-3 border-b border-border/50">
         <Button 
-          variant="outline" 
-          className="w-full justify-start gap-2 rounded-xl h-11 border-dashed border-primary/30 hover:border-primary/60 hover:bg-primary/5 transition-all"
+          variant="outline"
+          className="w-full justify-start gap-2 rounded-2xl h-10 border border-dashed border-primary/30 hover:border-primary/60 hover:bg-primary/8 transition-all text-primary font-semibold text-sm"
           onClick={() => {
             resetChat();
             setShowHistory(false);
           }}
         >
-          <PlusCircle className="h-4 w-4 text-primary" />
+          <PlusCircle className="h-4 w-4" />
           Nova Conversa
         </Button>
       </div>
       <ScrollArea className="flex-1">
-        <div className="p-3 space-y-2">
+        <div className="p-3 space-y-1.5">
           {conversations?.length === 0 ? (
-            <div className="text-center py-10 text-muted-foreground italic text-sm">
+            <div className="text-center py-12 text-muted-foreground/80 italic text-sm">
               Nenhuma conversa ainda
             </div>
           ) : (
@@ -194,29 +196,29 @@ export default function BrainDetail() {
                   loadHistory(conv.id);
                   setShowHistory(false);
                 }}
-                className={`w-full text-left p-3 rounded-xl border transition-all group cursor-pointer relative ${
+                className={`w-full text-left p-3 rounded-2xl transition-all group cursor-pointer border ${
                   conversationId === conv.id 
-                    ? "bg-primary/10 border-primary/30" 
-                    : "hover:bg-primary/5 border-transparent hover:border-primary/10"
+                    ? "bg-primary/12 border-primary/30 shadow-sm" 
+                    : "hover:bg-primary/5 border-transparent hover:border-primary/15"
                 }`}
               >
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center gap-1.5">
                     <Clock className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">
+                    <span className="text-[10px] text-muted-foreground font-semibold tracking-wide">
                       {new Date(conv.updated_at).toLocaleDateString()}
                     </span>
                   </div>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/10 hover:text-destructive"
+                    className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/15 hover:text-destructive rounded-xl"
                     onClick={(e) => handleDeleteConversation(e, conv.id)}
                   >
                     <Trash2 className="h-3 w-3" />
                   </Button>
                 </div>
-                <p className={`text-sm font-medium line-clamp-2 truncate transition-colors ${
+                <p className={`text-sm font-medium line-clamp-2 transition-colors ${
                   conversationId === conv.id ? "text-primary" : "group-hover:text-primary"
                 }`}>
                   {conv.title || "Nova Conversa"}
@@ -230,43 +232,47 @@ export default function BrainDetail() {
   );
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex min-h-screen flex-col bg-mesh bg-background">
       {/* Header */}
-      <header className="sticky top-0 z-10 glass border-b">
+      <header className="sticky top-0 z-20 glass border-b border-border/50">
         <div className="container flex h-16 items-center gap-2 sm:gap-4 px-4 sm:px-6">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/")} className="rounded-full hover:bg-primary/10 h-8 w-8 sm:h-10 sm:w-10">
-            <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
+          <Button variant="ghost" size="icon" onClick={() => navigate("/")} className="rounded-2xl hover:bg-primary/10 h-9 w-9">
+            <ArrowLeft className="h-4 w-4" />
           </Button>
-          <div className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-            <Icon className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/20 to-accent/10 border border-primary/10 shadow-sm">
+            <Icon className="h-5 w-5 text-primary" />
           </div>
-          <div className="min-w-0 mr-auto max-w-[120px] sm:max-w-none">
-            <h1 className="font-bold text-sm sm:text-lg truncate leading-tight">{brain.name}</h1>
-            <p className="text-[10px] sm:text-xs text-muted-foreground font-medium uppercase tracking-wider">{config?.label}</p>
+          <div className="min-w-0 mr-auto max-w-[130px] sm:max-w-none">
+            <h1 className="font-extrabold text-base sm:text-lg truncate leading-tight text-gradient">{brain.name}</h1>
+            <p className="text-[10px] sm:text-xs text-muted-foreground font-semibold uppercase tracking-widest">{config?.label}</p>
           </div>
           
-          <div className="flex items-center gap-1 sm:gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <Button 
               variant="outline" 
               size="sm" 
               onClick={() => setShowHistory(!showHistory)}
-              className={`flex gap-1 sm:gap-2 rounded-full transition-all h-8 sm:h-9 px-2 sm:px-4 ${showHistory ? 'bg-primary/10 border-primary text-primary' : ''}`}
+              className={`flex gap-1.5 rounded-2xl transition-all h-9 px-3 sm:px-4 font-medium text-xs sm:text-sm ${
+                showHistory 
+                  ? 'bg-primary/15 border-primary/50 text-primary shadow-inner' 
+                  : 'hover:bg-primary/10 hover:border-primary/30'
+              }`}
             >
-              <History className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              <span className="hidden xs:inline text-xs sm:text-sm">Histórico</span>
+              <History className="h-4 w-4" />
+              <span className="hidden sm:inline">Histórico</span>
             </Button>
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="rounded-full h-8 w-8 sm:h-9 sm:w-9">
-                  <MoreVertical className="h-4 w-4 sm:h-5 sm:w-5" />
+                <Button variant="ghost" size="icon" className="rounded-2xl h-9 w-9 hover:bg-muted/80">
+                  <MoreVertical className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-40 glass">
-                <DropdownMenuItem onClick={() => setShowEdit(true)} className="gap-2 cursor-pointer">
+              <DropdownMenuContent align="end" className="w-44 glass rounded-2xl">
+                <DropdownMenuItem onClick={() => setShowEdit(true)} className="gap-2 cursor-pointer rounded-xl m-1">
                   <Pencil className="h-4 w-4" /> Editar
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setShowDelete(true)} className="gap-2 cursor-pointer text-destructive focus:text-destructive">
+                <DropdownMenuItem onClick={() => setShowDelete(true)} className="gap-2 cursor-pointer text-destructive focus:text-destructive rounded-xl m-1">
                   <Trash2 className="h-4 w-4" /> Excluir Cérebro
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -277,18 +283,18 @@ export default function BrainDetail() {
 
       {/* Tabs */}
       <Tabs defaultValue="chat" className="flex-1 flex flex-col">
-        <div className="border-b bg-card/30 backdrop-blur-sm">
+        <div className="border-b border-border/40 bg-card/40 backdrop-blur-xl">
           <div className="container">
-            <TabsList className="h-12 w-full justify-start bg-transparent p-0 gap-4 sm:gap-6">
-              <TabsTrigger value="chat" className="gap-2 px-1 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none font-medium transition-all text-xs sm:text-sm">
-                <MessageSquare className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> Chat
+            <TabsList className="h-12 w-full justify-start bg-transparent p-0 gap-6">
+              <TabsTrigger value="chat" className="gap-2 px-1 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none font-semibold transition-all text-sm text-muted-foreground">
+                <MessageSquare className="h-4 w-4" /> Chat
               </TabsTrigger>
-              <TabsTrigger value="texts" className="gap-2 px-1 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none font-medium transition-all text-xs sm:text-sm">
-                <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> Fontes
+              <TabsTrigger value="texts" className="gap-2 px-1 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none font-semibold transition-all text-sm text-muted-foreground">
+                <FileText className="h-4 w-4" /> Fontes
               </TabsTrigger>
               {isPersonClone && (
-                <TabsTrigger value="analysis" className="gap-2 px-1 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none font-medium transition-all text-xs sm:text-sm">
-                  <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> Análise
+                <TabsTrigger value="analysis" className="gap-2 px-1 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none font-semibold transition-all text-sm text-muted-foreground">
+                  <BarChart3 className="h-4 w-4" /> Análise
                 </TabsTrigger>
               )}
             </TabsList>
@@ -317,7 +323,7 @@ export default function BrainDetail() {
           )}
 
           {/* History Mobile Sheet */}
-          <Sheet open={showHistory} onOpenChange={setShowHistory}>
+          <Sheet open={showHistory && isMobile} onOpenChange={setShowHistory}>
             <SheetContent side="right" className="p-0 w-[85%] sm:hidden glass">
               {renderHistoryContent()}
             </SheetContent>
