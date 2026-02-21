@@ -62,17 +62,18 @@ serve(async (req) => {
       "qwen/qwen-2.5-72b-instruct:free",
       "google/gemma-2-9b-it:free",
       "mistralai/mistral-7b-instruct:free",
-      "nvidia/nemotron-4-340b-instruct:free",
+      "nvidia/nemotron-3-nano-30b-a3b:free",
       "liquid/lfm-2.5-1.2b-thinking:free",
       "stepfun/step-3.5-flash:free",
       "arcee-ai/trinity-large-preview:free"
     ];
 
-    let lastError = null;
+    let lastErrorInfo = null;
     let response = null;
 
     for (const model of models) {
       try {
+        console.log(`Attempting with model: ${model}`);
         const aiResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
           method: "POST",
           headers: {
@@ -94,25 +95,31 @@ serve(async (req) => {
           response = aiResponse;
           break;
         } else {
-          lastError = { status: aiResponse.status, text: await aiResponse.text(), model };
-          if (aiResponse.status !== 429 && aiResponse.status !== 503) break; // Don't retry for non-transient errors
-          console.warn(`Model ${model} failed with ${aiResponse.status}. Trying next...`);
+          const errorText = await aiResponse.text();
+          lastErrorInfo = { status: aiResponse.status, text: errorText, model };
+          console.error(`Model ${model} failed with ${aiResponse.status}:`, errorText);
+          
+          // If it's a "fatal" error (auth, billing, etc.), don't bother with other models
+          if (aiResponse.status === 401 || aiResponse.status === 400 || aiResponse.status === 403) {
+             break;
+          }
         }
       } catch (e) {
-        lastError = e;
+        lastErrorInfo = { error: e instanceof Error ? e.message : String(e) };
         console.error(`Fetch error for model ${model}:`, e);
       }
     }
 
     if (!response) {
-      if (lastError?.status === 429) {
-        return new Response(JSON.stringify({ error: "Todos os modelos gratuitos estão congestionados. Tente novamente em alguns segundos." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      return new Response(JSON.stringify({ error: "Erro ao conectar com provedores de IA. Tente mudar o modelo ou aguarde." }), {
-        status: 500,
+      const errorMsg = lastErrorInfo?.text ? 
+        `Provedor de IA retornou erro ${lastErrorInfo.status}: ${lastErrorInfo.text}` : 
+        "Falha ao conectar com todos os provedores de IA.";
+
+      return new Response(JSON.stringify({ 
+        error: errorMsg,
+        details: lastErrorInfo 
+      }), {
+        status: lastErrorInfo?.status || 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
