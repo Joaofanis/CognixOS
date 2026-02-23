@@ -66,7 +66,8 @@ export default function BrainDetail() {
     sendMessage, 
     loadHistory, 
     conversationId, 
-    resetChat 
+    resetChat,
+    retry
   } = useBrainChat({ brainId: id! });
 
   const { data: brain, isLoading } = useQuery({
@@ -97,7 +98,6 @@ export default function BrainDetail() {
     enabled: !!id,
   });
 
-  // Load latest conversation on mount if none selected
   useEffect(() => {
     if (!conversationId && conversations && conversations.length > 0 && messages.length === 0) {
       loadHistory(conversations[0].id);
@@ -159,7 +159,6 @@ export default function BrainDetail() {
 
   const config = BRAIN_TYPE_CONFIG[brain.type as BrainType];
   const Icon = config?.icon || BrainIcon;
-  const isPersonClone = brain.type === "person_clone";
 
   const renderHistoryContent = () => (
     <div className="flex-1 flex flex-col h-full bg-card/50 backdrop-blur-xl animate-in slide-in-from-right duration-300">
@@ -292,11 +291,9 @@ export default function BrainDetail() {
               <TabsTrigger value="texts" className="gap-2 px-1 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none font-semibold transition-all text-sm text-muted-foreground">
                 <FileText className="h-4 w-4" /> Fontes
               </TabsTrigger>
-              {isPersonClone && (
-                <TabsTrigger value="analysis" className="gap-2 px-1 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none font-semibold transition-all text-sm text-muted-foreground">
-                  <BarChart3 className="h-4 w-4" /> Análise
-                </TabsTrigger>
-              )}
+              <TabsTrigger value="analysis" className="gap-2 px-1 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none font-semibold transition-all text-sm text-muted-foreground">
+                <BarChart3 className="h-4 w-4" /> Análise
+              </TabsTrigger>
             </TabsList>
           </div>
         </div>
@@ -312,17 +309,16 @@ export default function BrainDetail() {
               sendMessage={sendMessage}
               onNewChat={resetChat}
               conversationId={conversationId}
+              onRetry={retry}
             />
           </div>
           
-          {/* History Desktop Sidebar */}
           {showHistory && (
             <div className="hidden sm:flex flex-col w-72 border-l">
               {renderHistoryContent()}
             </div>
           )}
 
-          {/* History Mobile Sheet */}
           <Sheet open={showHistory && isMobile} onOpenChange={setShowHistory}>
             <SheetContent side="right" className="p-0 w-[85%] sm:hidden glass">
               {renderHistoryContent()}
@@ -332,11 +328,9 @@ export default function BrainDetail() {
         <TabsContent value="texts" className="m-0 bg-background/50 flex-1">
           <FeedTexts brainId={brain.id} />
         </TabsContent>
-        {isPersonClone && (
-          <TabsContent value="analysis" className="m-0 bg-background/50 flex-1">
-            <BrainAnalysis brainId={brain.id} />
-          </TabsContent>
-        )}
+        <TabsContent value="analysis" className="m-0 bg-background/50 flex-1">
+          <BrainAnalysis brainId={brain.id} brainType={brain.type as BrainType} />
+        </TabsContent>
       </Tabs>
 
       {/* Dialogs */}
