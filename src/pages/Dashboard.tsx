@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { BRAIN_TYPE_CONFIG, BrainType } from "@/lib/brain-types";
-import { Plus, Search, LogOut, Brain, Sparkles } from "lucide-react";
+import { Plus, Search, LogOut, Brain, Sparkles, GitCompareArrows, FileText, MessageSquare, User } from "lucide-react";
 import { toast } from "sonner";
 import CreateBrainDialog from "@/components/CreateBrainDialog";
 
@@ -29,6 +29,39 @@ export default function Dashboard() {
         .order("updated_at", { ascending: false });
       if (error) throw error;
       return data;
+    },
+  });
+
+  // Fetch counts for texts and conversations
+  const { data: textCounts } = useQuery({
+    queryKey: ["brain-text-counts", user?.id],
+    enabled: !!brains && brains.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("brain_texts")
+        .select("brain_id");
+      if (error) throw error;
+      const counts: Record<string, number> = {};
+      data?.forEach((t) => {
+        counts[t.brain_id] = (counts[t.brain_id] || 0) + 1;
+      });
+      return counts;
+    },
+  });
+
+  const { data: convCounts } = useQuery({
+    queryKey: ["brain-conv-counts", user?.id],
+    enabled: !!brains && brains.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("conversations")
+        .select("brain_id");
+      if (error) throw error;
+      const counts: Record<string, number> = {};
+      data?.forEach((c) => {
+        counts[c.brain_id] = (counts[c.brain_id] || 0) + 1;
+      });
+      return counts;
     },
   });
 
@@ -66,7 +99,15 @@ export default function Dashboard() {
               Segundo Cérebro
             </span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate("/profile")}
+              className="rounded-2xl h-9 w-9 hover:bg-primary/10"
+            >
+              <User className="h-4 w-4" />
+            </Button>
             <span className="text-xs text-muted-foreground hidden sm:block font-medium">
               {user?.email}
             </span>
@@ -104,6 +145,14 @@ export default function Dashboard() {
               className="pl-11 h-12 bg-card/60 border-border/50 focus:border-primary/50 transition-all rounded-2xl shadow-sm"
             />
           </div>
+          <Button
+            variant="outline"
+            onClick={() => navigate("/compare")}
+            className="h-12 px-5 gap-2 rounded-2xl font-semibold"
+          >
+            <GitCompareArrows className="h-4 w-4" />
+            Comparar
+          </Button>
           <Button
             onClick={() => setShowCreate(true)}
             className="h-12 px-6 gap-2 rounded-2xl gradient-jewel hover:opacity-90 shadow-lg shadow-primary/25 hover:shadow-primary/40 active:scale-[0.98] transition-all text-white font-semibold"
@@ -185,6 +234,8 @@ export default function Dashboard() {
             {filtered?.map((brain, idx) => {
               const config = BRAIN_TYPE_CONFIG[brain.type as BrainType];
               const Icon = config?.icon || Brain;
+              const textsCount = textCounts?.[brain.id] || 0;
+              const convsCount = convCounts?.[brain.id] || 0;
               return (
                 <div
                   key={brain.id}
@@ -220,6 +271,18 @@ export default function Dashboard() {
                         {brain.description}
                       </p>
                     )}
+
+                    {/* Counts */}
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <FileText className="h-3 w-3" />
+                        {textsCount} fonte{textsCount !== 1 ? "s" : ""}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <MessageSquare className="h-3 w-3" />
+                        {convsCount} conversa{convsCount !== 1 ? "s" : ""}
+                      </span>
+                    </div>
 
                     {/* Bottom accent bar */}
                     <div className="h-0.5 rounded-full bg-gradient-to-r from-primary/0 via-primary/0 to-primary/0 group-hover:from-primary/70 group-hover:via-accent/50 group-hover:to-jade/30 transition-all duration-500" />

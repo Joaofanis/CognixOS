@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, RefreshCw, BarChart3, Brain as BrainIcon, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
+import { BrainType } from "@/lib/brain-types";
 import {
   RadarChart,
   PolarGrid,
@@ -22,7 +23,15 @@ import {
 
 interface Props {
   brainId: string;
+  brainType?: BrainType;
 }
+
+const ANALYSIS_LABELS: Record<string, { title: string; radarTitle: string }> = {
+  person_clone: { title: "Análise de Personalidade", radarTitle: "Traços de Personalidade" },
+  knowledge_base: { title: "Análise de Conhecimento", radarTitle: "Áreas de Conhecimento" },
+  philosophy: { title: "Análise Filosófica", radarTitle: "Princípios Filosóficos" },
+  practical_guide: { title: "Análise de Competências", radarTitle: "Competências Práticas" },
+};
 
 // Custom tooltip for bar chart
 const CustomBarTooltip = ({ active, payload, label }: any) => {
@@ -77,11 +86,11 @@ const CustomRadarTooltip = ({ active, payload }: any) => {
   return null;
 };
 
-// Gradient fill for bars — intensity based on rank
 const BAR_GRADIENT_ID = "barGradient";
 
-export default function BrainAnalysis({ brainId }: Props) {
+export default function BrainAnalysis({ brainId, brainType = "person_clone" }: Props) {
   const [generating, setGenerating] = useState(false);
+  const labels = ANALYSIS_LABELS[brainType] || ANALYSIS_LABELS.person_clone;
 
   const { data: analysis, refetch } = useQuery({
     queryKey: ["brain-analysis", brainId],
@@ -101,7 +110,7 @@ export default function BrainAnalysis({ brainId }: Props) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const { data, error } = await supabase.functions.invoke("analyze-brain", {
-        body: { brainId },
+        body: { brainId, brainType },
         headers: {
           Authorization: `Bearer ${session?.access_token}`
         }
@@ -120,28 +129,28 @@ export default function BrainAnalysis({ brainId }: Props) {
     }
   };
 
-  const traits = analysis?.personality_traits as Record<string, number> | null;
+  // Use personality_traits or knowledge_areas based on type
+  const radarSource = brainType === "person_clone" 
+    ? analysis?.personality_traits as Record<string, number> | null
+    : (analysis?.knowledge_areas || analysis?.personality_traits) as Record<string, number> | null;
   const themes = analysis?.frequent_themes as Array<{ name: string; count: number }> | null;
 
-  const radarData = traits
-    ? Object.entries(traits).map(([key, value]) => ({
+  const radarData = radarSource
+    ? Object.entries(radarSource).map(([key, value]) => ({
         trait: key.charAt(0).toUpperCase() + key.slice(1),
         value: Number(value) || 0,
         fullMark: 10,
       }))
     : [];
 
-  // Sorted themes (should already be sorted from edge function)
   const sortedThemes = themes ? [...themes].sort((a, b) => b.count - a.count) : [];
-
-  // Max count for relative bar coloring
   const maxCount = sortedThemes[0]?.count || 1;
 
   return (
     <div className="container py-6 space-y-6 max-w-5xl">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="font-bold text-lg text-gradient">Análise de Personalidade</h3>
+          <h3 className="font-bold text-lg text-gradient">{labels.title}</h3>
           {analysis && (
             <p className="text-xs text-muted-foreground mt-0.5">
               Atualizado em {new Date(analysis.updated_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })}
@@ -183,7 +192,7 @@ export default function BrainAnalysis({ brainId }: Props) {
             <CardHeader className="pb-2">
               <CardTitle className="text-base font-bold flex items-center gap-2">
                 <BrainIcon className="h-4 w-4 text-primary" />
-                Traços de Personalidade
+                {labels.radarTitle}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -208,7 +217,7 @@ export default function BrainAnalysis({ brainId }: Props) {
                       axisLine={false}
                     />
                     <Radar
-                      name="Personalidade"
+                      name="Análise"
                       dataKey="value"
                       stroke="hsl(var(--jade))"
                       fill="url(#radarFill)"
@@ -222,11 +231,10 @@ export default function BrainAnalysis({ brainId }: Props) {
                 </ResponsiveContainer>
               ) : (
                 <p className="text-sm text-muted-foreground text-center py-8 italic">
-                  Dados de personalidade indisponíveis
+                  Dados indisponíveis
                 </p>
               )}
 
-              {/* Trait Score Pills */}
               {radarData.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1.5 justify-center">
                   {radarData.map((d) => {

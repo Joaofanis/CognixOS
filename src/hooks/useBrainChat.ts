@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { BrainType } from "@/lib/brain-types";
 
@@ -22,9 +22,10 @@ export function useBrainChat({
   const [messages, setMessages] = useState<Message[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const lastUserInputRef = useRef<string>("");
 
   const loadHistory = async (convId: string) => {
-    setMessages([]); // Clear current while loading
+    setMessages([]);
     setConversationId(convId);
     
     const { data: msgs } = await supabase
@@ -46,13 +47,13 @@ export function useBrainChat({
   const sendMessage = async (input: string) => {
     if (!input.trim() || isStreaming) return;
 
+    lastUserInputRef.current = input.trim();
     const userMsg: Message = { role: "user", content: input.trim() };
     setMessages((prev) => [...prev, userMsg]);
     setIsStreaming(true);
     onStreamingStart?.();
 
     try {
-      // 1. Ensure conversation exists
       let convId = conversationId;
       if (!convId) {
         const { data } = await supabase
@@ -66,7 +67,6 @@ export function useBrainChat({
         }
       }
 
-      // 2. Save user message
       if (convId) {
         await supabase.from("messages").insert({
           conversation_id: convId,
@@ -75,7 +75,6 @@ export function useBrainChat({
         });
       }
 
-      // 3. Call AI Function
       const { data: { session } } = await supabase.auth.getSession();
       
       const resp = await fetch(CHAT_URL, {
@@ -98,7 +97,6 @@ export function useBrainChat({
         throw new Error(err.error || "Erro ao conectar com IA");
       }
 
-      // 4. Handle Streaming
       const reader = resp.body.getReader();
       const decoder = new TextDecoder();
       let assistantSoFar = "";
@@ -125,7 +123,6 @@ export function useBrainChat({
         textBuffer += decoder.decode(value, { stream: true });
 
         const lines = textBuffer.split("\n");
-        // Keep the last partial line in the buffer
         textBuffer = lines.pop() || "";
 
         for (const line of lines) {
@@ -150,7 +147,6 @@ export function useBrainChat({
         }
       }
 
-      // 5. Save final assistant message
       if (convId && assistantSoFar) {
         await supabase.from("messages").insert({
           conversation_id: convId,
@@ -170,6 +166,26 @@ export function useBrainChat({
     }
   };
 
+  const retry = useCallback(() => {
+    setMessages((prev) => {
+      // Remove the last error message
+      const withoutError = prev.filter((_, i) => i !== prev.length - 1);
+      // Also remove the last user message
+      let lastUserIdx = -1;
+      for (let i = withoutError.length - 1; i >= 0; i--) {
+        if (withoutError[i].role === "user") { lastUserIdx = i; break; }
+      }
+      if (lastUserIdx >= 0) {
+        return withoutError.filter((_, i) => i !== lastUserIdx);
+      }
+      return withoutError;
+    });
+    
+    if (lastUserInputRef.current) {
+      setTimeout(() => sendMessage(lastUserInputRef.current), 100);
+    }
+  }, []);
+
   return {
     messages,
     setMessages,
@@ -178,5 +194,6 @@ export function useBrainChat({
     conversationId,
     loadHistory,
     resetChat,
+    retry,
   };
 }

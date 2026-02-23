@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { BrainType } from "@/lib/brain-types";
-import { Send, Loader2, User, Bot, Sparkles, PlusCircle } from "lucide-react";
+import { Send, Loader2, User, Bot, Sparkles, PlusCircle, RefreshCw, AlertTriangle } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { Message } from "@/hooks/useBrainChat";
 
@@ -14,6 +14,7 @@ interface Props {
   sendMessage: (input: string) => void;
   onNewChat: () => void;
   conversationId: string | null;
+  onRetry?: () => void;
 }
 
 export default function ChatInterface({ 
@@ -23,7 +24,8 @@ export default function ChatInterface({
   isStreaming,
   sendMessage,
   onNewChat,
-  conversationId
+  conversationId,
+  onRetry
 }: Props) {
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -55,6 +57,10 @@ export default function ChatInterface({
       e.preventDefault();
       handleSubmit(e as any);
     }
+  };
+
+  const isErrorMessage = (msg: Message) => {
+    return msg.role === "assistant" && msg.content.includes("⚠️ Erro:");
   };
 
   return (
@@ -93,40 +99,61 @@ export default function ChatInterface({
           </div>
         )}
 
-        {messages.map((msg, i) => (
-          <div
-            key={i}
-            className={`flex items-end gap-3 animate-in slide-in-from-bottom-2 duration-300 ${
-              msg.role === "user" ? "flex-row-reverse" : "flex-row"
-            }`}
-          >
-            {/* Avatar */}
-            <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl shadow-md ${
-              msg.role === "user" 
-                ? "bg-gradient-to-br from-primary to-violet-600 text-white" 
-                : "bg-gradient-to-br from-card to-secondary border border-border text-primary"
-            }`}>
-              {msg.role === "user" ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
-            </div>
-            
-            {/* Bubble */}
+        {messages.map((msg, i) => {
+          const isError = isErrorMessage(msg);
+          
+          return (
             <div
-              className={`max-w-[80%] sm:max-w-[75%] px-4 py-3 text-sm shadow-sm ${
-                msg.role === "user"
-                  ? "bg-gradient-to-br from-primary to-violet-600 text-white rounded-3xl rounded-br-md"
-                  : "bg-card/90 backdrop-blur-sm border border-border/60 text-card-foreground rounded-3xl rounded-bl-md"
+              key={i}
+              className={`flex items-end gap-3 animate-in slide-in-from-bottom-2 duration-300 ${
+                msg.role === "user" ? "flex-row-reverse" : "flex-row"
               }`}
             >
-              {msg.role === "assistant" ? (
-                <div className="prose prose-sm dark:prose-invert max-w-none break-words leading-relaxed [&>p]:mb-2 [&>p:last-child]:mb-0">
-                  <ReactMarkdown>{msg.content}</ReactMarkdown>
-                </div>
-              ) : (
-                <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
-              )}
+              {/* Avatar */}
+              <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl shadow-md ${
+                msg.role === "user" 
+                  ? "bg-gradient-to-br from-primary to-violet-600 text-white" 
+                  : isError
+                    ? "bg-gradient-to-br from-destructive/20 to-destructive/10 border border-destructive/30 text-destructive"
+                    : "bg-gradient-to-br from-card to-secondary border border-border text-primary"
+              }`}>
+                {msg.role === "user" ? <User className="h-4 w-4" /> : isError ? <AlertTriangle className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
+              </div>
+              
+              {/* Bubble */}
+              <div
+                className={`max-w-[80%] sm:max-w-[75%] px-4 py-3 text-sm shadow-sm ${
+                  msg.role === "user"
+                    ? "bg-gradient-to-br from-primary to-violet-600 text-white rounded-3xl rounded-br-md"
+                    : isError
+                      ? "bg-destructive/8 border border-destructive/30 text-foreground rounded-3xl rounded-bl-md"
+                      : "bg-card/90 backdrop-blur-sm border border-border/60 text-card-foreground rounded-3xl rounded-bl-md"
+                }`}
+              >
+                {msg.role === "assistant" ? (
+                  <div className="space-y-2">
+                    <div className="prose prose-sm dark:prose-invert max-w-none break-words leading-relaxed [&>p]:mb-2 [&>p:last-child]:mb-0">
+                      <ReactMarkdown>{isError ? msg.content.replace("⚠️ Erro:", "").trim() : msg.content}</ReactMarkdown>
+                    </div>
+                    {isError && onRetry && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={onRetry}
+                        className="gap-1.5 rounded-2xl text-xs border-destructive/30 hover:bg-destructive/10 hover:border-destructive/50 text-destructive font-semibold mt-1"
+                      >
+                        <RefreshCw className="h-3 w-3" />
+                        Tentar novamente
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
         
         {/* Streaming indicator */}
         {isStreaming && messages[messages.length - 1]?.role !== "assistant" && (

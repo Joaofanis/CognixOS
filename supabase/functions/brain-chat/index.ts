@@ -90,7 +90,12 @@ serve(async (req) => {
       .order("created_at", { ascending: false }) // Newer first
       .limit(50); // Simple limit for now
 
-    const contextTexts = texts?.map((t) => t.content).join("\n\n---\n\n") || "";
+    const MAX_CONTEXT_CHARS = 30000;
+    let contextTexts = texts?.map((t) => t.content).join("\n\n---\n\n") || "";
+    if (contextTexts.length > MAX_CONTEXT_CHARS) {
+      contextTexts = contextTexts.slice(0, MAX_CONTEXT_CHARS) + "\n\n[...contexto truncado por limite]";
+      console.log(`brain-chat: truncated context from ${texts?.map(t=>t.content).join("").length} to ${MAX_CONTEXT_CHARS} chars`);
+    }
 
     // Build system prompt based on brain type
     let systemPrompt = "";

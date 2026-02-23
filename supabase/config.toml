@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.analyze-brain]
 verify_jwt = false
+
+[functions.parse-file]
+verify_jwt = false

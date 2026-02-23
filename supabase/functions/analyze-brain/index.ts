@@ -10,9 +10,7 @@ const corsHeaders = {
 /** Try to extract a JSON object from a raw text that may contain markdown fences. */
 function extractJSON(text: string): Record<string, unknown> | null {
   if (!text) return null;
-  // Remove markdown code fences if present
   const cleaned = text.replace(/```(?:json)?\s*([\s\S]*?)```/g, "$1").trim();
-  // Try full string first
   const candidates = [cleaned, text];
   for (const candidate of candidates) {
     const start = candidate.indexOf("{");
@@ -28,6 +26,79 @@ function extractJSON(text: string): Record<string, unknown> | null {
   return null;
 }
 
+// Build prompts based on brain type
+function getPrompts(brainType: string, allText: string) {
+  let systemPrompt: string;
+  let radarField: string;
+
+  switch (brainType) {
+    case "knowledge_base":
+      radarField = "knowledge_areas";
+      systemPrompt = `Você é um analista de conteúdo especialista. Analise os textos fornecidos e retorne APENAS um objeto JSON válido, sem nenhum texto adicional, sem markdown, sem explicações. O JSON deve ter exatamente esta estrutura:
+{
+  "knowledge_areas": {
+    "<área de conhecimento 1>": <número 0-10 representando profundidade>,
+    "<área de conhecimento 2>": <número 0-10>,
+    ...até 8 áreas
+  },
+  "frequent_themes": [
+    {"name": "<tema>", "count": <número inteiro>}
+  ]
+}`;
+      break;
+    case "philosophy":
+      radarField = "knowledge_areas";
+      systemPrompt = `Você é um analista filosófico especialista. Analise os textos fornecidos e retorne APENAS um objeto JSON válido, sem nenhum texto adicional, sem markdown, sem explicações. O JSON deve ter exatamente esta estrutura:
+{
+  "knowledge_areas": {
+    "<princípio filosófico 1>": <número 0-10 representando relevância>,
+    "<princípio filosófico 2>": <número 0-10>,
+    ...até 8 princípios
+  },
+  "frequent_themes": [
+    {"name": "<tema>", "count": <número inteiro>}
+  ]
+}`;
+      break;
+    case "practical_guide":
+      radarField = "knowledge_areas";
+      systemPrompt = `Você é um analista de competências práticas especialista. Analise os textos fornecidos e retorne APENAS um objeto JSON válido, sem nenhum texto adicional, sem markdown, sem explicações. O JSON deve ter exatamente esta estrutura:
+{
+  "knowledge_areas": {
+    "<competência prática 1>": <número 0-10 representando domínio>,
+    "<competência prática 2>": <número 0-10>,
+    ...até 8 competências
+  },
+  "frequent_themes": [
+    {"name": "<tema>", "count": <número inteiro>}
+  ]
+}`;
+      break;
+    default: // person_clone
+      radarField = "personality_traits";
+      systemPrompt = `Você é um analista de personalidade especialista. Analise os textos fornecidos e retorne APENAS um objeto JSON válido, sem nenhum texto adicional, sem markdown, sem explicações. O JSON deve ter exatamente esta estrutura:
+{
+  "personality_traits": {
+    "extroversão": <número 0-10>,
+    "criatividade": <número 0-10>,
+    "pragmatismo": <número 0-10>,
+    "empatia": <número 0-10>,
+    "assertividade": <número 0-10>,
+    "curiosidade": <número 0-10>,
+    "disciplina": <número 0-10>,
+    "otimismo": <número 0-10>
+  },
+  "frequent_themes": [
+    {"name": "<tema>", "count": <número inteiro>}
+  ]
+}`;
+      break;
+  }
+
+  const userPrompt = `Analise os seguintes textos e retorne o JSON estruturado conforme instrução do sistema:\n\nTextos:\n${allText}`;
+  return { systemPrompt, userPrompt, radarField };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -40,7 +111,7 @@ serve(async (req) => {
       });
     }
 
-    const { brainId } = await req.json();
+    const { brainId, brainType: requestedType } = await req.json();
     if (!brainId || typeof brainId !== "string") {
       return new Response(JSON.stringify({ error: "Invalid brainId" }), {
         status: 400,
@@ -55,7 +126,7 @@ serve(async (req) => {
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Verify User JWT using getClaims
+    // Verify User JWT
     const userClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
@@ -70,14 +141,12 @@ serve(async (req) => {
     }
 
     const userId = claimsData.claims.sub as string;
-
-    // Use service role for data operations
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Verify Ownership
+    // Verify Ownership and get brain type
     const { data: brain, error: brainErr } = await supabase
       .from("brains")
-      .select("user_id")
+      .select("user_id, type")
       .eq("id", brainId)
       .single();
 
@@ -95,6 +164,8 @@ serve(async (req) => {
       });
     }
 
+    const brainType = requestedType || brain.type || "person_clone";
+
     // Get brain texts
     const { data: texts } = await supabase
       .from("brain_texts")
@@ -108,32 +179,14 @@ serve(async (req) => {
       });
     }
 
-    // Truncate text to ~30k characters (~8k tokens) to fit model context limits
     const MAX_CHARS = 30000;
     let allText = texts.map((t) => t.content).join("\n\n");
     if (allText.length > MAX_CHARS) {
       allText = allText.slice(0, MAX_CHARS) + "\n\n[...texto truncado por limite de contexto]";
-      console.log(`analyze-brain: truncated text from ${texts.map(t=>t.content).join("").length} to ${MAX_CHARS} chars`);
+      console.log(`analyze-brain: truncated text to ${MAX_CHARS} chars`);
     }
 
-    const SYSTEM_PROMPT = `Você é um analista de personalidade especialista. Analise os textos fornecidos e retorne APENAS um objeto JSON válido, sem nenhum texto adicional, sem markdown, sem explicações. O JSON deve ter exatamente esta estrutura:
-{
-  "personality_traits": {
-    "extroversão": <número 0-10>,
-    "criatividade": <número 0-10>,
-    "pragmatismo": <número 0-10>,
-    "empatia": <número 0-10>,
-    "assertividade": <número 0-10>,
-    "curiosidade": <número 0-10>,
-    "disciplina": <número 0-10>,
-    "otimismo": <número 0-10>
-  },
-  "frequent_themes": [
-    {"name": "<tema>", "count": <número inteiro>}
-  ]
-}`;
-
-    const USER_PROMPT = `Analise os seguintes textos de uma pessoa e retorne o JSON estruturado conforme instrução do sistema:\n\nTextos:\n${allText}`;
+    const { systemPrompt, userPrompt, radarField } = getPrompts(brainType, allText);
 
     const models = [
       "meta-llama/llama-3.3-70b-instruct:free",
@@ -143,12 +196,12 @@ serve(async (req) => {
       "mistralai/mistral-7b-instruct:free",
     ];
 
-    let analysisData: { personality_traits: Record<string, number>; frequent_themes: Array<{ name: string; count: number }> } | null = null;
+    let analysisData: Record<string, unknown> | null = null;
     let lastError: { status?: number; text?: string; error?: string } | null = null;
 
     for (const model of models) {
       try {
-        console.log(`analyze-brain: trying model ${model}`);
+        console.log(`analyze-brain: trying model ${model} for type ${brainType}`);
         const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
           method: "POST",
           headers: {
@@ -158,8 +211,8 @@ serve(async (req) => {
           body: JSON.stringify({
             model,
             messages: [
-              { role: "system", content: SYSTEM_PROMPT },
-              { role: "user", content: USER_PROMPT },
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userPrompt },
             ],
             temperature: 0.2,
             max_tokens: 1500,
@@ -182,11 +235,10 @@ serve(async (req) => {
         const parsed = extractJSON(rawContent);
         if (
           parsed &&
-          parsed.personality_traits &&
-          typeof parsed.personality_traits === "object" &&
+          (parsed[radarField] || parsed.personality_traits || parsed.knowledge_areas) &&
           Array.isArray(parsed.frequent_themes)
         ) {
-          analysisData = parsed as unknown as typeof analysisData;
+          analysisData = parsed;
           console.log(`analyze-brain: success with model ${model}`);
           break;
         } else {
@@ -209,30 +261,36 @@ serve(async (req) => {
       });
     }
 
-    // Ensure numeric values in personality_traits
-    const traits = analysisData.personality_traits;
-    for (const key of Object.keys(traits)) {
-      traits[key] = Number(traits[key]) || 0;
+    // Extract radar data (could be personality_traits or knowledge_areas)
+    const radarData = (analysisData[radarField] || analysisData.personality_traits || analysisData.knowledge_areas) as Record<string, number>;
+    for (const key of Object.keys(radarData)) {
+      radarData[key] = Number(radarData[key]) || 0;
     }
 
-    // Ensure numeric counts in themes and sort descending
-    const themes = analysisData.frequent_themes
-      .map((t: { name: string; count: number }) => ({ name: String(t.name), count: Number(t.count) || 1 }))
-      .sort((a: { count: number }, b: { count: number }) => b.count - a.count)
+    // Extract themes
+    const themes = (analysisData.frequent_themes as Array<{ name: string; count: number }>)
+      .map((t) => ({ name: String(t.name), count: Number(t.count) || 1 }))
+      .sort((a, b) => b.count - a.count)
       .slice(0, 15);
 
-    // Upsert analysis
+    // Build upsert data - store in appropriate column
+    const upsertData: Record<string, unknown> = {
+      brain_id: brainId,
+      frequent_themes: themes,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (brainType === "person_clone") {
+      upsertData.personality_traits = radarData;
+      upsertData.knowledge_areas = null;
+    } else {
+      upsertData.knowledge_areas = radarData;
+      upsertData.personality_traits = null;
+    }
+
     const { error: upsertErr } = await supabase
       .from("brain_analysis")
-      .upsert(
-        {
-          brain_id: brainId,
-          personality_traits: traits,
-          frequent_themes: themes,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "brain_id" }
-      );
+      .upsert(upsertData, { onConflict: "brain_id" });
 
     if (upsertErr) throw upsertErr;
 
