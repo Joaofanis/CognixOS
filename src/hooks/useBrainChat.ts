@@ -23,6 +23,10 @@ export function useBrainChat({
   const [isStreaming, setIsStreaming] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const lastUserInputRef = useRef<string>("");
+  // Store conversationId in a ref so that the retry callback (which is memo'd)
+  // always sees the current value without stale closures.
+  const conversationIdRef = useRef<string | null>(null);
+  conversationIdRef.current = conversationId;
 
   const loadHistory = async (convId: string) => {
     setMessages([]);
@@ -44,7 +48,7 @@ export function useBrainChat({
     setConversationId(null);
   };
 
-  const sendMessage = async (input: string) => {
+  const sendMessage = useCallback(async (input: string) => {
     if (!input.trim() || isStreaming) return;
 
     lastUserInputRef.current = input.trim();
@@ -54,13 +58,15 @@ export function useBrainChat({
     onStreamingStart?.();
 
     try {
-      let convId = conversationId;
+      let convId = conversationIdRef.current;
       if (!convId) {
-        const { data } = await supabase
+        const { data, error: insertErr } = await supabase
           .from("conversations")
           .insert({ brain_id: brainId, title: userMsg.content.slice(0, 50) })
           .select("id")
           .single();
+        // Surface conversation creation errors instead of silently ignoring them
+        if (insertErr) throw new Error(`Falha ao criar conversa: ${insertErr.message}`);
         if (data) {
           convId = data.id;
           setConversationId(data.id);
@@ -164,7 +170,12 @@ export function useBrainChat({
       setIsStreaming(false);
       onStreamingEnd?.();
     }
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [brainId, isStreaming, messages, onAssistantMessage, onStreamingStart, onStreamingEnd]);
+
+  // retry uses sendMessage via its ref so it never stales
+  const sendMessageRef = useRef(sendMessage);
+  sendMessageRef.current = sendMessage;
 
   const retry = useCallback(() => {
     setMessages((prev) => {
@@ -182,7 +193,7 @@ export function useBrainChat({
     });
     
     if (lastUserInputRef.current) {
-      setTimeout(() => sendMessage(lastUserInputRef.current), 100);
+      setTimeout(() => sendMessageRef.current(lastUserInputRef.current), 100);
     }
   }, []);
 

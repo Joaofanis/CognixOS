@@ -7,6 +7,18 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// Validation
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Model waterfall — tries in order, skips on rate-limit/error
+const MODELS = [
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "google/gemma-3-27b-it:free",
+  "nvidia/nemotron-3-nano-30b-a3b:free",
+  "mistralai/mistral-7b-instruct:free",
+  "stepfun/step-3.5-flash:free",
+];
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -19,9 +31,22 @@ serve(async (req) => {
       });
     }
 
-    const { brainId } = await req.json();
-    if (!brainId) {
-      return new Response(JSON.stringify({ error: "Missing brainId" }), {
+    // Safe JSON parsing
+    let body: Record<string, unknown>;
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(JSON.stringify({ error: "Invalid JSON in request body" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { brainId } = body as { brainId: unknown };
+
+    // Validate brainId — must be a UUID
+    if (!brainId || typeof brainId !== "string" || !UUID_REGEX.test(brainId)) {
+      return new Response(JSON.stringify({ error: "Invalid or missing brainId. Must be a valid UUID." }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -34,7 +59,7 @@ serve(async (req) => {
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Verify user
+    // Verify user JWT
     const userClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
@@ -50,7 +75,7 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get brain
+    // Get brain info and verify ownership
     const { data: brain, error: brainErr } = await supabase
       .from("brains")
       .select("name, type, description, user_id")
@@ -70,7 +95,7 @@ serve(async (req) => {
       });
     }
 
-    // Get brain texts
+    // Get brain texts for context
     const { data: texts } = await supabase
       .from("brain_texts")
       .select("content")
@@ -107,36 +132,67 @@ Formato: Escreva o System Prompt completo, pronto para uso. Use seções com emo
 TEXTOS DO CLONE:
 ${context}`;
 
-    const aiResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://ai-second-brain.lovable.app",
-        "X-Title": "AI Second Brain",
-      },
-      body: JSON.stringify({
-        model: "meta-llama/llama-3.3-70b-instruct:free",
-        messages: [
-          { role: "system", content: "Você gera System Prompts profissionais para clones de IA. Responda APENAS com o System Prompt gerado, sem explicações extras." },
-          { role: "user", content: metaPrompt },
-        ],
-        temperature: 0.7,
-        max_tokens: 8000,
-      }),
-    });
+    // Try each model in order — skip on rate limits, break on auth errors
+    let generatedPrompt = "";
+    let lastError: { status?: number; text?: string } | null = null;
 
-    if (!aiResponse.ok) {
-      const errText = await aiResponse.text();
-      console.error("AI error:", aiResponse.status, errText);
-      return new Response(JSON.stringify({ error: "Erro ao gerar prompt com IA" }), {
+    for (const model of MODELS) {
+      try {
+        console.log(`generate-prompt: trying model ${model}`);
+        const aiResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://ai-second-brain.lovable.app",
+            "X-Title": "AI Second Brain",
+          },
+          body: JSON.stringify({
+            model,
+            messages: [
+              { role: "system", content: "Você gera System Prompts profissionais para clones de IA. Responda APENAS com o System Prompt gerado, sem explicações extras." },
+              { role: "user", content: metaPrompt },
+            ],
+            temperature: 0.7,
+            max_tokens: 8000,
+          }),
+        });
+
+        if (!aiResponse.ok) {
+          const errText = await aiResponse.text();
+          console.error(`generate-prompt: model ${model} failed with ${aiResponse.status}:`, errText);
+          lastError = { status: aiResponse.status, text: errText };
+          // Fatal errors — don't bother trying other models
+          if (aiResponse.status === 401 || aiResponse.status === 403) break;
+          continue;
+        }
+
+        const result = await aiResponse.json();
+        const content = result.choices?.[0]?.message?.content?.trim() || "";
+        if (content.length > 20) {
+          generatedPrompt = content;
+          console.log(`generate-prompt: success with model ${model}`);
+          break;
+        } else {
+          console.warn(`generate-prompt: model ${model} returned empty/short content`);
+          lastError = { text: "Empty response from model" };
+        }
+      } catch (e) {
+        console.error(`generate-prompt: fetch error for model ${model}:`, e);
+        lastError = { text: e instanceof Error ? e.message : String(e) };
+      }
+    }
+
+    if (!generatedPrompt) {
+      const isRateLimit = lastError?.status === 429;
+      const errorMsg = isRateLimit
+        ? "Limite de requisições excedido pelos modelos de IA. Aguarde alguns segundos e tente novamente."
+        : `Falha em todos os modelos de IA. Último erro: ${lastError?.text || "desconhecido"}`;
+      return new Response(JSON.stringify({ error: errorMsg }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    const result = await aiResponse.json();
-    const generatedPrompt = result.choices?.[0]?.message?.content || "";
 
     return new Response(JSON.stringify({ prompt: generatedPrompt }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -2,13 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  Loader2,
-  BarChart3,
-  Brain as BrainIcon,
-  Sparkles,
-  Zap,
-} from "lucide-react";
+import { Loader2, BarChart3, Brain as BrainIcon, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 import { BrainType } from "@/lib/brain-types";
@@ -51,28 +45,80 @@ const ANALYSIS_LABELS: Record<string, { title: string; radarTitle: string }> = {
   },
 };
 
+// Colour palette per score intensity
+function traitColor(value: number): string {
+  if (value >= 8) return "#a78bfa"; // violet-400 — top tier
+  if (value >= 6) return "#4ade80"; // green-400 — strong
+  if (value >= 4) return "#38bdf8"; // sky-400 — mid
+  return "#94a3b8"; // slate-400 — low
+}
+
+// Custom tooltip for polar chart
+const CustomRadarTooltip = ({ active, payload }: any) => {
+  if (active && payload && payload.length) {
+    const val = payload[0].value as number;
+    return (
+      <div
+        style={{
+          background: "rgba(10, 10, 20, 0.95)",
+          backdropFilter: "blur(20px)",
+          borderRadius: 14,
+          border: `1px solid ${traitColor(val)}55`,
+          boxShadow: `0 0 30px ${traitColor(val)}30, 0 20px 40px rgba(0,0,0,0.5)`,
+          padding: "10px 16px",
+        }}
+      >
+        <p
+          style={{
+            color: "rgba(255,255,255,0.85)",
+            fontSize: 12,
+            fontWeight: 600,
+            marginBottom: 4,
+          }}
+        >
+          {payload[0].payload.trait}
+        </p>
+        <p
+          style={{
+            color: traitColor(val),
+            fontSize: 18,
+            fontWeight: 800,
+            letterSpacing: -0.5,
+          }}
+        >
+          {val}
+          <span style={{ fontSize: 11, fontWeight: 500, opacity: 0.65 }}>
+            {" "}
+            / 10
+          </span>
+        </p>
+      </div>
+    );
+  }
+  return null;
+};
+
 // Custom tooltip for bar chart
 const CustomBarTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
       <div
         style={{
-          background: "rgba(15, 15, 25, 0.92)",
-          backdropFilter: "blur(16px)",
-          borderRadius: "14px",
-          border: "1px solid rgba(100, 140, 255, 0.25)",
-          boxShadow:
-            "0 20px 40px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)",
-          padding: "12px 16px",
-          maxWidth: 240,
+          background: "rgba(10, 10, 20, 0.95)",
+          backdropFilter: "blur(20px)",
+          borderRadius: 14,
+          border: "1px solid rgba(100, 140, 255, 0.3)",
+          boxShadow: "0 20px 40px rgba(0,0,0,0.5)",
+          padding: "10px 14px",
+          maxWidth: 220,
         }}
       >
         <p
           style={{
-            color: "rgba(255,255,255,0.95)",
+            color: "rgba(255,255,255,0.9)",
             fontSize: 13,
             fontWeight: 600,
-            marginBottom: 4,
+            marginBottom: 3,
           }}
         >
           {label}
@@ -86,42 +132,9 @@ const CustomBarTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-// Custom tooltip for radar
-const CustomRadarTooltip = ({ active, payload }: any) => {
-  if (active && payload && payload.length) {
-    return (
-      <div
-        style={{
-          background: "rgba(15, 15, 25, 0.92)",
-          backdropFilter: "blur(16px)",
-          borderRadius: "14px",
-          border: "1px solid rgba(100, 140, 255, 0.25)",
-          boxShadow: "0 20px 40px rgba(0,0,0,0.4)",
-          padding: "10px 14px",
-        }}
-      >
-        <p
-          style={{
-            color: "rgba(255,255,255,0.9)",
-            fontSize: 12,
-            fontWeight: 600,
-          }}
-        >
-          {payload[0].payload.trait}
-        </p>
-        <p style={{ color: "#4D83F0", fontSize: 14, fontWeight: 700 }}>
-          {payload[0].value} / 10
-        </p>
-      </div>
-    );
-  }
-  return null;
-};
-
-// Gradient fill for bars — intensity based on rank
-const BAR_GRADIENT_ID = "barGradient";
-const RADAR_FILL_ID = "radarFill";
-const KNOWLEDGE_FILL_ID = "knowledgeFill";
+const BAR_GRADIENT_ID = "barGradientV2";
+const RADAR_GLOW_ID = "radarGlow";
+const RADAR_FILL_ID = "radarFillV2";
 
 export default function BrainAnalysis({
   brainId,
@@ -151,9 +164,7 @@ export default function BrainAnalysis({
       } = await supabase.auth.getSession();
       const { data, error } = await supabase.functions.invoke("analyze-brain", {
         body: { brainId, brainType },
-        headers: {
-          Authorization: `Bearer ${session?.access_token}`,
-        },
+        headers: { Authorization: `Bearer ${session?.access_token}` },
       });
       if (error) {
         const msg =
@@ -170,7 +181,6 @@ export default function BrainAnalysis({
     }
   };
 
-  // Use personality_traits or knowledge_areas based on type
   const radarSource =
     brainType === "person_clone"
       ? (analysis?.personality_traits as Record<string, number> | null)
@@ -178,14 +188,11 @@ export default function BrainAnalysis({
           string,
           number
         > | null);
+
   const themes = analysis?.frequent_themes as Array<{
     name: string;
     count: number;
   }> | null;
-  const knowledgeRaw = analysis?.knowledge_areas as Record<
-    string,
-    number
-  > | null;
 
   const radarData = radarSource
     ? Object.entries(radarSource).map(([key, value]) => ({
@@ -195,7 +202,8 @@ export default function BrainAnalysis({
       }))
     : [];
 
-  // Sorted themes (should already be sorted from edge function)
+  // Sort by value descending so highest traits appear first in pills
+  const sortedRadar = [...radarData].sort((a, b) => b.value - a.value);
   const sortedThemes = themes
     ? [...themes].sort((a, b) => b.count - a.count)
     : [];
@@ -250,115 +258,188 @@ export default function BrainAnalysis({
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2">
-          {/* Radar Chart */}
-          <Card className="glass border-primary/10 overflow-hidden">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <BrainIcon className="h-4 w-4 text-primary" />
-                Traços de Personalidade
+          {/* ── Radar Chart Card ── */}
+          <Card
+            className="overflow-hidden border-0"
+            style={{
+              background:
+                "linear-gradient(145deg, rgba(15,15,30,0.97) 0%, rgba(20,18,40,0.97) 100%)",
+              boxShadow:
+                "0 0 0 1px rgba(139,92,246,0.15), 0 20px 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)",
+            }}
+          >
+            <CardHeader className="pb-0 pt-5 px-5">
+              <CardTitle
+                className="text-sm font-bold flex items-center gap-2"
+                style={{ color: "rgba(255,255,255,0.9)" }}
+              >
+                <BrainIcon className="h-4 w-4" style={{ color: "#a78bfa" }} />
+                {labels.radarTitle}
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-0 px-2 pb-4">
               {radarData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={340}>
-                  <RadarChart
-                    cx="50%"
-                    cy="50%"
-                    outerRadius="78%"
-                    data={radarData}
-                  >
-                    <defs>
-                      <radialGradient
-                        id="radarFill"
-                        cx="50%"
-                        cy="50%"
-                        r="50%"
-                        fx="50%"
-                        fy="50%"
-                      >
-                        <stop
-                          offset="0%"
-                          stopColor="hsl(var(--jade))"
-                          stopOpacity={0.55}
-                        />
-                        <stop
-                          offset="100%"
-                          stopColor="hsl(var(--primary))"
-                          stopOpacity={0.08}
-                        />
-                      </radialGradient>
-                    </defs>
-                    <PolarGrid stroke="hsla(var(--primary), 0.10)" />
-                    <PolarAngleAxis
-                      dataKey="trait"
-                      tick={{
-                        fontSize: 11,
-                        fill: "hsl(var(--muted-foreground))",
-                        fontWeight: 600,
-                      }}
-                    />
-                    <PolarRadiusAxis
-                      angle={30}
-                      domain={[0, 10]}
-                      tick={false}
-                      axisLine={false}
-                    />
-                    <Radar
-                      name="Personalidade"
-                      dataKey="value"
-                      stroke="hsl(var(--jade))"
-                      fill="url(#radarFill)"
-                      fillOpacity={1}
-                      strokeWidth={2.5}
-                      dot={{ fill: "hsl(var(--jade))", r: 4, strokeWidth: 0 }}
-                      activeDot={{
-                        fill: "hsl(var(--accent))",
-                        r: 6,
-                        strokeWidth: 2,
-                        stroke: "white",
-                      }}
-                    />
-                    <Tooltip content={<CustomRadarTooltip />} />
-                  </RadarChart>
-                </ResponsiveContainer>
+                <>
+                  <ResponsiveContainer width="100%" height={320}>
+                    <RadarChart
+                      cx="50%"
+                      cy="50%"
+                      outerRadius="72%"
+                      data={radarData}
+                    >
+                      <defs>
+                        {/* Glow filter for the stroke */}
+                        <filter
+                          id={RADAR_GLOW_ID}
+                          x="-20%"
+                          y="-20%"
+                          width="140%"
+                          height="140%"
+                        >
+                          <feGaussianBlur stdDeviation="4" result="blur" />
+                          <feMerge>
+                            <feMergeNode in="blur" />
+                            <feMergeNode in="SourceGraphic" />
+                          </feMerge>
+                        </filter>
+                        {/* Radial gradient fill */}
+                        <radialGradient
+                          id={RADAR_FILL_ID}
+                          cx="50%"
+                          cy="50%"
+                          r="55%"
+                          fx="50%"
+                          fy="50%"
+                        >
+                          <stop
+                            offset="0%"
+                            stopColor="#a78bfa"
+                            stopOpacity={0.6}
+                          />
+                          <stop
+                            offset="45%"
+                            stopColor="#6366f1"
+                            stopOpacity={0.3}
+                          />
+                          <stop
+                            offset="100%"
+                            stopColor="#4f46e5"
+                            stopOpacity={0.06}
+                          />
+                        </radialGradient>
+                      </defs>
+                      <PolarGrid
+                        stroke="rgba(139,92,246,0.12)"
+                        strokeDasharray="3 3"
+                      />
+                      <PolarAngleAxis
+                        dataKey="trait"
+                        tick={({ x, y, payload }) => {
+                          // Find value for this trait to colour-code the label
+                          const item = radarData.find(
+                            (d) => d.trait === payload.value,
+                          );
+                          const val = item?.value ?? 5;
+                          return (
+                            <text
+                              x={x}
+                              y={y}
+                              textAnchor="middle"
+                              dominantBaseline="central"
+                              style={{
+                                fontSize: 11.5,
+                                fontWeight: 700,
+                                fill: traitColor(val),
+                                letterSpacing: 0.2,
+                              }}
+                            >
+                              {payload.value}
+                            </text>
+                          );
+                        }}
+                      />
+                      <PolarRadiusAxis
+                        angle={30}
+                        domain={[0, 10]}
+                        tick={false}
+                        axisLine={false}
+                      />
+                      <Radar
+                        name={labels.radarTitle}
+                        dataKey="value"
+                        stroke="#a78bfa"
+                        strokeWidth={2.5}
+                        fill={`url(#${RADAR_FILL_ID})`}
+                        fillOpacity={1}
+                        filter={`url(#${RADAR_GLOW_ID})`}
+                        dot={(props: any) => {
+                          const val = props.payload?.value ?? 5;
+                          const color = traitColor(val);
+                          return (
+                            <circle
+                              key={`dot-${props.index}`}
+                              cx={props.cx}
+                              cy={props.cy}
+                              r={5}
+                              fill={color}
+                              stroke="rgba(0,0,0,0.6)"
+                              strokeWidth={1.5}
+                            />
+                          );
+                        }}
+                        activeDot={{
+                          fill: "#fff",
+                          r: 7,
+                          strokeWidth: 2.5,
+                          stroke: "#a78bfa",
+                        }}
+                      />
+                      <Tooltip content={<CustomRadarTooltip />} />
+                    </RadarChart>
+                  </ResponsiveContainer>
+
+                  {/* Score pills — sorted by value */}
+                  <div className="mt-1 px-3 flex flex-wrap gap-1.5 justify-center">
+                    {sortedRadar.map((d) => {
+                      const color = traitColor(d.value);
+                      return (
+                        <span
+                          key={d.trait}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold"
+                          style={{
+                            background: `${color}18`,
+                            color,
+                            border: `1px solid ${color}45`,
+                          }}
+                        >
+                          {d.trait}
+                          {/* Mini bar */}
+                          <span
+                            style={{
+                              display: "inline-block",
+                              width: Math.max(10, (d.value / 10) * 26),
+                              height: 3,
+                              borderRadius: 2,
+                              background: color,
+                              opacity: 0.75,
+                              verticalAlign: "middle",
+                            }}
+                          />
+                          <span style={{ opacity: 0.9 }}>{d.value}</span>
+                        </span>
+                      );
+                    })}
+                  </div>
+                </>
               ) : (
                 <p className="text-sm text-muted-foreground text-center py-8 italic">
-                  Dados de personalidade indisponíveis
+                  Dados indisponíveis
                 </p>
-              )}
-
-              {/* Trait Score Pills */}
-              {radarData.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1.5 justify-center">
-                  {radarData.map((d) => {
-                    const isHigh = d.value >= 7;
-                    return (
-                      <span
-                        key={d.trait}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold"
-                        style={{
-                          background: isHigh
-                            ? `hsla(var(--accent), 0.18)`
-                            : `hsla(var(--jade), ${0.08 + (d.value / 10) * 0.14})`,
-                          color: isHigh
-                            ? `hsl(var(--accent))`
-                            : `hsl(var(--jade))`,
-                          border: isHigh
-                            ? `1px solid hsla(var(--accent), 0.35)`
-                            : `1px solid hsla(var(--jade), ${0.15 + (d.value / 10) * 0.2})`,
-                        }}
-                      >
-                        {d.trait}
-                        <span className="opacity-75 font-bold">{d.value}</span>
-                      </span>
-                    );
-                  })}
-                </div>
               )}
             </CardContent>
           </Card>
 
-          {/* Bar Chart */}
+          {/* ── Bar Chart Card ── */}
           <Card className="glass border-primary/10 overflow-hidden">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-bold flex items-center gap-2 text-foreground">
@@ -441,16 +522,13 @@ export default function BrainAnalysis({
                         formatter: (v: number) => v,
                       }}
                     >
-                      {sortedThemes.map((entry, index) => {
-                        const intensity = 0.5 + (entry.count / maxCount) * 0.5;
-                        return (
-                          <Cell
-                            key={`cell-${index}`}
-                            fill={`url(#${BAR_GRADIENT_ID})`}
-                            opacity={intensity}
-                          />
-                        );
-                      })}
+                      {sortedThemes.map((entry, index) => (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={`url(#${BAR_GRADIENT_ID})`}
+                          opacity={0.5 + (entry.count / maxCount) * 0.5}
+                        />
+                      ))}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
