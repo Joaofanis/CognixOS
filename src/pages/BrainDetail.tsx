@@ -17,11 +17,13 @@ import {
   Pencil,
   Trash2,
   PlusCircle,
-  Brain as BrainIcon
+  Brain as BrainIcon,
+  Sparkles
 } from "lucide-react";
 import FeedTexts from "@/components/FeedTexts";
 import ChatInterface from "@/components/ChatInterface";
 import BrainAnalysis from "@/components/BrainAnalysis";
+import BrainPromptEditor from "@/components/BrainPromptEditor";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   DropdownMenu,
@@ -294,6 +296,9 @@ export default function BrainDetail() {
               <TabsTrigger value="analysis" className="gap-2 px-1 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none font-semibold transition-all text-sm text-muted-foreground">
                 <BarChart3 className="h-4 w-4" /> Análise
               </TabsTrigger>
+              <TabsTrigger value="prompt" className="gap-2 px-1 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none font-semibold transition-all text-sm text-muted-foreground">
+                <Sparkles className="h-4 w-4" /> Prompt
+              </TabsTrigger>
             </TabsList>
           </div>
         </div>
@@ -330,6 +335,9 @@ export default function BrainDetail() {
         </TabsContent>
         <TabsContent value="analysis" className="m-0 bg-background/50 flex-1">
           <BrainAnalysis brainId={brain.id} brainType={brain.type as BrainType} />
+        </TabsContent>
+        <TabsContent value="prompt" className="m-0 bg-background/50 flex-1">
+          <BrainPromptEditor brainId={brain.id} />
         </TabsContent>
       </Tabs>
 

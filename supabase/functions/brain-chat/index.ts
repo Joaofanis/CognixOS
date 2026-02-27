@@ -64,7 +64,7 @@ serve(async (req) => {
     // Get brain info and verify ownership
     const { data: brain, error: brainErr } = await supabase
       .from("brains")
-      .select("name, type, description, user_id")
+      .select("name, type, description, user_id, system_prompt")
       .eq("id", brainId)
       .single();
 
@@ -97,26 +97,34 @@ serve(async (req) => {
       console.log(`brain-chat: truncated context from ${texts?.map(t=>t.content).join("").length} to ${MAX_CONTEXT_CHARS} chars`);
     }
 
-    // Build system prompt based on brain type
+    // Build system prompt - use custom prompt if available, otherwise default
     let systemPrompt = "";
-    const baseInstruction = "\n\nUse APENAS o contexto fornecido abaixo. Se a informação não estiver lá, admita honestamente que não sabe. Mantenha as respostas concisas e úteis.";
+    
+    if (brain.system_prompt && brain.system_prompt.trim()) {
+      // User has a custom system prompt — use it and append context
+      systemPrompt = brain.system_prompt.trim();
+      systemPrompt += `\n\nContexto de Conhecimento de "${brain.name}":\n${contextTexts}`;
+    } else {
+      // Default prompts by brain type
+      const baseInstruction = "\n\nUse APENAS o contexto fornecido abaixo. Se a informação não estiver lá, admita honestamente que não sabe. Mantenha as respostas concisas e úteis.";
 
-    switch (brain.type) {
-      case "person_clone":
-        systemPrompt = `Você é a personificação digital de "${brain.name}". Seu objetivo é emular perfeitamente o estilo de escrita, vocabulário, gírias, tom emocional e personalidade desta pessoa. ${baseInstruction}`;
-        break;
-      case "knowledge_base":
-        systemPrompt = `Você é um Assistente especializado em "${brain.name}". Atue como um especialista técnico altamente preciso. ${baseInstruction}`;
-        break;
-      case "philosophy":
-        systemPrompt = `Você é um mentor que segue estritamente a linha de raciocínio de "${brain.name}". Suas respostas devem ser reflexivas e baseadas nos princípios filosóficos encontrados no contexto. ${baseInstruction}`;
-        break;
-      case "practical_guide":
-        systemPrompt = `Você é um guia instrucional prático para "${brain.name}". Responda com passos claros, listas e orientações diretas para execução. ${baseInstruction}`;
-        break;
+      switch (brain.type) {
+        case "person_clone":
+          systemPrompt = `Você é a personificação digital de "${brain.name}". Seu objetivo é emular perfeitamente o estilo de escrita, vocabulário, gírias, tom emocional e personalidade desta pessoa. ${baseInstruction}`;
+          break;
+        case "knowledge_base":
+          systemPrompt = `Você é um Assistente especializado em "${brain.name}". Atue como um especialista técnico altamente preciso. ${baseInstruction}`;
+          break;
+        case "philosophy":
+          systemPrompt = `Você é um mentor que segue estritamente a linha de raciocínio de "${brain.name}". Suas respostas devem ser reflexivas e baseadas nos princípios filosóficos encontrados no contexto. ${baseInstruction}`;
+          break;
+        case "practical_guide":
+          systemPrompt = `Você é um guia instrucional prático para "${brain.name}". Responda com passos claros, listas e orientações diretas para execução. ${baseInstruction}`;
+          break;
+      }
+
+      systemPrompt += `\n\nContexto de Conhecimento de "${brain.name}":\n${contextTexts}`;
     }
-
-    systemPrompt += `\n\nContexto de Conhecimento de "${brain.name}":\n${contextTexts}`;
 
     const models = [
       "meta-llama/llama-3.3-70b-instruct:free",
