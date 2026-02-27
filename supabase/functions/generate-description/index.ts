@@ -35,14 +35,14 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    // Verify JWT using anon key client (correct pattern — service role key cannot verify user JWTs)
+    // Use getUser() — the correct way to verify JWT in Supabase edge functions
     const userClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
-    const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: authError } = await userClient.auth.getClaims(token);
+    const { data: { user }, error: authError } = await userClient.auth.getUser();
 
-    if (authError || !claimsData?.claims) {
+    if (authError || !user) {
+      console.error("Auth error:", authError?.message);
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -122,10 +122,13 @@ serve(async (req) => {
 
     const prompt = `Você é um especialista em IA. Gere uma descrição em português para um cérebro de IA chamado "${sanitizedName}" do tipo "${typeLabel}". ${tagStr}\nRetorne APENAS 2-3 frases descrevendo o que este cérebro faz, seu propósito e como ele pode ajudar o usuário. Seja direto, específico e empolgante. Sem aspas, sem prefixos como 'Descrição:'.`;
 
+    // 5-model waterfall — same pattern as generate-prompt
     const models = [
       "meta-llama/llama-3.3-70b-instruct:free",
       "google/gemma-3-27b-it:free",
       "mistralai/mistral-7b-instruct:free",
+      "deepseek/deepseek-r1-distill-llama-70b:free",
+      "microsoft/phi-3-mini-128k-instruct:free",
     ];
 
     let description = "";
@@ -137,6 +140,8 @@ serve(async (req) => {
           headers: {
             Authorization: `Bearer ${OPENROUTER_API_KEY}`,
             "Content-Type": "application/json",
+            "HTTP-Referer": supabaseUrl,
+            "X-Title": "Segundo Cerebro",
           },
           body: JSON.stringify({
             model,
@@ -147,7 +152,8 @@ serve(async (req) => {
         });
 
         if (!response.ok) {
-          console.error(`Model ${model} failed: ${response.status}`);
+          const errBody = await response.text().catch(() => "");
+          console.error(`Model ${model} failed: ${response.status} - ${errBody}`);
           continue;
         }
 
@@ -158,14 +164,15 @@ serve(async (req) => {
           console.log(`generate-description: success with ${model}`);
           break;
         }
+        console.warn(`Model ${model} returned empty content`);
       } catch (e) {
         console.error(`generate-description: error with ${model}:`, e);
       }
     }
 
     if (!description) {
-      return new Response(JSON.stringify({ error: "Não foi possível gerar a descrição" }), {
-        status: 500,
+      return new Response(JSON.stringify({ error: "Todos os modelos falharam ao gerar a descrição. Tente novamente em instantes." }), {
+        status: 503,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
