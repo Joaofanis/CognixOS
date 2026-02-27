@@ -99,6 +99,11 @@ function getPrompts(brainType: string, allText: string) {
   return { systemPrompt, userPrompt, radarField };
 }
 
+// Validation constants
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const VALID_BRAIN_TYPES = ["person_clone", "knowledge_base", "philosophy", "practical_guide"];
+const MAX_BODY_SIZE = 1024 * 1024; // 1MB total body size
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -111,12 +116,43 @@ serve(async (req) => {
       });
     }
 
-    const { brainId, brainType: requestedType } = await req.json();
-    if (!brainId || typeof brainId !== "string") {
-      return new Response(JSON.stringify({ error: "Invalid brainId" }), {
+    // Safe JSON parsing with body size check
+    const contentLength = parseInt(req.headers.get("Content-Length") || "0", 10);
+    if (contentLength > MAX_BODY_SIZE) {
+      return new Response(JSON.stringify({ error: "Request body too large. Maximum size is 1MB." }), {
+        status: 413,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    let body: Record<string, unknown>;
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(JSON.stringify({ error: "Invalid JSON in request body" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    const { brainId, brainType: requestedType } = body as { brainId: unknown; brainType: unknown };
+
+    // Validate brainId: must be a non-empty string in UUID format
+    if (!brainId || typeof brainId !== "string" || !UUID_REGEX.test(brainId)) {
+      return new Response(JSON.stringify({ error: "Invalid or missing brainId. Must be a valid UUID." }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Validate brainType if provided: must be one of the allowed types
+    if (requestedType !== undefined && requestedType !== null) {
+      if (typeof requestedType !== "string" || !VALID_BRAIN_TYPES.includes(requestedType)) {
+        return new Response(JSON.stringify({ error: `Invalid brainType "${requestedType}". Must be one of: ${VALID_BRAIN_TYPES.join(", ")}.` }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
