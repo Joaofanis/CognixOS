@@ -344,7 +344,7 @@ export default function BrainDetail() {
       {/* Dialogs */}
       {brain && (
         <EditBrainDialog 
-          brain={{ id: brain.id, name: brain.name, description: brain.description }} 
+          brain={{ id: brain.id, name: brain.name, description: brain.description, type: brain.type, tags: (brain as any).tags || [] }} 
           open={showEdit} 
           onOpenChange={setShowEdit} 
         />

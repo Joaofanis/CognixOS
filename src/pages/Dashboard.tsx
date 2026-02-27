@@ -265,6 +265,25 @@ export default function Dashboard() {
                       </div>
                     </div>
 
+                    {/* Tags */}
+                    {(brain as any).tags?.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {((brain as any).tags as string[]).slice(0, 5).map((tag: string) => (
+                          <span
+                            key={tag}
+                            className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-jade/10 text-jade border border-jade/20"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                        {((brain as any).tags as string[]).length > 5 && (
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                            +{((brain as any).tags as string[]).length - 5}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
                     {/* Description */}
                     {brain.description && (
                       <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
