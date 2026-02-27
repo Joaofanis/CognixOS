@@ -1,6 +1,5 @@
 import { useState, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { BrainType } from "@/lib/brain-types";
 
 export type Message = { role: "user" | "assistant"; content: string };
 
@@ -23,30 +22,37 @@ export function useBrainChat({
   const [isStreaming, setIsStreaming] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const lastUserInputRef = useRef<string>("");
-  // Store conversationId in a ref so that the retry callback (which is memo'd)
-  // always sees the current value without stale closures.
   const conversationIdRef = useRef<string | null>(null);
   conversationIdRef.current = conversationId;
+
+  // AbortController ref — allows cancelling the active stream
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const loadHistory = async (convId: string) => {
     setMessages([]);
     setConversationId(convId);
-    
     const { data: msgs } = await supabase
       .from("messages")
       .select("role, content")
       .eq("conversation_id", convId)
       .order("created_at", { ascending: true });
-
-    if (msgs) {
-      setMessages(msgs as Message[]);
-    }
+    if (msgs) setMessages(msgs as Message[]);
   };
 
   const resetChat = () => {
+    // Cancel any in-progress stream
+    abortControllerRef.current?.abort();
     setMessages([]);
     setConversationId(null);
+    setIsStreaming(false);
   };
+
+  /** Cancel an active stream and mark the partial response as complete */
+  const stopStreaming = useCallback(() => {
+    abortControllerRef.current?.abort();
+    setIsStreaming(false);
+    onStreamingEnd?.();
+  }, [onStreamingEnd]);
 
   const sendMessage = useCallback(async (input: string) => {
     if (!input.trim() || isStreaming) return;
@@ -57,6 +63,10 @@ export function useBrainChat({
     setIsStreaming(true);
     onStreamingStart?.();
 
+    // Create a fresh AbortController for this request
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     try {
       let convId = conversationIdRef.current;
       if (!convId) {
@@ -65,7 +75,6 @@ export function useBrainChat({
           .insert({ brain_id: brainId, title: userMsg.content.slice(0, 50) })
           .select("id")
           .single();
-        // Surface conversation creation errors instead of silently ignoring them
         if (insertErr) throw new Error(`Falha ao criar conversa: ${insertErr.message}`);
         if (data) {
           convId = data.id;
@@ -82,9 +91,10 @@ export function useBrainChat({
       }
 
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       const resp = await fetch(CHAT_URL, {
         method: "POST",
+        signal: controller.signal,
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session?.access_token}`,
@@ -127,32 +137,25 @@ export function useBrainChat({
         if (done) break;
 
         textBuffer += decoder.decode(value, { stream: true });
-
         const lines = textBuffer.split("\n");
         textBuffer = lines.pop() || "";
 
         for (const line of lines) {
           const trimmed = line.trim();
-          if (
-            !trimmed ||
-            trimmed.startsWith(":") ||
-            !trimmed.startsWith("data: ")
-          )
-            continue;
-
+          if (!trimmed || trimmed.startsWith(":") || !trimmed.startsWith("data: ")) continue;
           const jsonStr = trimmed.slice(6).trim();
           if (jsonStr === "[DONE]") break;
-
           try {
             const parsed = JSON.parse(jsonStr);
             const content = parsed.choices?.[0]?.delta?.content;
             if (content) updateAssistantInState(content);
           } catch (e) {
-            console.error("Error parsing SSE line:", trimmed, e);
+            console.error("Error parsing SSE:", trimmed, e);
           }
         }
       }
 
+      // Save assistant response to DB
       if (convId && assistantSoFar) {
         await supabase.from("messages").insert({
           conversation_id: convId,
@@ -161,6 +164,9 @@ export function useBrainChat({
         });
       }
     } catch (err: any) {
+      // Ignore abort errors — user cancelled intentionally
+      if (err?.name === "AbortError") return;
+
       const errorMessage = `\n\n⚠️ Erro: ${err.message || "Falha ao gerar resposta"}`;
       setMessages((prev) => [
         ...prev,
@@ -173,25 +179,20 @@ export function useBrainChat({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [brainId, isStreaming, messages, onAssistantMessage, onStreamingStart, onStreamingEnd]);
 
-  // retry uses sendMessage via its ref so it never stales
+  // Keep sendMessageRef fresh to avoid stale closures in retry
   const sendMessageRef = useRef(sendMessage);
   sendMessageRef.current = sendMessage;
 
   const retry = useCallback(() => {
     setMessages((prev) => {
-      // Remove the last error message
       const withoutError = prev.filter((_, i) => i !== prev.length - 1);
-      // Also remove the last user message
       let lastUserIdx = -1;
       for (let i = withoutError.length - 1; i >= 0; i--) {
         if (withoutError[i].role === "user") { lastUserIdx = i; break; }
       }
-      if (lastUserIdx >= 0) {
-        return withoutError.filter((_, i) => i !== lastUserIdx);
-      }
+      if (lastUserIdx >= 0) return withoutError.filter((_, i) => i !== lastUserIdx);
       return withoutError;
     });
-    
     if (lastUserInputRef.current) {
       setTimeout(() => sendMessageRef.current(lastUserInputRef.current), 100);
     }
@@ -202,6 +203,7 @@ export function useBrainChat({
     setMessages,
     isStreaming,
     sendMessage,
+    stopStreaming,
     conversationId,
     loadHistory,
     resetChat,

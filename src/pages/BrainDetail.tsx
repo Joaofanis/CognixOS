@@ -68,6 +68,7 @@ export default function BrainDetail() {
     messages,
     isStreaming,
     sendMessage,
+    stopStreaming,
     loadHistory,
     conversationId,
     resetChat,
@@ -384,6 +385,7 @@ export default function BrainDetail() {
               messages={messages}
               isStreaming={isStreaming}
               sendMessage={sendMessage}
+              stopStreaming={stopStreaming}
               onNewChat={handleNewChat}
               conversationId={conversationId}
               onRetry={retry}

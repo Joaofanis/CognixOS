@@ -1,22 +1,79 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { BRAIN_TYPE_CONFIG, BrainType } from "@/lib/brain-types";
-import { Plus, Search, LogOut, Brain, Sparkles, GitCompareArrows, FileText, MessageSquare, User } from "lucide-react";
+import {
+  Plus,
+  Search,
+  LogOut,
+  Brain,
+  Sparkles,
+  GitCompareArrows,
+  FileText,
+  MessageSquare,
+  User,
+  Pin,
+  PinOff,
+  Trash2,
+  SortAsc,
+  ChevronDown,
+  Loader2,
+} from "lucide-react";
 import { toast } from "sonner";
 import CreateBrainDialog from "@/components/CreateBrainDialog";
+import { formatDistanceToNow } from "date-fns";
+import { ptBR } from "date-fns/locale";
+
+type SortKey = "updated" | "name" | "sources";
+
+function relativeDate(dateStr: string) {
+  try {
+    return formatDistanceToNow(new Date(dateStr), {
+      addSuffix: true,
+      locale: ptBR,
+    });
+  } catch {
+    return "";
+  }
+}
 
 export default function Dashboard() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<BrainType | "all">("all");
   const [showCreate, setShowCreate] = useState(false);
+  const [sortKey, setSortKey] = useState<SortKey>("updated");
+  // Delete brain confirmation
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  // Pin loading
+  const [togglingPin, setTogglingPin] = useState<string | null>(null);
 
   const { data: brains, isLoading } = useQuery({
     queryKey: ["brains", user?.id],
@@ -26,20 +83,22 @@ export default function Dashboard() {
         .from("brains")
         .select("*")
         .eq("user_id", user!.id)
+        .order("is_pinned", { ascending: false })
         .order("updated_at", { ascending: false });
       if (error) throw error;
       return data;
     },
   });
 
-  // Fetch counts for texts and conversations
   const { data: textCounts } = useQuery({
     queryKey: ["brain-text-counts", user?.id],
     enabled: !!brains && brains.length > 0,
     queryFn: async () => {
+      const brainIds = brains!.map((b) => b.id);
       const { data, error } = await supabase
         .from("brain_texts")
-        .select("brain_id");
+        .select("brain_id")
+        .in("brain_id", brainIds);
       if (error) throw error;
       const counts: Record<string, number> = {};
       data?.forEach((t) => {
@@ -53,9 +112,11 @@ export default function Dashboard() {
     queryKey: ["brain-conv-counts", user?.id],
     enabled: !!brains && brains.length > 0,
     queryFn: async () => {
+      const brainIds = brains!.map((b) => b.id);
       const { data, error } = await supabase
         .from("conversations")
-        .select("brain_id");
+        .select("brain_id")
+        .in("brain_id", brainIds);
       if (error) throw error;
       const counts: Record<string, number> = {};
       data?.forEach((c) => {
@@ -65,27 +126,89 @@ export default function Dashboard() {
     },
   });
 
-  const filtered = brains?.filter((b) => {
-    const matchSearch = b.name.toLowerCase().includes(search.toLowerCase());
-    const matchType = filterType === "all" || b.type === filterType;
-    return matchSearch && matchType;
-  });
+  const filtered = useMemo(() => {
+    let list =
+      brains?.filter((b) => {
+        const matchSearch = b.name.toLowerCase().includes(search.toLowerCase());
+        const matchType = filterType === "all" || b.type === filterType;
+        return matchSearch && matchType;
+      }) ?? [];
+
+    // Sort — pinned always first
+    list = [...list].sort((a, b) => {
+      if ((b as any).is_pinned !== (a as any).is_pinned)
+        return (b as any).is_pinned ? 1 : -1;
+      if (sortKey === "name") return a.name.localeCompare(b.name);
+      if (sortKey === "sources")
+        return (textCounts?.[b.id] || 0) - (textCounts?.[a.id] || 0);
+      // default: updated
+      return (
+        new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+      );
+    });
+    return list;
+  }, [brains, search, filterType, sortKey, textCounts]);
 
   const handleSignOut = async () => {
     await signOut();
     navigate("/auth");
   };
 
+  const handleTogglePin = async (
+    e: React.MouseEvent,
+    brainId: string,
+    pinned: boolean,
+  ) => {
+    e.stopPropagation();
+    setTogglingPin(brainId);
+    try {
+      const { error } = await supabase
+        .from("brains")
+        .update({ is_pinned: !pinned } as any)
+        .eq("id", brainId);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["brains", user?.id] });
+      toast.success(pinned ? "Brain desafixado" : "Brain fixado no topo!");
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setTogglingPin(null);
+    }
+  };
+
+  const handleDeleteBrain = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const { error } = await supabase
+        .from("brains")
+        .delete()
+        .eq("id", deleteTarget.id);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["brains", user?.id] });
+      toast.success(`"${deleteTarget.name}" removido`);
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setDeleting(false);
+      setDeleteTarget(null);
+    }
+  };
+
+  const SORT_LABELS: Record<SortKey, string> = {
+    updated: "Atualização",
+    name: "Nome (A-Z)",
+    sources: "Mais fontes",
+  };
+
   return (
     <div className="min-h-screen bg-mesh bg-background">
-      {/* Ambient gradient orbs */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-40 -left-40 w-80 h-80 bg-primary/8 rounded-full blur-3xl" />
         <div className="absolute -top-20 right-20 w-60 h-60 bg-accent/6 rounded-full blur-3xl" />
         <div className="absolute bottom-40 left-1/2 -translate-x-1/2 w-96 h-40 bg-primary/5 rounded-full blur-3xl" />
       </div>
 
-      {/* Header */}
       <header className="sticky top-0 z-20 glass border-b border-border/50">
         <div className="container flex h-16 items-center justify-between">
           <div className="flex items-center gap-3 group transition-all">
@@ -127,10 +250,14 @@ export default function Dashboard() {
         {/* Hero greeting */}
         <div className="space-y-1 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
-            Olá, <span className="text-gradient">{user?.email?.split("@")[0]}</span> 👋
+            Olá,{" "}
+            <span className="text-gradient">{user?.email?.split("@")[0]}</span>{" "}
+            👋
           </h1>
           <p className="text-muted-foreground">
-            Seus cérebros estão à sua espera.
+            {brains?.length
+              ? `${brains.length} cérebro${brains.length !== 1 ? "s" : ""} no seu segundo cérebro.`
+              : "Seus cérebros estão à sua espera."}
           </p>
         </div>
 
@@ -145,17 +272,46 @@ export default function Dashboard() {
               className="pl-11 h-12 bg-card/60 border-border/50 focus:border-primary/50 transition-all rounded-2xl shadow-sm"
             />
           </div>
+
+          {/* Sort dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                className="h-12 px-4 gap-2 rounded-2xl font-semibold shrink-0"
+              >
+                <SortAsc className="h-4 w-4" />
+                <span className="hidden sm:inline">{SORT_LABELS[sortKey]}</span>
+                <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="rounded-2xl">
+              {(Object.entries(SORT_LABELS) as [SortKey, string][]).map(
+                ([k, label]) => (
+                  <DropdownMenuItem
+                    key={k}
+                    onClick={() => setSortKey(k)}
+                    className={`rounded-xl font-semibold ${sortKey === k ? "text-primary" : ""}`}
+                  >
+                    {label}
+                  </DropdownMenuItem>
+                ),
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           <Button
             variant="outline"
             onClick={() => navigate("/compare")}
-            className="h-12 px-5 gap-2 rounded-2xl font-semibold"
+            className="h-12 px-5 gap-2 rounded-2xl font-semibold shrink-0"
           >
             <GitCompareArrows className="h-4 w-4" />
             Comparar
           </Button>
+
           <Button
             onClick={() => setShowCreate(true)}
-            className="h-12 px-6 gap-2 rounded-2xl gradient-jewel hover:opacity-90 shadow-lg shadow-primary/25 hover:shadow-primary/40 active:scale-[0.98] transition-all text-white font-semibold"
+            className="h-12 px-6 gap-2 rounded-2xl gradient-jewel hover:opacity-90 shadow-lg shadow-primary/25 hover:shadow-primary/40 active:scale-[0.98] transition-all text-white font-semibold shrink-0"
           >
             <Plus className="h-5 w-5" />
             Criar Cérebro
@@ -166,11 +322,7 @@ export default function Dashboard() {
         <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar animate-in fade-in duration-500 delay-150">
           <Badge
             variant={filterType === "all" ? "default" : "outline"}
-            className={`cursor-pointer shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${
-              filterType === "all"
-                ? "gradient-jewel border-transparent text-white shadow-md shadow-primary/20"
-                : "hover:border-primary/50 hover:text-primary"
-            }`}
+            className={`cursor-pointer shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${filterType === "all" ? "gradient-jewel border-transparent text-white shadow-md shadow-primary/20" : "hover:border-primary/50 hover:text-primary"}`}
             onClick={() => setFilterType("all")}
           >
             Todos
@@ -178,17 +330,13 @@ export default function Dashboard() {
           {(
             Object.entries(BRAIN_TYPE_CONFIG) as [
               BrainType,
-              (typeof BRAIN_TYPE_CONFIG)[BrainType]
+              (typeof BRAIN_TYPE_CONFIG)[BrainType],
             ][]
           ).map(([key, config]) => (
             <Badge
               key={key}
               variant={filterType === key ? "default" : "outline"}
-              className={`cursor-pointer shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${
-                filterType === key
-                  ? "gradient-jewel border-transparent text-white shadow-md shadow-primary/20"
-                  : "hover:border-primary/50 hover:text-primary"
-              }`}
+              className={`cursor-pointer shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${filterType === key ? "gradient-jewel border-transparent text-white shadow-md shadow-primary/20" : "hover:border-primary/50 hover:text-primary"}`}
               onClick={() => setFilterType(key)}
             >
               {config.label}
@@ -196,7 +344,7 @@ export default function Dashboard() {
           ))}
         </div>
 
-        {/* Brain Cards Grid */}
+        {/* Brain Cards */}
         {isLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {[1, 2, 3, 4, 5, 6].map((i) => (
@@ -220,7 +368,8 @@ export default function Dashboard() {
               Sua mente está calma demais...
             </p>
             <p className="text-muted-foreground mt-2 mb-8 max-w-xs mx-auto">
-              Crie seu primeiro cérebro para começar a alimentar seu conhecimento!
+              Crie seu primeiro cérebro para começar a alimentar seu
+              conhecimento!
             </p>
             <Button
               onClick={() => setShowCreate(true)}
@@ -236,6 +385,8 @@ export default function Dashboard() {
               const Icon = config?.icon || Brain;
               const textsCount = textCounts?.[brain.id] || 0;
               const convsCount = convCounts?.[brain.id] || 0;
+              const isPinned = (brain as any).is_pinned;
+
               return (
                 <div
                   key={brain.id}
@@ -243,19 +394,23 @@ export default function Dashboard() {
                   onClick={() => navigate(`/brain/${brain.id}`)}
                   style={{ animationDelay: `${idx * 60}ms` }}
                 >
-                  {/* Gradient border on hover */}
                   <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-primary/0 to-accent/0 group-hover:from-primary/20 group-hover:to-accent/10 transition-all duration-500 pointer-events-none" />
-                  
-                  <div className="h-full min-h-[160px] border border-border/60 bg-card shadow-sm hover:border-primary/40 hover:shadow-md transition-all duration-300 rounded-3xl overflow-hidden p-5 space-y-4">
+
+                  <div className="h-full min-h-[170px] border border-border/60 bg-card shadow-sm hover:border-primary/40 hover:shadow-md transition-all duration-300 rounded-3xl overflow-hidden p-5 space-y-4">
                     {/* Top row */}
                     <div className="flex items-center gap-4">
                       <div className="flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/15 to-accent/10 group-hover:from-primary/25 group-hover:to-accent/20 transition-all shadow-sm border border-primary/10 p-3">
                         <Icon className="h-6 w-6 text-primary" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <h2 className="font-bold text-base truncate group-hover:text-primary transition-colors">
-                          {brain.name}
-                        </h2>
+                        <div className="flex items-center gap-1.5">
+                          {isPinned && (
+                            <Pin className="h-3 w-3 text-primary/70 shrink-0" />
+                          )}
+                          <h2 className="font-bold text-base truncate group-hover:text-primary transition-colors">
+                            {brain.name}
+                          </h2>
+                        </div>
                         <Badge
                           variant="secondary"
                           className="text-[10px] uppercase tracking-widest font-bold bg-primary/8 text-primary/70 border-0 mt-1"
@@ -263,19 +418,50 @@ export default function Dashboard() {
                           {config?.label}
                         </Badge>
                       </div>
+
+                      {/* Action buttons (appear on hover) */}
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                        <button
+                          className="h-7 w-7 rounded-xl flex items-center justify-center hover:bg-primary/15 transition-colors text-muted-foreground hover:text-primary"
+                          onClick={(e) =>
+                            handleTogglePin(e, brain.id, isPinned)
+                          }
+                          title={isPinned ? "Desafixar" : "Fixar no topo"}
+                        >
+                          {togglingPin === brain.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : isPinned ? (
+                            <PinOff className="h-3.5 w-3.5" />
+                          ) : (
+                            <Pin className="h-3.5 w-3.5" />
+                          )}
+                        </button>
+                        <button
+                          className="h-7 w-7 rounded-xl flex items-center justify-center hover:bg-destructive/15 transition-colors text-muted-foreground hover:text-destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteTarget({ id: brain.id, name: brain.name });
+                          }}
+                          title="Excluir brain"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </div>
 
                     {/* Tags */}
                     {(brain as any).tags?.length > 0 && (
                       <div className="flex flex-wrap gap-1">
-                        {((brain as any).tags as string[]).slice(0, 5).map((tag: string) => (
-                          <span
-                            key={tag}
-                            className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-jade/10 text-jade border border-jade/20"
-                          >
-                            {tag}
-                          </span>
-                        ))}
+                        {((brain as any).tags as string[])
+                          .slice(0, 5)
+                          .map((tag: string) => (
+                            <span
+                              key={tag}
+                              className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-jade/10 text-jade border border-jade/20"
+                            >
+                              {tag}
+                            </span>
+                          ))}
                         {((brain as any).tags as string[]).length > 5 && (
                           <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
                             +{((brain as any).tags as string[]).length - 5}
@@ -291,15 +477,20 @@ export default function Dashboard() {
                       </p>
                     )}
 
-                    {/* Counts */}
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <FileText className="h-3 w-3" />
-                        {textsCount} fonte{textsCount !== 1 ? "s" : ""}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <MessageSquare className="h-3 w-3" />
-                        {convsCount} conversa{convsCount !== 1 ? "s" : ""}
+                    {/* Footer */}
+                    <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-3">
+                        <span className="flex items-center gap-1">
+                          <FileText className="h-3 w-3" />
+                          {textsCount} fonte{textsCount !== 1 ? "s" : ""}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <MessageSquare className="h-3 w-3" />
+                          {convsCount} conversa{convsCount !== 1 ? "s" : ""}
+                        </span>
+                      </div>
+                      <span className="text-[10px] opacity-60">
+                        {relativeDate(brain.updated_at)}
                       </span>
                     </div>
 
@@ -314,6 +505,37 @@ export default function Dashboard() {
       </main>
 
       <CreateBrainDialog open={showCreate} onOpenChange={setShowCreate} />
+
+      {/* Delete confirmation */}
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir "{deleteTarget?.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. O brain, todos os textos e
+              conversas serão removidos permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteBrain}
+              disabled={deleting}
+              className="bg-destructive hover:bg-destructive/90 text-white gap-2"
+            >
+              {deleting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4" />
+              )}
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

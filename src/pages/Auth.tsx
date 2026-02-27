@@ -4,8 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Brain, Loader2 } from "lucide-react";
+import { Brain, Loader2, Sparkles, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 
 export default function Auth() {
@@ -14,6 +13,7 @@ export default function Auth() {
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPw, setShowPw] = useState(false);
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
 
@@ -36,32 +36,75 @@ export default function Auth() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
-            <Brain className="h-7 w-7 text-primary" />
+    <div className="min-h-screen bg-mesh bg-background relative flex items-center justify-center p-4 overflow-hidden">
+      {/* Ambient orbs */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute -top-60 -left-60 w-[500px] h-[500px] bg-primary/12 rounded-full blur-3xl" />
+        <div className="absolute -bottom-40 -right-40 w-[400px] h-[400px] bg-accent/10 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-40 bg-primary/6 rounded-full blur-3xl" />
+      </div>
+
+      <div className="w-full max-w-md animate-in fade-in slide-in-from-bottom-8 duration-700 relative">
+        {/* Logo area */}
+        <div className="text-center mb-8">
+          <div className="relative inline-flex mb-4">
+            <div className="h-20 w-20 rounded-3xl bg-gradient-to-br from-primary/20 to-accent/10 border border-primary/20 flex items-center justify-center shadow-xl shadow-primary/20">
+              <Brain className="h-10 w-10 text-primary" />
+            </div>
+            <div className="absolute -top-1 -right-1 h-6 w-6 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center shadow-lg">
+              <Sparkles className="h-3 w-3 text-white" />
+            </div>
           </div>
-          <CardTitle className="text-2xl">Segundo Cérebro</CardTitle>
-          <CardDescription>
-            {isLogin ? "Entre na sua conta" : "Crie sua conta"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+          <h1 className="text-3xl font-extrabold tracking-tight text-gradient mb-1">
+            Segundo Cérebro
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {isLogin
+              ? "Entre na sua conta para continuar"
+              : "Crie sua conta e comece agora"}
+          </p>
+        </div>
+
+        {/* Form card */}
+        <div className="glass border border-border/60 rounded-3xl p-8 shadow-2xl shadow-black/20">
+          {/* Tab toggle */}
+          <div className="flex rounded-2xl bg-muted/50 p-1 mb-6 gap-1">
+            {["Entrar", "Criar conta"].map((label, i) => (
+              <button
+                key={label}
+                type="button"
+                onClick={() => setIsLogin(i === 0)}
+                className={`flex-1 py-2 px-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
+                  (i === 0) === isLogin
+                    ? "bg-primary text-white shadow-md shadow-primary/30"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-4">
             {!isLogin && (
-              <div className="space-y-2">
-                <Label htmlFor="name">Nome</Label>
+              <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-300">
+                <Label htmlFor="name" className="text-sm font-semibold">
+                  Nome
+                </Label>
                 <Input
                   id="name"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                   placeholder="Seu nome"
+                  className="rounded-2xl h-11 bg-background/60 border-border/60 focus:border-primary/60"
                 />
               </div>
             )}
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="email" className="text-sm font-semibold">
+                Email
+              </Label>
               <Input
                 id="email"
                 type="email"
@@ -69,36 +112,58 @@ export default function Auth() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="seu@email.com"
                 required
+                className="rounded-2xl h-11 bg-background/60 border-border/60 focus:border-primary/60"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                required
-                minLength={6}
-              />
+
+            <div className="space-y-1.5">
+              <Label htmlFor="password" className="text-sm font-semibold">
+                Senha
+              </Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPw ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                  minLength={6}
+                  className="rounded-2xl h-11 bg-background/60 border-border/60 focus:border-primary/60 pr-11"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPw(!showPw)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {showPw ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading && <Loader2 className="animate-spin" />}
+
+            <Button
+              type="submit"
+              disabled={loading}
+              className="w-full h-12 rounded-2xl gradient-jewel text-white font-bold shadow-lg shadow-primary/25 hover:opacity-90 hover:shadow-primary/40 active:scale-[0.98] transition-all mt-2 gap-2"
+            >
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
               {isLogin ? "Entrar" : "Criar conta"}
             </Button>
           </form>
-          <div className="mt-4 text-center text-sm text-muted-foreground">
-            {isLogin ? "Não tem conta?" : "Já tem conta?"}{" "}
-            <button
-              onClick={() => setIsLogin(!isLogin)}
-              className="text-primary underline-offset-4 hover:underline"
-            >
-              {isLogin ? "Criar conta" : "Fazer login"}
-            </button>
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+
+        <p className="text-center text-xs text-muted-foreground/60 mt-6">
+          Seus dados são privados. Apenas você tem acesso aos seus cérebros.
+        </p>
+      </div>
     </div>
   );
 }

@@ -6,7 +6,26 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, Upload, Trash2, FileText, Search } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Loader2,
+  Plus,
+  Upload,
+  Trash2,
+  FileText,
+  Search,
+  Link,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 
 interface Props {
@@ -19,6 +38,12 @@ export default function FeedTexts({ brainId }: Props) {
   const [adding, setAdding] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  // URL import
+  const [urlInput, setUrlInput] = useState("");
+  const [importingUrl, setImportingUrl] = useState(false);
+  const [showUrlInput, setShowUrlInput] = useState(false);
 
   const { data: texts, isLoading } = useQuery({
     queryKey: ["brain-texts", brainId],
@@ -39,7 +64,11 @@ export default function FeedTexts({ brainId }: Props) {
     try {
       const { error } = await supabase
         .from("brain_texts")
-        .insert({ brain_id: brainId, content: text.trim(), source_type: "paste" });
+        .insert({
+          brain_id: brainId,
+          content: text.trim(),
+          source_type: "paste",
+        });
       if (error) throw error;
       setText("");
       queryClient.invalidateQueries({ queryKey: ["brain-texts", brainId] });
@@ -54,52 +83,42 @@ export default function FeedTexts({ brainId }: Props) {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    const allowedExtensions = [".txt", ".pdf", ".docx"];
     const ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
-    
-    if (!allowedExtensions.includes(ext)) {
+    if (![".txt", ".pdf", ".docx"].includes(ext)) {
       toast.error("Formatos suportados: .txt, .pdf, .docx");
       return;
     }
-
     setUploading(true);
     try {
       if (ext === ".txt") {
         const content = await file.text();
-        const { error } = await supabase
-          .from("brain_texts")
-          .insert({
-            brain_id: brainId,
-            content,
-            source_type: "file_upload",
-            file_name: file.name,
-          });
+        const { error } = await supabase.from("brain_texts").insert({
+          brain_id: brainId,
+          content,
+          source_type: "file_upload",
+          file_name: file.name,
+        });
         if (error) throw error;
       } else {
-        // PDF or DOCX — send to parse-file edge function
-        const { data: { session } } = await supabase.auth.getSession();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
         const formData = new FormData();
         formData.append("file", file);
         formData.append("brainId", brainId);
-
         const resp = await fetch(
           `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/parse-file`,
           {
             method: "POST",
-            headers: {
-              Authorization: `Bearer ${session?.access_token}`,
-            },
+            headers: { Authorization: `Bearer ${session?.access_token}` },
             body: formData,
-          }
+          },
         );
-
         if (!resp.ok) {
           const err = await resp.json().catch(() => ({}));
           throw new Error(err.error || "Erro ao processar arquivo");
         }
       }
-
       queryClient.invalidateQueries({ queryKey: ["brain-texts", brainId] });
       toast.success(`Arquivo "${file.name}" adicionado!`);
     } catch (err: any) {
@@ -110,14 +129,48 @@ export default function FeedTexts({ brainId }: Props) {
     }
   };
 
-  const deleteText = async (textId: string) => {
+  const handleUrlImport = async () => {
+    if (!urlInput.trim()) return;
+    setImportingUrl(true);
     try {
-      const { error } = await supabase.from("brain_texts").delete().eq("id", textId);
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const { data, error } = await supabase.functions.invoke("import-url", {
+        body: { url: urlInput.trim(), brainId },
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
+      setUrlInput("");
+      setShowUrlInput(false);
+      queryClient.invalidateQueries({ queryKey: ["brain-texts", brainId] });
+      toast.success(
+        `"${data.title}" importado! (${data.chars.toLocaleString()} chars)`,
+      );
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao importar URL");
+    } finally {
+      setImportingUrl(false);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const { error } = await supabase
+        .from("brain_texts")
+        .delete()
+        .eq("id", deleteTarget);
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ["brain-texts", brainId] });
       toast.success("Texto removido");
     } catch (err: any) {
       toast.error(err.message);
+    } finally {
+      setDeleting(false);
+      setDeleteTarget(null);
     }
   };
 
@@ -131,6 +184,12 @@ export default function FeedTexts({ brainId }: Props) {
     );
   });
 
+  const sourceTypeLabel: Record<string, string> = {
+    paste: "Colado",
+    file_upload: "Arquivo",
+    url_import: "URL",
+  };
+
   return (
     <div className="container py-6 space-y-6">
       {/* Add text */}
@@ -142,28 +201,92 @@ export default function FeedTexts({ brainId }: Props) {
             onChange={(e) => setText(e.target.value)}
             rows={4}
           />
-          <div className="flex gap-2">
-            <Button onClick={addText} disabled={!text.trim() || adding} className="gap-2">
-              {adding ? <Loader2 className="animate-spin" /> : <Plus className="h-4 w-4" />}
-              Adicionar Texto
-            </Button>
-            <Button variant="outline" className="gap-2" asChild>
-              <label className="cursor-pointer">
-                {uploading ? <Loader2 className="animate-spin" /> : <Upload className="h-4 w-4" />}
-                Upload Arquivo
-                <input
-                  type="file"
-                  accept=".txt,.pdf,.docx"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                />
-              </label>
-            </Button>
+          {/* URL import row */}
+          {showUrlInput && (
+            <div className="flex gap-2 animate-in fade-in slide-in-from-top-2 duration-200">
+              <Input
+                placeholder="https://exemplo.com/artigo"
+                value={urlInput}
+                onChange={(e) => setUrlInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleUrlImport()}
+                className="rounded-2xl flex-1"
+                autoFocus
+              />
+              <Button
+                onClick={handleUrlImport}
+                disabled={!urlInput.trim() || importingUrl}
+                className="gap-2 rounded-2xl shrink-0"
+              >
+                {importingUrl ? (
+                  <Loader2 className="animate-spin h-4 w-4" />
+                ) : (
+                  <Link className="h-4 w-4" />
+                )}
+                Importar
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  setShowUrlInput(false);
+                  setUrlInput("");
+                }}
+                className="rounded-xl shrink-0"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex gap-2 flex-wrap">
+              <Button
+                onClick={addText}
+                disabled={!text.trim() || adding}
+                className="gap-2"
+              >
+                {adding ? (
+                  <Loader2 className="animate-spin h-4 w-4" />
+                ) : (
+                  <Plus className="h-4 w-4" />
+                )}
+                Adicionar Texto
+              </Button>
+              <Button variant="outline" className="gap-2" asChild>
+                <label className="cursor-pointer">
+                  {uploading ? (
+                    <Loader2 className="animate-spin h-4 w-4" />
+                  ) : (
+                    <Upload className="h-4 w-4" />
+                  )}
+                  Arquivo
+                  <input
+                    type="file"
+                    accept=".txt,.pdf,.docx"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                  />
+                </label>
+              </Button>
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={() => setShowUrlInput(!showUrlInput)}
+              >
+                <Link className="h-4 w-4" />
+                Importar URL
+              </Button>
+            </div>
+            {text.length > 0 && (
+              <span className="text-xs text-muted-foreground">
+                {text.length.toLocaleString()} chars
+              </span>
+            )}
           </div>
         </CardContent>
       </Card>
 
-      {/* Search & Text list */}
+      {/* List */}
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-3">
           <h3 className="font-medium text-sm text-muted-foreground shrink-0">
@@ -183,7 +306,9 @@ export default function FeedTexts({ brainId }: Props) {
         </div>
 
         {isLoading ? (
-          <div className="text-center py-8 text-muted-foreground">Carregando...</div>
+          <div className="text-center py-8 text-muted-foreground">
+            Carregando...
+          </div>
         ) : filteredTexts?.length === 0 && searchQuery ? (
           <div className="text-center py-8 text-muted-foreground text-sm">
             Nenhum texto encontrado para "{searchQuery}"
@@ -193,20 +318,27 @@ export default function FeedTexts({ brainId }: Props) {
             <Card key={t.id}>
               <CardContent className="pt-4 pb-4">
                 <div className="flex items-start justify-between gap-2 mb-2">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
                     {t.file_name && (
-                      <Badge variant="secondary" className="text-xs">{t.file_name}</Badge>
+                      <Badge variant="secondary" className="text-xs">
+                        {t.file_name}
+                      </Badge>
                     )}
-                    {t.category && (
-                      <Badge variant="outline" className="text-xs">{t.category}</Badge>
+                    {t.source_type && (
+                      <Badge variant="outline" className="text-[10px]">
+                        {sourceTypeLabel[t.source_type] || t.source_type}
+                      </Badge>
                     )}
+                    <span className="text-[10px] text-muted-foreground/60">
+                      {t.content.length.toLocaleString()} chars
+                    </span>
                   </div>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 shrink-0 text-destructive hover:text-destructive"
-                    onClick={() => deleteText(t.id)}
+                    className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                    onClick={() => setDeleteTarget(t.id)}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -219,6 +351,36 @@ export default function FeedTexts({ brainId }: Props) {
           ))
         )}
       </div>
+
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover texto?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. O texto será removido
+              permanentemente do cérebro.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              disabled={deleting}
+              className="bg-destructive hover:bg-destructive/90 text-white gap-2"
+            >
+              {deleting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4" />
+              )}
+              Remover
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

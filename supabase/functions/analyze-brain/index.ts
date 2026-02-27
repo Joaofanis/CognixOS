@@ -26,10 +26,16 @@ function extractJSON(text: string): Record<string, unknown> | null {
   return null;
 }
 
-// Build prompts based on brain type
+// Build prompts based on brain type — AI chooses skill names freely
 function getPrompts(brainType: string, allText: string) {
   let systemPrompt: string;
   let radarField: string;
+
+  const skillsInstruction = `  "skills": {
+    "<nome da habilidade escolhida pela IA 1>": <número 0-10 representando nível de domínio>,
+    "<nome da habilidade escolhida pela IA 2>": <número 0-10>,
+    ...até 8 habilidades específicas identificadas nos textos, nomeadas livremente pela IA com base no conteúdo real
+  }`;
 
   switch (brainType) {
     case "knowledge_base":
@@ -41,6 +47,7 @@ function getPrompts(brainType: string, allText: string) {
     "<área de conhecimento 2>": <número 0-10>,
     ...até 8 áreas
   },
+${skillsInstruction},
   "frequent_themes": [
     {"name": "<tema>", "count": <número inteiro>}
   ]
@@ -55,6 +62,7 @@ function getPrompts(brainType: string, allText: string) {
     "<princípio filosófico 2>": <número 0-10>,
     ...até 8 princípios
   },
+${skillsInstruction},
   "frequent_themes": [
     {"name": "<tema>", "count": <número inteiro>}
   ]
@@ -69,6 +77,7 @@ function getPrompts(brainType: string, allText: string) {
     "<competência prática 2>": <número 0-10>,
     ...até 8 competências
   },
+${skillsInstruction},
   "frequent_themes": [
     {"name": "<tema>", "count": <número inteiro>}
   ]
@@ -88,6 +97,7 @@ function getPrompts(brainType: string, allText: string) {
     "disciplina": <número 0-10>,
     "otimismo": <número 0-10>
   },
+${skillsInstruction},
   "frequent_themes": [
     {"name": "<tema>", "count": <número inteiro>}
   ]
@@ -102,7 +112,7 @@ function getPrompts(brainType: string, allText: string) {
 // Validation constants
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const VALID_BRAIN_TYPES = ["person_clone", "knowledge_base", "philosophy", "practical_guide"];
-const MAX_BODY_SIZE = 1024 * 1024; // 1MB total body size
+const MAX_BODY_SIZE = 1024 * 1024;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -116,7 +126,6 @@ serve(async (req) => {
       });
     }
 
-    // Safe JSON parsing with body size check
     const contentLength = parseInt(req.headers.get("Content-Length") || "0", 10);
     if (contentLength > MAX_BODY_SIZE) {
       return new Response(JSON.stringify({ error: "Request body too large. Maximum size is 1MB." }), {
@@ -137,7 +146,6 @@ serve(async (req) => {
 
     const { brainId, brainType: requestedType } = body as { brainId: unknown; brainType: unknown };
 
-    // Validate brainId: must be a non-empty string in UUID format
     if (!brainId || typeof brainId !== "string" || !UUID_REGEX.test(brainId)) {
       return new Response(JSON.stringify({ error: "Invalid or missing brainId. Must be a valid UUID." }), {
         status: 400,
@@ -145,7 +153,6 @@ serve(async (req) => {
       });
     }
 
-    // Validate brainType if provided: must be one of the allowed types
     if (requestedType !== undefined && requestedType !== null) {
       if (typeof requestedType !== "string" || !VALID_BRAIN_TYPES.includes(requestedType)) {
         return new Response(JSON.stringify({ error: `Invalid brainType "${requestedType}". Must be one of: ${VALID_BRAIN_TYPES.join(", ")}.` }), {
@@ -162,13 +169,12 @@ serve(async (req) => {
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Verify User JWT
     const userClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
     const token = authHeader.replace("Bearer ", "");
     const { data: claimsData, error: authError } = await userClient.auth.getClaims(token);
-    
+
     if (authError || !claimsData?.claims) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
@@ -179,7 +185,6 @@ serve(async (req) => {
     const userId = claimsData.claims.sub as string;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Verify Ownership and get brain type
     const { data: brain, error: brainErr } = await supabase
       .from("brains")
       .select("user_id, type")
@@ -202,7 +207,6 @@ serve(async (req) => {
 
     const brainType = requestedType || brain.type || "person_clone";
 
-    // Get brain texts
     const { data: texts } = await supabase
       .from("brain_texts")
       .select("content")
@@ -251,7 +255,7 @@ serve(async (req) => {
               { role: "user", content: userPrompt },
             ],
             temperature: 0.2,
-            max_tokens: 1500,
+            max_tokens: 2000,
             response_format: { type: "json_object" },
           }),
         });
@@ -297,10 +301,17 @@ serve(async (req) => {
       });
     }
 
-    // Extract radar data (could be personality_traits or knowledge_areas)
+    // Extract radar data
     const radarData = (analysisData[radarField] || analysisData.personality_traits || analysisData.knowledge_areas) as Record<string, number>;
     for (const key of Object.keys(radarData)) {
       radarData[key] = Number(radarData[key]) || 0;
+    }
+
+    // Extract AI-chosen skills (normalize to numbers, cap at 8)
+    const rawSkills = (analysisData.skills || {}) as Record<string, unknown>;
+    const skills: Record<string, number> = {};
+    for (const [key, val] of Object.entries(rawSkills).slice(0, 8)) {
+      skills[key] = Math.min(10, Math.max(0, Number(val) || 0));
     }
 
     // Extract themes
@@ -309,10 +320,11 @@ serve(async (req) => {
       .sort((a, b) => b.count - a.count)
       .slice(0, 15);
 
-    // Build upsert data - store in appropriate column
+    // Build upsert data
     const upsertData: Record<string, unknown> = {
       brain_id: brainId,
       frequent_themes: themes,
+      skills,
       updated_at: new Date().toISOString(),
     };
 
