@@ -2,7 +2,13 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, BarChart3, Brain as BrainIcon, Sparkles, Zap } from "lucide-react";
+import {
+  Loader2,
+  BarChart3,
+  Brain as BrainIcon,
+  Sparkles,
+  Zap,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 import { BrainType } from "@/lib/brain-types";
@@ -27,10 +33,22 @@ interface Props {
 }
 
 const ANALYSIS_LABELS: Record<string, { title: string; radarTitle: string }> = {
-  person_clone: { title: "Análise de Personalidade", radarTitle: "Traços de Personalidade" },
-  knowledge_base: { title: "Análise de Conhecimento", radarTitle: "Áreas de Conhecimento" },
-  philosophy: { title: "Análise Filosófica", radarTitle: "Princípios Filosóficos" },
-  practical_guide: { title: "Análise de Competências", radarTitle: "Competências Práticas" },
+  person_clone: {
+    title: "Análise de Personalidade",
+    radarTitle: "Traços de Personalidade",
+  },
+  knowledge_base: {
+    title: "Análise de Conhecimento",
+    radarTitle: "Áreas de Conhecimento",
+  },
+  philosophy: {
+    title: "Análise Filosófica",
+    radarTitle: "Princípios Filosóficos",
+  },
+  practical_guide: {
+    title: "Análise de Competências",
+    radarTitle: "Competências Práticas",
+  },
 };
 
 // Custom tooltip for bar chart
@@ -43,12 +61,20 @@ const CustomBarTooltip = ({ active, payload, label }: any) => {
           backdropFilter: "blur(16px)",
           borderRadius: "14px",
           border: "1px solid rgba(100, 140, 255, 0.25)",
-          boxShadow: "0 20px 40px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)",
+          boxShadow:
+            "0 20px 40px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)",
           padding: "12px 16px",
           maxWidth: 240,
         }}
       >
-        <p style={{ color: "rgba(255,255,255,0.95)", fontSize: 13, fontWeight: 600, marginBottom: 4 }}>
+        <p
+          style={{
+            color: "rgba(255,255,255,0.95)",
+            fontSize: 13,
+            fontWeight: 600,
+            marginBottom: 4,
+          }}
+        >
           {label}
         </p>
         <p style={{ color: "#F5BE40", fontSize: 13, fontWeight: 700 }}>
@@ -74,7 +100,13 @@ const CustomRadarTooltip = ({ active, payload }: any) => {
           padding: "10px 14px",
         }}
       >
-        <p style={{ color: "rgba(255,255,255,0.9)", fontSize: 12, fontWeight: 600 }}>
+        <p
+          style={{
+            color: "rgba(255,255,255,0.9)",
+            fontSize: 12,
+            fontWeight: 600,
+          }}
+        >
           {payload[0].payload.trait}
         </p>
         <p style={{ color: "#4D83F0", fontSize: 14, fontWeight: 700 }}>
@@ -91,7 +123,10 @@ const BAR_GRADIENT_ID = "barGradient";
 const RADAR_FILL_ID = "radarFill";
 const KNOWLEDGE_FILL_ID = "knowledgeFill";
 
-export default function BrainAnalysis({ brainId, brainType = "person_clone" }: Props) {
+export default function BrainAnalysis({
+  brainId,
+  brainType = "person_clone",
+}: Props) {
   const [generating, setGenerating] = useState(false);
   const labels = ANALYSIS_LABELS[brainType] || ANALYSIS_LABELS.person_clone;
 
@@ -111,15 +146,18 @@ export default function BrainAnalysis({ brainId, brainType = "person_clone" }: P
   const generateAnalysis = async () => {
     setGenerating(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       const { data, error } = await supabase.functions.invoke("analyze-brain", {
         body: { brainId, brainType },
         headers: {
-          Authorization: `Bearer ${session?.access_token}`
-        }
+          Authorization: `Bearer ${session?.access_token}`,
+        },
       });
       if (error) {
-        const msg = typeof data === "object" && data?.error ? data.error : error.message;
+        const msg =
+          typeof data === "object" && data?.error ? data.error : error.message;
         throw new Error(msg || "Erro ao gerar análise");
       }
       if (data?.error) throw new Error(data.error);
@@ -133,11 +171,21 @@ export default function BrainAnalysis({ brainId, brainType = "person_clone" }: P
   };
 
   // Use personality_traits or knowledge_areas based on type
-  const radarSource = brainType === "person_clone" 
-    ? analysis?.personality_traits as Record<string, number> | null
-    : (analysis?.knowledge_areas || analysis?.personality_traits) as Record<string, number> | null;
-  const themes = analysis?.frequent_themes as Array<{ name: string; count: number }> | null;
-  const knowledgeRaw = analysis?.knowledge_areas as Record<string, number> | null;
+  const radarSource =
+    brainType === "person_clone"
+      ? (analysis?.personality_traits as Record<string, number> | null)
+      : ((analysis?.knowledge_areas || analysis?.personality_traits) as Record<
+          string,
+          number
+        > | null);
+  const themes = analysis?.frequent_themes as Array<{
+    name: string;
+    count: number;
+  }> | null;
+  const knowledgeRaw = analysis?.knowledge_areas as Record<
+    string,
+    number
+  > | null;
 
   const radarData = radarSource
     ? Object.entries(radarSource).map(([key, value]) => ({
@@ -148,8 +196,9 @@ export default function BrainAnalysis({ brainId, brainType = "person_clone" }: P
     : [];
 
   // Sorted themes (should already be sorted from edge function)
->>>>>>> Stashed changes
-  const sortedThemes = themes ? [...themes].sort((a, b) => b.count - a.count) : [];
+  const sortedThemes = themes
+    ? [...themes].sort((a, b) => b.count - a.count)
+    : [];
   const maxCount = sortedThemes[0]?.count || 1;
 
   return (
@@ -159,7 +208,12 @@ export default function BrainAnalysis({ brainId, brainType = "person_clone" }: P
           <h3 className="font-bold text-lg text-gradient">{labels.title}</h3>
           {analysis && (
             <p className="text-xs text-muted-foreground mt-0.5">
-              Atualizado em {new Date(analysis.updated_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })}
+              Atualizado em{" "}
+              {new Date(analysis.updated_at).toLocaleDateString("pt-BR", {
+                day: "2-digit",
+                month: "long",
+                year: "numeric",
+              })}
             </p>
           )}
         </div>
@@ -185,9 +239,12 @@ export default function BrainAnalysis({ brainId, brainType = "person_clone" }: P
             <BrainIcon className="h-8 w-8 text-primary/60" />
           </div>
           <div>
-            <p className="font-semibold text-foreground">Nenhuma análise ainda</p>
+            <p className="font-semibold text-foreground">
+              Nenhuma análise ainda
+            </p>
             <p className="text-sm text-muted-foreground mt-1">
-              Adicione textos à aba <strong>Fontes</strong> e clique em <strong>Gerar Análise</strong>.
+              Adicione textos à aba <strong>Fontes</strong> e clique em{" "}
+              <strong>Gerar Análise</strong>.
             </p>
           </div>
         </div>
@@ -204,17 +261,41 @@ export default function BrainAnalysis({ brainId, brainType = "person_clone" }: P
             <CardContent>
               {radarData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={340}>
-                  <RadarChart cx="50%" cy="50%" outerRadius="78%" data={radarData}>
+                  <RadarChart
+                    cx="50%"
+                    cy="50%"
+                    outerRadius="78%"
+                    data={radarData}
+                  >
                     <defs>
-                      <radialGradient id="radarFill" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
-                        <stop offset="0%" stopColor="hsl(var(--jade))" stopOpacity={0.55} />
-                        <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.08} />
+                      <radialGradient
+                        id="radarFill"
+                        cx="50%"
+                        cy="50%"
+                        r="50%"
+                        fx="50%"
+                        fy="50%"
+                      >
+                        <stop
+                          offset="0%"
+                          stopColor="hsl(var(--jade))"
+                          stopOpacity={0.55}
+                        />
+                        <stop
+                          offset="100%"
+                          stopColor="hsl(var(--primary))"
+                          stopOpacity={0.08}
+                        />
                       </radialGradient>
                     </defs>
                     <PolarGrid stroke="hsla(var(--primary), 0.10)" />
                     <PolarAngleAxis
                       dataKey="trait"
-                      tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))", fontWeight: 600 }}
+                      tick={{
+                        fontSize: 11,
+                        fill: "hsl(var(--muted-foreground))",
+                        fontWeight: 600,
+                      }}
                     />
                     <PolarRadiusAxis
                       angle={30}
@@ -230,7 +311,12 @@ export default function BrainAnalysis({ brainId, brainType = "person_clone" }: P
                       fillOpacity={1}
                       strokeWidth={2.5}
                       dot={{ fill: "hsl(var(--jade))", r: 4, strokeWidth: 0 }}
-                      activeDot={{ fill: "hsl(var(--accent))", r: 6, strokeWidth: 2, stroke: "white" }}
+                      activeDot={{
+                        fill: "hsl(var(--accent))",
+                        r: 6,
+                        strokeWidth: 2,
+                        stroke: "white",
+                      }}
                     />
                     <Tooltip content={<CustomRadarTooltip />} />
                   </RadarChart>
@@ -254,7 +340,9 @@ export default function BrainAnalysis({ brainId, brainType = "person_clone" }: P
                           background: isHigh
                             ? `hsla(var(--accent), 0.18)`
                             : `hsla(var(--jade), ${0.08 + (d.value / 10) * 0.14})`,
-                          color: isHigh ? `hsl(var(--accent))` : `hsl(var(--jade))`,
+                          color: isHigh
+                            ? `hsl(var(--accent))`
+                            : `hsl(var(--jade))`,
                           border: isHigh
                             ? `1px solid hsla(var(--accent), 0.35)`
                             : `1px solid hsla(var(--jade), ${0.15 + (d.value / 10) * 0.2})`,
@@ -280,7 +368,13 @@ export default function BrainAnalysis({ brainId, brainType = "person_clone" }: P
             </CardHeader>
             <CardContent>
               {sortedThemes.length > 0 ? (
-                <ResponsiveContainer width="100%" height={Math.max(260, Math.min(sortedThemes.length * 30 + 40, 460))}>
+                <ResponsiveContainer
+                  width="100%"
+                  height={Math.max(
+                    260,
+                    Math.min(sortedThemes.length * 30 + 40, 460),
+                  )}
+                >
                   <BarChart
                     data={sortedThemes}
                     layout="vertical"
@@ -288,10 +382,28 @@ export default function BrainAnalysis({ brainId, brainType = "person_clone" }: P
                     barCategoryGap="22%"
                   >
                     <defs>
-                      <linearGradient id={BAR_GRADIENT_ID} x1="0" y1="0" x2="1" y2="0">
-                        <stop offset="0%" stopColor="hsl(222 82% 52%)" stopOpacity={1} />
-                        <stop offset="55%" stopColor="hsl(43 92% 50%)" stopOpacity={0.95} />
-                        <stop offset="100%" stopColor="hsl(162 68% 38%)" stopOpacity={0.9} />
+                      <linearGradient
+                        id={BAR_GRADIENT_ID}
+                        x1="0"
+                        y1="0"
+                        x2="1"
+                        y2="0"
+                      >
+                        <stop
+                          offset="0%"
+                          stopColor="hsl(222 82% 52%)"
+                          stopOpacity={1}
+                        />
+                        <stop
+                          offset="55%"
+                          stopColor="hsl(43 92% 50%)"
+                          stopOpacity={0.95}
+                        />
+                        <stop
+                          offset="100%"
+                          stopColor="hsl(162 68% 38%)"
+                          stopOpacity={0.9}
+                        />
                       </linearGradient>
                     </defs>
                     <XAxis type="number" hide domain={[0, "dataMax"]} />
@@ -308,7 +420,9 @@ export default function BrainAnalysis({ brainId, brainType = "person_clone" }: P
                       axisLine={false}
                       tickLine={false}
                       tickFormatter={(value: string) =>
-                        value.length > 26 ? `${value.substring(0, 23)}...` : value
+                        value.length > 26
+                          ? `${value.substring(0, 23)}...`
+                          : value
                       }
                     />
                     <Tooltip
