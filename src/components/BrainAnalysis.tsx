@@ -86,35 +86,7 @@ const CustomRadarTooltip = ({ active, payload }: any) => {
   return null;
 };
 
-<<<<<<< Updated upstream
-=======
-const CustomKnowledgeTooltip = ({ active, payload }: any) => {
-  if (active && payload && payload.length) {
-    return (
-      <div
-        style={{
-          background: "rgba(15, 15, 25, 0.92)",
-          backdropFilter: "blur(16px)",
-          borderRadius: "14px",
-          border: "1px solid rgba(245, 190, 64, 0.25)",
-          boxShadow: "0 20px 40px rgba(0,0,0,0.4)",
-          padding: "10px 14px",
-        }}
-      >
-        <p style={{ color: "rgba(255,255,255,0.9)", fontSize: 12, fontWeight: 600 }}>
-          {payload[0].payload.area}
-        </p>
-        <p style={{ color: "#F5BE40", fontSize: 14, fontWeight: 700 }}>
-          {payload[0].value} / 10
-        </p>
-      </div>
-    );
-  }
-  return null;
-};
-
-// Gradient IDs
->>>>>>> Stashed changes
+// Gradient fill for bars — intensity based on rank
 const BAR_GRADIENT_ID = "barGradient";
 const RADAR_FILL_ID = "radarFill";
 const KNOWLEDGE_FILL_ID = "knowledgeFill";
@@ -175,18 +147,6 @@ export default function BrainAnalysis({ brainId, brainType = "person_clone" }: P
       }))
     : [];
 
-<<<<<<< Updated upstream
-=======
-  const knowledgeData = knowledgeRaw
-    ? Object.entries(knowledgeRaw)
-        .map(([key, value]) => ({
-          area: key.charAt(0).toUpperCase() + key.slice(1),
-          value: Number(value) || 0,
-          fullMark: 10,
-        }))
-        .slice(0, 8)
-    : [];
-
   // Sorted themes (should already be sorted from edge function)
 >>>>>>> Stashed changes
   const sortedThemes = themes ? [...themes].sort((a, b) => b.count - a.count) : [];
@@ -232,14 +192,13 @@ export default function BrainAnalysis({ brainId, brainType = "person_clone" }: P
           </div>
         </div>
       ) : (
-<<<<<<< Updated upstream
         <div className="grid gap-6 md:grid-cols-2">
           {/* Radar Chart */}
           <Card className="glass border-primary/10 overflow-hidden">
             <CardHeader className="pb-2">
               <CardTitle className="text-base font-bold flex items-center gap-2">
                 <BrainIcon className="h-4 w-4 text-primary" />
-                {labels.radarTitle}
+                Traços de Personalidade
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -264,7 +223,7 @@ export default function BrainAnalysis({ brainId, brainType = "person_clone" }: P
                       axisLine={false}
                     />
                     <Radar
-                      name="Análise"
+                      name="Personalidade"
                       dataKey="value"
                       stroke="hsl(var(--jade))"
                       fill="url(#radarFill)"
@@ -278,10 +237,11 @@ export default function BrainAnalysis({ brainId, brainType = "person_clone" }: P
                 </ResponsiveContainer>
               ) : (
                 <p className="text-sm text-muted-foreground text-center py-8 italic">
-                  Dados indisponíveis
+                  Dados de personalidade indisponíveis
                 </p>
               )}
 
+              {/* Trait Score Pills */}
               {radarData.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1.5 justify-center">
                   {radarData.map((d) => {
@@ -309,189 +269,9 @@ export default function BrainAnalysis({ brainId, brainType = "person_clone" }: P
               )}
             </CardContent>
           </Card>
-=======
-        <div className="space-y-6">
-          {/* Row 1: Two Radars side by side */}
-          <div className="grid gap-6 md:grid-cols-2">
-            {/* Personality Radar */}
-            <Card className="border-border/50 bg-card shadow-sm overflow-hidden">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-bold flex items-center gap-2 text-foreground">
-                  <BrainIcon className="h-4 w-4 text-jade" />
-                  Traços de Personalidade
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0">
-                {radarData.length > 0 ? (
-                  <>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <RadarChart cx="50%" cy="50%" outerRadius="72%" data={radarData}>
-                        <defs>
-                          <radialGradient id={RADAR_FILL_ID} cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
-                            <stop offset="0%" stopColor="hsl(162 68% 38%)" stopOpacity={0.80} />
-                            <stop offset="100%" stopColor="hsl(162 68% 38%)" stopOpacity={0.12} />
-                          </radialGradient>
-                        </defs>
-                        <PolarGrid
-                          stroke="currentColor"
-                          strokeOpacity={0.12}
-                          className="text-foreground"
-                        />
-                        <PolarAngleAxis
-                          dataKey="trait"
-                          tick={{ fontSize: 12, fontWeight: 600, fill: "hsl(var(--foreground))", fillOpacity: 0.75 }}
-                        />
-                        <PolarRadiusAxis
-                          angle={30}
-                          domain={[0, 10]}
-                          tick={false}
-                          axisLine={false}
-                        />
-                        <Radar
-                          name="Personalidade"
-                          dataKey="value"
-                          stroke="hsl(162 68% 38%)"
-                          fill={`url(#${RADAR_FILL_ID})`}
-                          fillOpacity={1}
-                          strokeWidth={2.5}
-                          dot={{ fill: "hsl(162 68% 38%)", r: 5, strokeWidth: 0 }}
-                          activeDot={{ fill: "hsl(var(--accent))", r: 7, strokeWidth: 2, stroke: "white" }}
-                        />
-                        <Tooltip content={<CustomRadarTooltip />} />
-                      </RadarChart>
-                    </ResponsiveContainer>
 
-                    {/* Trait Score Pills */}
-                    <div className="mt-3 flex flex-wrap gap-1.5 justify-center">
-                      {radarData.map((d) => {
-                        const isHigh = d.value >= 7;
-                        return (
-                          <span
-                            key={d.trait}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold"
-                            style={{
-                              background: isHigh
-                                ? `hsla(var(--accent), 0.18)`
-                                : `hsla(162, 68%, 38%, ${0.10 + (d.value / 10) * 0.15})`,
-                              color: isHigh ? `hsl(var(--accent))` : `hsl(162 68% 38%)`,
-                              border: isHigh
-                                ? `1px solid hsla(var(--accent), 0.35)`
-                                : `1px solid hsla(162, 68%, 38%, ${0.2 + (d.value / 10) * 0.25})`,
-                            }}
-                          >
-                            {d.trait}
-                            <span className="opacity-75 font-bold">{d.value}</span>
-                          </span>
-                        );
-                      })}
-                    </div>
-                  </>
-                ) : (
-                  <p className="text-sm text-muted-foreground text-center py-8 italic">
-                    Dados de personalidade indisponíveis
-                  </p>
-                )}
-              </CardContent>
-            </Card>
->>>>>>> Stashed changes
-
-            {/* Knowledge Areas Radar */}
-            <Card className="border-border/50 bg-card shadow-sm overflow-hidden">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-bold flex items-center gap-2 text-foreground">
-                  <Zap className="h-4 w-4 text-accent" />
-                  Áreas de Conhecimento
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0">
-                {knowledgeData.length > 0 ? (
-                  <>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <RadarChart cx="50%" cy="50%" outerRadius="72%" data={knowledgeData}>
-                        <defs>
-                          <radialGradient id={KNOWLEDGE_FILL_ID} cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
-                            <stop offset="0%" stopColor="hsl(43 92% 50%)" stopOpacity={0.80} />
-                            <stop offset="100%" stopColor="hsl(222 82% 52%)" stopOpacity={0.12} />
-                          </radialGradient>
-                        </defs>
-                        <PolarGrid
-                          stroke="currentColor"
-                          strokeOpacity={0.12}
-                          className="text-foreground"
-                        />
-                        <PolarAngleAxis
-                          dataKey="area"
-                          tick={{ fontSize: 12, fontWeight: 600, fill: "hsl(var(--foreground))", fillOpacity: 0.75 }}
-                        />
-                        <PolarRadiusAxis
-                          angle={30}
-                          domain={[0, 10]}
-                          tick={false}
-                          axisLine={false}
-                        />
-                        <Radar
-                          name="Conhecimento"
-                          dataKey="value"
-                          stroke="hsl(43 92% 50%)"
-                          fill={`url(#${KNOWLEDGE_FILL_ID})`}
-                          fillOpacity={1}
-                          strokeWidth={2.5}
-                          dot={{ fill: "hsl(43 92% 50%)", r: 5, strokeWidth: 0 }}
-                          activeDot={{ fill: "hsl(162 68% 38%)", r: 7, strokeWidth: 2, stroke: "white" }}
-                        />
-                        <Tooltip content={<CustomKnowledgeTooltip />} />
-                      </RadarChart>
-                    </ResponsiveContainer>
-
-                    {/* Knowledge Pills */}
-                    <div className="mt-3 flex flex-wrap gap-1.5 justify-center">
-                      {knowledgeData.map((d) => {
-                        const isHigh = d.value >= 7;
-                        return (
-                          <span
-                            key={d.area}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold"
-                            style={{
-                              background: isHigh
-                                ? `hsla(222, 82%, 52%, 0.16)`
-                                : `hsla(43, 92%, 50%, ${0.10 + (d.value / 10) * 0.15})`,
-                              color: isHigh ? `hsl(222 82% 52%)` : `hsl(43 92% 50%)`,
-                              border: isHigh
-                                ? `1px solid hsla(222, 82%, 52%, 0.30)`
-                                : `1px solid hsla(43, 92%, 50%, ${0.20 + (d.value / 10) * 0.25})`,
-                            }}
-                          >
-                            {d.area}
-                            <span className="opacity-75 font-bold">{d.value}</span>
-                          </span>
-                        );
-                      })}
-                    </div>
-                  </>
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
-                    <Zap className="h-8 w-8 text-muted-foreground/30" />
-                    <p className="text-sm text-muted-foreground italic">
-                      Regenere a análise para ver as áreas de conhecimento
-                    </p>
-                    <Button
-                      onClick={generateAnalysis}
-                      disabled={generating}
-                      size="sm"
-                      variant="outline"
-                      className="gap-1.5 rounded-xl text-xs"
-                    >
-                      {generating ? <Loader2 className="animate-spin h-3 w-3" /> : <Sparkles className="h-3 w-3" />}
-                      Regenerar
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Row 2: Themes Bar Chart — full width */}
-          <Card className="border-border/50 bg-card shadow-sm overflow-hidden">
+          {/* Bar Chart */}
+          <Card className="glass border-primary/10 overflow-hidden">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-bold flex items-center gap-2 text-foreground">
                 <BarChart3 className="h-4 w-4 text-primary" />
