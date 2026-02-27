@@ -1,0 +1,1 @@
+ALTER TABLE public.brains ADD COLUMN system_prompt text;
