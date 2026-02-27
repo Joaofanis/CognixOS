@@ -140,8 +140,8 @@ serve(async (req) => {
           headers: {
             Authorization: `Bearer ${OPENROUTER_API_KEY}`,
             "Content-Type": "application/json",
-            "HTTP-Referer": supabaseUrl,
-            "X-Title": "Segundo Cerebro",
+            "HTTP-Referer": "https://ai-second-brain.lovable.app",
+            "X-Title": "AI Second Brain",
           },
           body: JSON.stringify({
             model,
