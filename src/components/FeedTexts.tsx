@@ -62,13 +62,11 @@ export default function FeedTexts({ brainId }: Props) {
     if (!text.trim()) return;
     setAdding(true);
     try {
-      const { error } = await supabase
-        .from("brain_texts")
-        .insert({
-          brain_id: brainId,
-          content: text.trim(),
-          source_type: "paste",
-        });
+      const { error } = await supabase.from("brain_texts").insert({
+        brain_id: brainId,
+        content: text.trim(),
+        source_type: "paste",
+      });
       if (error) throw error;
       setText("");
       queryClient.invalidateQueries({ queryKey: ["brain-texts", brainId] });
@@ -317,27 +315,30 @@ export default function FeedTexts({ brainId }: Props) {
           filteredTexts?.map((t) => (
             <Card key={t.id}>
               <CardContent className="pt-4 pb-4">
-                <div className="flex items-start justify-between gap-2 mb-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
                   <div className="flex items-center gap-2 flex-wrap">
                     <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
                     {t.file_name && (
-                      <Badge variant="secondary" className="text-xs">
+                      <Badge
+                        variant="secondary"
+                        className="text-xs max-w-full truncate"
+                      >
                         {t.file_name}
                       </Badge>
                     )}
                     {t.source_type && (
-                      <Badge variant="outline" className="text-[10px]">
+                      <Badge variant="outline" className="text-[10px] shrink-0">
                         {sourceTypeLabel[t.source_type] || t.source_type}
                       </Badge>
                     )}
-                    <span className="text-[10px] text-muted-foreground/60">
+                    <span className="text-[10px] text-muted-foreground/60 shrink-0">
                       {t.content.length.toLocaleString()} chars
                     </span>
                   </div>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                    className="h-8 w-8 shrink-0 self-end sm:self-auto text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                     onClick={() => setDeleteTarget(t.id)}
                   >
                     <Trash2 className="h-4 w-4" />

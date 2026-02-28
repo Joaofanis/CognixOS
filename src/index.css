@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap");
 
 @layer base {
   :root {
@@ -49,10 +49,10 @@
     --sidebar-ring: 222 82% 52%;
 
     /* Brain type tokens — jewel palette */
-    --brain-person: 222 82% 52%;      /* royal blue */
-    --brain-knowledge: 43 92% 50%;    /* amber gold */
-    --brain-philosophy: 162 68% 38%;  /* sapphire jade */
-    --brain-guide: 162 68% 38%;       /* sapphire jade */
+    --brain-person: 222 82% 52%; /* royal blue */
+    --brain-knowledge: 43 92% 50%; /* amber gold */
+    --brain-philosophy: 162 68% 38%; /* sapphire jade */
+    --brain-guide: 162 68% 38%; /* sapphire jade */
 
     /* Gold token for explicit use */
     --gold: 43 92% 50%;
@@ -102,10 +102,10 @@
     --sidebar-ring: 222 85% 62%;
 
     /* Brain type tokens — jewel palette (dark) */
-    --brain-person: 222 85% 65%;      /* vivid royal blue */
-    --brain-knowledge: 43 96% 62%;    /* bright amber gold */
-    --brain-philosophy: 162 65% 52%;  /* luminous jade */
-    --brain-guide: 162 65% 52%;       /* luminous jade */
+    --brain-person: 222 85% 65%; /* vivid royal blue */
+    --brain-knowledge: 43 96% 62%; /* bright amber gold */
+    --brain-philosophy: 162 65% 52%; /* luminous jade */
+    --brain-guide: 162 65% 52%; /* luminous jade */
 
     --gold: 43 96% 58%;
     --jade: 162 65% 52%;
@@ -118,7 +118,7 @@
   }
 
   html {
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: "Inter", system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
   }
 
@@ -137,26 +137,17 @@
     @apply bg-card/85 backdrop-blur-2xl border border-border/80;
   }
 
-  /* Text gradient — blue to gold */
+  /* Text highlight — solid gold */
   .text-gradient {
-    background: linear-gradient(
-      135deg,
-      hsl(var(--primary)) 0%,
-      hsl(var(--accent)) 100%
-    );
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: hsl(var(--accent));
+    text-shadow: 0 0 20px hsl(var(--accent) / 0.3);
   }
 
-  /* Three-tone gradient utility — blue › gold › jade */
+  /* Solid gold button/bg (Replacing old jewel gradient) */
   .gradient-jewel {
-    background: linear-gradient(
-      135deg,
-      hsl(var(--primary)) 0%,
-      hsl(var(--accent)) 55%,
-      hsl(var(--jade)) 100%
-    );
+    background: hsl(var(--accent));
+    color: hsl(var(--accent-foreground));
+    box-shadow: 0 4px 14px 0 hsl(var(--accent) / 0.39);
   }
 
   /* Primary gradient button/bg */
@@ -204,10 +195,22 @@
   /* Mesh gradient background — three jewel tones */
   .bg-mesh {
     background-image:
-      radial-gradient(at 15% 15%, hsl(var(--primary) / 0.14) 0px, transparent 55%),
-      radial-gradient(at 85% 75%, hsl(var(--jade) / 0.10) 0px, transparent 55%),
-      radial-gradient(at 50% 90%, hsl(var(--accent) / 0.08) 0px, transparent 50%),
-      radial-gradient(at 80% 10%, hsl(var(--accent) / 0.06) 0px, transparent 40%);
+      radial-gradient(
+        at 15% 15%,
+        hsl(var(--primary) / 0.14) 0px,
+        transparent 55%
+      ),
+      radial-gradient(at 85% 75%, hsl(var(--jade) / 0.1) 0px, transparent 55%),
+      radial-gradient(
+        at 50% 90%,
+        hsl(var(--accent) / 0.08) 0px,
+        transparent 50%
+      ),
+      radial-gradient(
+        at 80% 10%,
+        hsl(var(--accent) / 0.06) 0px,
+        transparent 40%
+      );
   }
 
   /* Card hover lift */
@@ -219,7 +222,7 @@
     box-shadow: 0 20px 60px -15px hsl(var(--primary) / 0.22);
   }
 
-  /* Animated border — blue to gold to jade */
+  /* Animated border — solid gold glow */
   .animated-border {
     position: relative;
   }
@@ -229,15 +232,14 @@
     inset: 0;
     border-radius: inherit;
     padding: 1px;
-    background: linear-gradient(
-      135deg,
-      hsl(var(--primary) / 0.6),
-      hsl(var(--accent) / 0.5),
-      hsl(var(--jade) / 0.4)
-    );
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    background: hsl(var(--accent) / 0.6);
+    -webkit-mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
     -webkit-mask-composite: xor;
-    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
     mask-composite: exclude;
     pointer-events: none;
   }
@@ -247,8 +249,14 @@
     animation: pulseRing 2s ease-out infinite;
   }
   @keyframes pulseRing {
-    0%   { box-shadow: 0 0 0 0 hsl(var(--primary) / 0.4); }
-    70%  { box-shadow: 0 0 0 10px hsl(var(--primary) / 0); }
-    100% { box-shadow: 0 0 0 0 hsl(var(--primary) / 0); }
+    0% {
+      box-shadow: 0 0 0 0 hsl(var(--primary) / 0.4);
+    }
+    70% {
+      box-shadow: 0 0 0 10px hsl(var(--primary) / 0);
+    }
+    100% {
+      box-shadow: 0 0 0 0 hsl(var(--primary) / 0);
+    }
   }
 }

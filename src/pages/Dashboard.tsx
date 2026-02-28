@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useProfile } from "@/hooks/useProfile"; // Added this import
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -60,6 +61,7 @@ function relativeDate(dateStr: string) {
 
 export default function Dashboard() {
   const { user, signOut } = useAuth();
+  const { data: profile } = useProfile();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
@@ -223,6 +225,7 @@ export default function Dashboard() {
             </span>
           </div>
           <div className="flex items-center gap-2">
+            <ThemeToggle />
             <Button
               variant="ghost"
               size="sm"
@@ -232,7 +235,7 @@ export default function Dashboard() {
               <User className="h-4 w-4" />
             </Button>
             <span className="text-xs text-muted-foreground hidden sm:block font-medium">
-              {user?.email}
+              {profile?.display_name || user?.email?.split("@")[0]}
             </span>
             <Button
               variant="ghost"
@@ -251,7 +254,11 @@ export default function Dashboard() {
         <div className="space-y-1 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
             Olá,{" "}
-            <span className="text-gradient">{user?.email?.split("@")[0]}</span>{" "}
+            <span className="text-gradient">
+              {profile?.display_name
+                ? profile.display_name.split(" ")[0]
+                : user?.email?.split("@")[0]}
+            </span>{" "}
             👋
           </h1>
           <p className="text-muted-foreground">
