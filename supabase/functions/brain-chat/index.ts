@@ -13,7 +13,7 @@ const UUID_REGEX =
 const VALID_ROLES = ["user", "assistant", "system"];
 const MAX_MESSAGES = 100;
 const MAX_MESSAGE_CONTENT_LENGTH = 50000; // 50k chars per message
-const MAX_BODY_SIZE = 1024 * 1024; // 1MB total body size
+const MAX_BODY_SIZE = 3 * 1024 * 1024; // 3MB total body size (3x increase)
 
 serve(async (req) => {
   if (req.method === "OPTIONS")
@@ -296,7 +296,7 @@ serve(async (req) => {
               ],
               stream: true,
               temperature: 0.7,
-              max_tokens: 10000,
+              max_tokens: 30000, // 3x increase from 10000
             }),
           },
         );

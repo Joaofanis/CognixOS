@@ -12,8 +12,10 @@ import {
   AlertTriangle,
   Square,
   Download,
+  Copy,
+  Check,
 } from "lucide-react";
-import ReactMarkdown from "react-markdown";
+import ObsidianMarkdown from "@/components/ObsidianMarkdown";
 import { Message } from "@/hooks/useBrainChat";
 import { toast } from "sonner";
 
@@ -28,6 +30,7 @@ interface Props {
   onNewChat: () => void;
   conversationId: string | null;
   onRetry?: () => void;
+  onRegenerate?: () => void;
 }
 
 // Suggested questions per brain type
@@ -69,8 +72,10 @@ export default function ChatInterface({
   onNewChat,
   conversationId,
   onRetry,
+  onRegenerate,
 }: Props) {
   const [input, setInput] = useState("");
+  const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -83,7 +88,7 @@ export default function ChatInterface({
   useEffect(() => {
     if (inputRef.current) {
       inputRef.current.style.height = "auto";
-      inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 160)}px`;
+      inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 240)}px`;
     }
   }, [input]);
 
@@ -103,6 +108,17 @@ export default function ChatInterface({
 
   const handleSuggestion = (q: string) => {
     sendMessage(q);
+  };
+
+  const handleCopy = async (content: string, idx: number) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopiedIdx(idx);
+      toast.success("Copiado!");
+      setTimeout(() => setCopiedIdx(null), 2000);
+    } catch {
+      toast.error("Erro ao copiar");
+    }
   };
 
   const handleExport = () => {
@@ -205,7 +221,7 @@ export default function ChatInterface({
 
               {/* Bubble */}
               <div
-                className={`max-w-[80%] sm:max-w-[75%] px-4 py-3 text-sm shadow-sm ${
+                className={`min-w-0 w-full max-w-[88%] sm:max-w-[80%] px-4 py-3 text-sm shadow-sm ${
                   msg.role === "user"
                     ? "bg-gradient-to-br from-primary to-violet-600 text-white rounded-3xl rounded-br-md"
                     : isError
@@ -214,14 +230,15 @@ export default function ChatInterface({
                 }`}
               >
                 {msg.role === "assistant" ? (
-                  <div className="space-y-2">
-                    <div className="prose prose-sm dark:prose-invert max-w-none break-words leading-relaxed [&>p]:mb-2 [&>p:last-child]:mb-0">
-                      <ReactMarkdown>
-                        {isError
+                  <div className="space-y-1">
+                    <ObsidianMarkdown
+                      content={
+                        isError
                           ? msg.content.replace("⚠️ Erro:", "").trim()
-                          : msg.content}
-                      </ReactMarkdown>
-                    </div>
+                          : msg.content
+                      }
+                      isError={isError}
+                    />
                     {isError && onRetry && (
                       <Button
                         variant="outline"
@@ -240,6 +257,34 @@ export default function ChatInterface({
                   </p>
                 )}
               </div>
+
+              {/* Action buttons — appear on hover, only for assistant messages */}
+              {msg.role === "assistant" && !isStreaming && (
+                <div className="flex items-center gap-1 mt-1 ml-11 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  <button
+                    onClick={() => handleCopy(msg.content, idx)}
+                    title="Copiar resposta"
+                    className="flex items-center gap-1 px-2 py-1 rounded-xl text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+                  >
+                    {copiedIdx === idx ? (
+                      <Check className="h-3 w-3 text-green-500" />
+                    ) : (
+                      <Copy className="h-3 w-3" />
+                    )}
+                    {copiedIdx === idx ? "Copiado!" : "Copiar"}
+                  </button>
+                  {idx === messages.length - 1 && onRegenerate && (
+                    <button
+                      onClick={onRegenerate}
+                      title="Gerar novamente"
+                      className="flex items-center gap-1 px-2 py-1 rounded-xl text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+                    >
+                      <RefreshCw className="h-3 w-3" />
+                      Regenerar
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           );
         })}
@@ -291,7 +336,8 @@ export default function ChatInterface({
               placeholder="Envie uma mensagem… (Enter para enviar)"
               disabled={isStreaming}
               rows={1}
-              className="w-full resize-none bg-transparent text-sm px-4 py-3.5 pr-2 outline-none text-foreground placeholder:text-muted-foreground overflow-hidden"
+              spellCheck
+              className="w-full resize-none bg-transparent text-sm px-4 py-3.5 pr-2 outline-none text-foreground placeholder:text-muted-foreground overflow-y-auto"
             />
           </div>
 

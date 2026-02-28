@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { BRAIN_TYPE_CONFIG, BrainType } from "@/lib/brain-types";
@@ -63,6 +63,9 @@ export default function BrainDetail() {
   const isMobile = useIsMobile();
 
   const userResetRef = useRef(false);
+  const location = useLocation();
+  const locationConvId = (location.state as { conversationId?: string } | null)
+    ?.conversationId;
 
   const {
     messages,
@@ -109,7 +112,12 @@ export default function BrainDetail() {
   });
 
   useEffect(() => {
-    // Auto-load last conversation only on initial mount — skip if user explicitly started a new chat
+    // If a specific conversation was passed via navigation state (from BrainChatPicker), load it
+    if (locationConvId) {
+      loadHistory(locationConvId);
+      return;
+    }
+    // Otherwise auto-load last conversation only on initial mount
     if (
       !conversationId &&
       conversations &&
@@ -120,7 +128,7 @@ export default function BrainDetail() {
         loadHistory(conversations[0].id);
       }
     }
-  }, [conversations, conversationId, messages.length]);
+  }, [conversations, conversationId, messages.length, locationConvId]);
 
   const handleDeleteBrain = async () => {
     setDeleting(true);
@@ -389,6 +397,7 @@ export default function BrainDetail() {
               onNewChat={handleNewChat}
               conversationId={conversationId}
               onRetry={retry}
+              onRegenerate={retry}
             />
           </div>
 

@@ -46,6 +46,7 @@ import CreateBrainDialog from "@/components/CreateBrainDialog";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import BrainChatPicker from "@/components/BrainChatPicker";
 
 type SortKey = "updated" | "name" | "sources";
 
@@ -77,6 +78,11 @@ export default function Dashboard() {
   const [deleting, setDeleting] = useState(false);
   // Pin loading
   const [togglingPin, setTogglingPin] = useState<string | null>(null);
+  // Chat picker
+  const [chatPicker, setChatPicker] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
 
   const { data: brains, isLoading } = useQuery({
     queryKey: ["brains", user?.id],
@@ -399,7 +405,9 @@ export default function Dashboard() {
                 <div
                   key={brain.id}
                   className="group relative cursor-pointer card-lift glow-on-hover rounded-3xl"
-                  onClick={() => navigate(`/brain/${brain.id}`)}
+                  onClick={() =>
+                    setChatPicker({ id: brain.id, name: brain.name })
+                  }
                   style={{ animationDelay: `${idx * 60}ms` }}
                 >
                   <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-primary/0 to-accent/0 group-hover:from-primary/20 group-hover:to-accent/10 transition-all duration-500 pointer-events-none" />
@@ -544,6 +552,16 @@ export default function Dashboard() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Brain Chat Picker — opens when clicking a brain card */}
+      {chatPicker && (
+        <BrainChatPicker
+          brainId={chatPicker.id}
+          brainName={chatPicker.name}
+          open={!!chatPicker}
+          onClose={() => setChatPicker(null)}
+        />
+      )}
     </div>
   );
 }
