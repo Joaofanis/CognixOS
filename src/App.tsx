@@ -11,6 +11,7 @@ import Compare from "./pages/Compare";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import { ThemeProvider } from "./components/ThemeProvider";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 const queryClient = new QueryClient();
 
@@ -34,61 +35,63 @@ function AuthRoute({ children }: { children: React.ReactNode }) {
 }
 
 const App = () => (
-  <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <AuthProvider>
-            <Routes>
-              <Route
-                path="/auth"
-                element={
-                  <AuthRoute>
-                    <Auth />
-                  </AuthRoute>
-                }
-              />
-              <Route
-                path="/"
-                element={
-                  <ProtectedRoute>
-                    <Dashboard />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/brain/:id"
-                element={
-                  <ProtectedRoute>
-                    <BrainDetail />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/compare"
-                element={
-                  <ProtectedRoute>
-                    <Compare />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/profile"
-                element={
-                  <ProtectedRoute>
-                    <Profile />
-                  </ProtectedRoute>
-                }
-              />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </AuthProvider>
-        </BrowserRouter>
-      </TooltipProvider>
-    </QueryClientProvider>
-  </ThemeProvider>
+  <ErrorBoundary>
+    <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <AuthProvider>
+              <Routes>
+                <Route
+                  path="/auth"
+                  element={
+                    <AuthRoute>
+                      <Auth />
+                    </AuthRoute>
+                  }
+                />
+                <Route
+                  path="/"
+                  element={
+                    <ProtectedRoute>
+                      <Dashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/brain/:id"
+                  element={
+                    <ProtectedRoute>
+                      <BrainDetail />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/compare"
+                  element={
+                    <ProtectedRoute>
+                      <Compare />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/profile"
+                  element={
+                    <ProtectedRoute>
+                      <Profile />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </AuthProvider>
+          </BrowserRouter>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ThemeProvider>
+  </ErrorBoundary>
 );
 
 export default App;
