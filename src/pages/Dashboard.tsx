@@ -45,6 +45,7 @@ import { toast } from "sonner";
 import CreateBrainDialog from "@/components/CreateBrainDialog";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 type SortKey = "updated" | "name" | "sources";
 
