@@ -134,7 +134,10 @@ interface Props {
 }
 
 export default function ObsidianMarkdown({ content, isError }: Props) {
-  const text = isError ? content.replace("⚠️ Erro:", "").trim() : content;
+  const safeContent = content || "";
+  const text = isError
+    ? safeContent.replace("⚠️ Erro:", "").trim()
+    : safeContent;
 
   return (
     <div className="obsidian-md min-w-0">

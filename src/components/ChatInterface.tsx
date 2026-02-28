@@ -112,7 +112,7 @@ export default function ChatInterface({
 
   const handleCopy = async (content: string, idx: number) => {
     try {
-      await navigator.clipboard.writeText(content);
+      await navigator.clipboard.writeText(content || "");
       setCopiedIdx(idx);
       toast.success("Copiado!");
       setTimeout(() => setCopiedIdx(null), 2000);
@@ -138,7 +138,7 @@ export default function ChatInterface({
   };
 
   const isErrorMessage = (msg: Message) =>
-    msg.role === "assistant" && msg.content.includes("⚠️ Erro:");
+    msg.role === "assistant" && (msg.content || "").includes("⚠️ Erro:");
 
   const suggestions =
     SUGGESTIONS[brainType as BrainType] || SUGGESTIONS.default;
@@ -234,8 +234,8 @@ export default function ChatInterface({
                     <ObsidianMarkdown
                       content={
                         isError
-                          ? msg.content.replace("⚠️ Erro:", "").trim()
-                          : msg.content
+                          ? (msg.content || "").replace("⚠️ Erro:", "").trim()
+                          : msg.content || ""
                       }
                       isError={isError}
                     />
@@ -253,7 +253,7 @@ export default function ChatInterface({
                   </div>
                 ) : (
                   <p className="whitespace-pre-wrap leading-relaxed">
-                    {msg.content}
+                    {msg.content || ""}
                   </p>
                 )}
               </div>
@@ -262,7 +262,7 @@ export default function ChatInterface({
               {msg.role === "assistant" && !isStreaming && (
                 <div className="flex items-center gap-1 mt-1 ml-11 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                   <button
-                    onClick={() => handleCopy(msg.content, idx)}
+                    onClick={() => handleCopy(msg.content || "", idx)}
                     title="Copiar resposta"
                     className="flex items-center gap-1 px-2 py-1 rounded-xl text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
                   >
