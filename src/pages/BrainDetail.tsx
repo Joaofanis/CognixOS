@@ -111,24 +111,27 @@ export default function BrainDetail() {
     enabled: !!id,
   });
 
+  const locationHandledRef = useRef(false);
+
   useEffect(() => {
-    // If a specific conversation was passed via navigation state (from BrainChatPicker), load it
-    if (locationConvId) {
+    // Load a specific conversation from the picker — only once (prevents loop)
+    if (locationConvId && !locationHandledRef.current) {
+      locationHandledRef.current = true;
       loadHistory(locationConvId);
       return;
     }
-    // Otherwise auto-load last conversation only on initial mount
+    // Auto-load last conversation on initial mount (no picker state)
     if (
+      !locationConvId &&
       !conversationId &&
       conversations &&
       conversations.length > 0 &&
-      messages.length === 0
+      messages.length === 0 &&
+      !userResetRef.current
     ) {
-      if (!userResetRef.current) {
-        loadHistory(conversations[0].id);
-      }
+      loadHistory(conversations[0].id);
     }
-  }, [conversations, conversationId, messages.length, locationConvId]);
+  }, [conversations, conversationId]);
 
   const handleDeleteBrain = async () => {
     setDeleting(true);
