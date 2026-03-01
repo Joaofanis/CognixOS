@@ -196,8 +196,8 @@ export default function ChatInterface({
                 msg.role === "user" ? "bg-muted/40" : ""
               }`}
             >
-              <div className="container max-w-3xl mx-auto px-4 py-6">
-                <div className="flex gap-4">
+              <div className="max-w-3xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
+                <div className="flex gap-3 sm:gap-4">
                   {/* Avatar */}
                   <div
                     className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg mt-0.5 ${
@@ -289,8 +289,8 @@ export default function ChatInterface({
         {/* Streaming dots indicator */}
         {isStreaming && messages[messages.length - 1]?.role !== "assistant" && (
           <div className="w-full">
-            <div className="container max-w-3xl mx-auto px-4 py-6">
-              <div className="flex gap-4">
+            <div className="max-w-3xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
+              <div className="flex gap-3 sm:gap-4">
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-secondary border border-border text-foreground">
                   <Bot className="h-4 w-4" />
                 </div>
@@ -308,10 +308,10 @@ export default function ChatInterface({
       </div>
 
       {/* Input Bar */}
-      <div className="border-t border-border/40 bg-card/60 backdrop-blur-xl px-4 py-3 pb-5 sm:pb-3">
+      <div className="border-t border-border/40 bg-card/60 backdrop-blur-xl px-3 sm:px-4 py-3 pb-5 sm:pb-3">
         {/* Toolbar row */}
         {messages.length > 0 && (
-          <div className="container max-w-3xl flex items-center gap-2 mb-2">
+          <div className="max-w-3xl mx-auto flex items-center gap-2 mb-2">
             <Button
               variant="ghost"
               size="sm"
@@ -326,9 +326,9 @@ export default function ChatInterface({
 
         <form
           onSubmit={handleSubmit}
-          className="container max-w-3xl flex items-end gap-3"
+          className="max-w-3xl mx-auto flex items-end gap-2 sm:gap-3"
         >
-          <div className="relative flex-1 bg-background/80 border border-border/60 rounded-3xl shadow-inner focus-within:border-primary/50 focus-within:shadow-primary/10 focus-within:shadow-lg transition-all duration-300">
+          <div className="relative flex-1 bg-background/80 border border-border/60 rounded-2xl sm:rounded-3xl shadow-inner focus-within:border-primary/50 focus-within:shadow-primary/10 focus-within:shadow-lg transition-all duration-300">
             <textarea
               ref={inputRef}
               value={input}
