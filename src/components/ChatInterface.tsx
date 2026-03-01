@@ -144,24 +144,19 @@ export default function ChatInterface({
     SUGGESTIONS[brainType as BrainType] || SUGGESTIONS.default;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-7.5rem)] bg-mesh">
+    <div className="flex flex-col h-[calc(100vh-7.5rem)] bg-background">
       {/* Messages */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto px-4 py-6 space-y-6 scrollbar-thin"
+        className="flex-1 overflow-y-auto scrollbar-thin"
       >
         {messages.length === 0 && !isStreaming && (
-          <div className="flex flex-col items-center justify-center h-full text-center space-y-6 animate-in fade-in duration-700">
-            <div className="relative">
-              <div className="h-24 w-24 rounded-3xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center border border-primary/20 shadow-xl shadow-primary/10 pulse-ring">
-                <Bot className="h-12 w-12 text-primary" />
-              </div>
-              <div className="absolute -top-1 -right-1 h-6 w-6 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center shadow-lg">
-                <Sparkles className="h-3 w-3 text-white" />
-              </div>
+          <div className="flex flex-col items-center justify-center h-full text-center space-y-6 animate-in fade-in duration-700 px-4">
+            <div className="h-20 w-20 rounded-2xl bg-secondary flex items-center justify-center border border-border">
+              <Bot className="h-10 w-10 text-foreground" />
             </div>
             <div className="space-y-2">
-              <p className="text-2xl font-bold text-gradient">
+              <p className="text-2xl font-bold text-foreground">
                 Converse com {brainName}
               </p>
               <p className="text-sm text-muted-foreground max-w-xs mx-auto">
@@ -169,13 +164,12 @@ export default function ChatInterface({
               </p>
             </div>
 
-            {/* Suggestion chips */}
-            <div className="flex flex-col gap-2 w-full max-w-sm">
+            <div className="flex flex-col gap-2 w-full max-w-md">
               {suggestions.map((q) => (
                 <button
                   key={q}
                   onClick={() => handleSuggestion(q)}
-                  className="text-left text-sm px-4 py-2.5 rounded-2xl border border-border/60 bg-card/60 hover:border-primary/40 hover:bg-primary/5 hover:text-primary transition-all text-muted-foreground font-medium"
+                  className="text-left text-sm px-4 py-3 rounded-xl border border-border bg-card hover:border-primary/40 hover:bg-muted/60 transition-all text-foreground"
                 >
                   {q}
                 </button>
@@ -185,7 +179,7 @@ export default function ChatInterface({
             <Button
               variant="outline"
               onClick={onNewChat}
-              className="rounded-2xl gap-2 border-primary/30 hover:bg-primary/10 hover:border-primary/60 transition-all px-6 py-5 text-primary font-semibold shadow-sm"
+              className="rounded-xl gap-2 transition-all px-6 py-5 font-semibold"
             >
               <PlusCircle className="h-4 w-4" />
               Nova Conversa
@@ -198,108 +192,115 @@ export default function ChatInterface({
           return (
             <div
               key={i}
-              className={`flex items-end gap-3 animate-in slide-in-from-bottom-2 duration-300 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}
+              className={`group w-full animate-in slide-in-from-bottom-2 duration-300 ${
+                msg.role === "user" ? "bg-muted/40" : ""
+              }`}
             >
-              {/* Avatar */}
-              <div
-                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl shadow-md ${
-                  msg.role === "user"
-                    ? "bg-gradient-to-br from-primary to-violet-600 text-white"
-                    : isError
-                      ? "bg-gradient-to-br from-destructive/20 to-destructive/10 border border-destructive/30 text-destructive"
-                      : "bg-gradient-to-br from-card to-secondary border border-border text-primary"
-                }`}
-              >
-                {msg.role === "user" ? (
-                  <User className="h-4 w-4" />
-                ) : isError ? (
-                  <AlertTriangle className="h-4 w-4" />
-                ) : (
-                  <Bot className="h-4 w-4" />
-                )}
-              </div>
-
-              {/* Bubble */}
-              <div
-                className={`min-w-0 w-full max-w-[88%] sm:max-w-[80%] px-4 py-3 text-sm shadow-sm ${
-                  msg.role === "user"
-                    ? "bg-gradient-to-br from-primary to-violet-600 text-white rounded-3xl rounded-br-md"
-                    : isError
-                      ? "bg-destructive/8 border border-destructive/30 text-foreground rounded-3xl rounded-bl-md"
-                      : "bg-card/90 backdrop-blur-sm border border-border/60 text-card-foreground rounded-3xl rounded-bl-md"
-                }`}
-              >
-                {msg.role === "assistant" ? (
-                  <div className="space-y-1">
-                    <ObsidianMarkdown
-                      content={
-                        isError
-                          ? (msg.content || "").replace("⚠️ Erro:", "").trim()
-                          : msg.content || ""
-                      }
-                      isError={isError}
-                    />
-                    {isError && onRetry && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={onRetry}
-                        className="gap-1.5 rounded-2xl text-xs border-destructive/30 hover:bg-destructive/10 hover:border-destructive/50 text-destructive font-semibold mt-1"
-                      >
-                        <RefreshCw className="h-3 w-3" />
-                        Tentar novamente
-                      </Button>
+              <div className="container max-w-3xl mx-auto px-4 py-6">
+                <div className="flex gap-4">
+                  {/* Avatar */}
+                  <div
+                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg mt-0.5 ${
+                      msg.role === "user"
+                        ? "bg-primary text-primary-foreground"
+                        : isError
+                          ? "bg-destructive/15 border border-destructive/30 text-destructive"
+                          : "bg-secondary border border-border text-foreground"
+                    }`}
+                  >
+                    {msg.role === "user" ? (
+                      <User className="h-4 w-4" />
+                    ) : isError ? (
+                      <AlertTriangle className="h-4 w-4" />
+                    ) : (
+                      <Bot className="h-4 w-4" />
                     )}
                   </div>
-                ) : (
-                  <p className="whitespace-pre-wrap leading-relaxed">
-                    {msg.content || ""}
-                  </p>
-                )}
-              </div>
 
-              {/* Action buttons — appear on hover, only for assistant messages */}
-              {msg.role === "assistant" && !isStreaming && (
-                <div className="flex items-center gap-1 mt-1 ml-11 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                  <button
-                    onClick={() => handleCopy(msg.content || "", i)}
-                    title="Copiar resposta"
-                    className="flex items-center gap-1 px-2 py-1 rounded-xl text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
-                  >
-                    {copiedIdx === i ? (
-                      <Check className="h-3 w-3 text-green-500" />
-                    ) : (
-                      <Copy className="h-3 w-3" />
+                  {/* Content */}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-foreground mb-1">
+                      {msg.role === "user" ? "Você" : brainName}
+                    </p>
+                    <div className="text-[15px] leading-7 text-foreground">
+                      {msg.role === "assistant" ? (
+                        <div className="space-y-2">
+                          <ObsidianMarkdown
+                            content={
+                              isError
+                                ? (msg.content || "").replace("⚠️ Erro:", "").trim()
+                                : msg.content || ""
+                            }
+                            isError={isError}
+                          />
+                          {isError && onRetry && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={onRetry}
+                              className="gap-1.5 rounded-lg text-xs border-destructive/30 hover:bg-destructive/10 hover:border-destructive/50 text-destructive font-semibold mt-2"
+                            >
+                              <RefreshCw className="h-3 w-3" />
+                              Tentar novamente
+                            </Button>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="whitespace-pre-wrap">
+                          {msg.content || ""}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Action buttons */}
+                    {msg.role === "assistant" && !isStreaming && (
+                      <div className="flex items-center gap-1 mt-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                        <button
+                          onClick={() => handleCopy(msg.content || "", i)}
+                          title="Copiar resposta"
+                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+                        >
+                          {copiedIdx === i ? (
+                            <Check className="h-3.5 w-3.5 text-green-500" />
+                          ) : (
+                            <Copy className="h-3.5 w-3.5" />
+                          )}
+                          {copiedIdx === i ? "Copiado!" : "Copiar"}
+                        </button>
+                        {i === messages.length - 1 && onRegenerate && (
+                          <button
+                            onClick={onRegenerate}
+                            title="Gerar novamente"
+                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+                          >
+                            <RefreshCw className="h-3.5 w-3.5" />
+                            Regenerar
+                          </button>
+                        )}
+                      </div>
                     )}
-                    {copiedIdx === i ? "Copiado!" : "Copiar"}
-                  </button>
-                  {i === messages.length - 1 && onRegenerate && (
-                    <button
-                      onClick={onRegenerate}
-                      title="Gerar novamente"
-                      className="flex items-center gap-1 px-2 py-1 rounded-xl text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
-                    >
-                      <RefreshCw className="h-3 w-3" />
-                      Regenerar
-                    </button>
-                  )}
+                  </div>
                 </div>
-              )}
+              </div>
             </div>
           );
         })}
 
         {/* Streaming dots indicator */}
         {isStreaming && messages[messages.length - 1]?.role !== "assistant" && (
-          <div className="flex items-end gap-3 animate-in slide-in-from-bottom-2 duration-300">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-card to-secondary border border-border text-primary shadow-md">
-              <Bot className="h-4 w-4" />
-            </div>
-            <div className="bg-card/90 backdrop-blur-sm border border-border/60 rounded-3xl rounded-bl-md px-5 py-4">
-              <div className="flex gap-1.5 items-center">
-                <span className="h-2 w-2 bg-primary rounded-full animate-bounce [animation-delay:0ms]" />
-                <span className="h-2 w-2 bg-primary/70 rounded-full animate-bounce [animation-delay:150ms]" />
-                <span className="h-2 w-2 bg-primary/40 rounded-full animate-bounce [animation-delay:300ms]" />
+          <div className="w-full">
+            <div className="container max-w-3xl mx-auto px-4 py-6">
+              <div className="flex gap-4">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-secondary border border-border text-foreground">
+                  <Bot className="h-4 w-4" />
+                </div>
+                <div className="flex items-center pt-2">
+                  <div className="flex gap-1.5 items-center">
+                    <span className="h-2 w-2 bg-foreground/60 rounded-full animate-bounce [animation-delay:0ms]" />
+                    <span className="h-2 w-2 bg-foreground/40 rounded-full animate-bounce [animation-delay:150ms]" />
+                    <span className="h-2 w-2 bg-foreground/20 rounded-full animate-bounce [animation-delay:300ms]" />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
