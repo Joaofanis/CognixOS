@@ -237,7 +237,7 @@ export default function BrainAnalysis({
     name: string;
     count: number;
   }> | null;
-  const skillsRaw = analysis?.skills as Record<string, number> | null;
+  const skillsRaw = (analysis as any)?.skills as Record<string, number> | null;
 
   const radarData = radarSource
     ? Object.entries(radarSource).map(([key, value]) => ({
