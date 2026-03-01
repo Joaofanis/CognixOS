@@ -10,6 +10,7 @@ interface UseBrainChatProps {
   onAssistantMessage?: (content: string) => void;
   onStreamingStart?: () => void;
   onStreamingEnd?: () => void;
+  onConversationCreated?: (convId: string) => void;
 }
 
 export function useBrainChat({
@@ -17,6 +18,7 @@ export function useBrainChat({
   onAssistantMessage,
   onStreamingStart,
   onStreamingEnd,
+  onConversationCreated,
 }: UseBrainChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -79,6 +81,7 @@ export function useBrainChat({
         if (data) {
           convId = data.id;
           setConversationId(data.id);
+          onConversationCreated?.(data.id);
         }
       }
 
@@ -177,7 +180,7 @@ export function useBrainChat({
       onStreamingEnd?.();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [brainId, isStreaming, messages, onAssistantMessage, onStreamingStart, onStreamingEnd]);
+  }, [brainId, isStreaming, messages, onAssistantMessage, onStreamingStart, onStreamingEnd, onConversationCreated]);
 
   // Keep sendMessageRef fresh to avoid stale closures in retry
   const sendMessageRef = useRef(sendMessage);

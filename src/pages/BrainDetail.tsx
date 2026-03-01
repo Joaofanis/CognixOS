@@ -76,7 +76,12 @@ export default function BrainDetail() {
     conversationId,
     resetChat,
     retry,
-  } = useBrainChat({ brainId: id! });
+  } = useBrainChat({
+    brainId: id!,
+    onConversationCreated: () => {
+      queryClient.invalidateQueries({ queryKey: ["conversations", id] });
+    },
+  });
 
   const handleNewChat = () => {
     userResetRef.current = true;
