@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_health_logs: {
+        Row: {
+          checked_at: string
+          error_msg: string | null
+          id: number
+          latency_ms: number | null
+          model: string
+          status: string
+        }
+        Insert: {
+          checked_at?: string
+          error_msg?: string | null
+          id?: number
+          latency_ms?: number | null
+          model: string
+          status: string
+        }
+        Update: {
+          checked_at?: string
+          error_msg?: string | null
+          id?: number
+          latency_ms?: number | null
+          model?: string
+          status?: string
+        }
+        Relationships: []
+      }
       brain_analysis: {
         Row: {
           brain_id: string
@@ -21,6 +48,7 @@ export type Database = {
           id: string
           knowledge_areas: Json | null
           personality_traits: Json | null
+          skills: Json | null
           updated_at: string
         }
         Insert: {
@@ -29,6 +57,7 @@ export type Database = {
           id?: string
           knowledge_areas?: Json | null
           personality_traits?: Json | null
+          skills?: Json | null
           updated_at?: string
         }
         Update: {
@@ -37,6 +66,7 @@ export type Database = {
           id?: string
           knowledge_areas?: Json | null
           personality_traits?: Json | null
+          skills?: Json | null
           updated_at?: string
         }
         Relationships: [
@@ -92,6 +122,7 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
+          is_pinned: boolean | null
           name: string
           system_prompt: string | null
           tags: string[] | null
@@ -103,6 +134,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          is_pinned?: boolean | null
           name: string
           system_prompt?: string | null
           tags?: string[] | null
@@ -114,6 +146,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          is_pinned?: boolean | null
           name?: string
           system_prompt?: string | null
           tags?: string[] | null
