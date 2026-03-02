@@ -25,6 +25,7 @@ import {
   Search,
   Link,
   X,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -44,6 +45,7 @@ export default function FeedTexts({ brainId }: Props) {
   const [urlInput, setUrlInput] = useState("");
   const [importingUrl, setImportingUrl] = useState(false);
   const [showUrlInput, setShowUrlInput] = useState(false);
+  const [processingRag, setProcessingRag] = useState(false);
 
   const { data: texts, isLoading } = useQuery({
     queryKey: ["brain-texts", brainId],
@@ -58,19 +60,40 @@ export default function FeedTexts({ brainId }: Props) {
     },
   });
 
+  const triggerRagProcessing = async (textId?: string) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/process-rag`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify(textId ? { brainId, textId } : { brainId, processAll: true }),
+        },
+      );
+    } catch (e) {
+      console.error("RAG processing error:", e);
+    }
+  };
+
   const addText = async () => {
     if (!text.trim()) return;
     setAdding(true);
     try {
-      const { error } = await supabase.from("brain_texts").insert({
+      const { data, error } = await supabase.from("brain_texts").insert({
         brain_id: brainId,
         content: text.trim(),
         source_type: "paste",
-      });
+      }).select("id").single();
       if (error) throw error;
       setText("");
       queryClient.invalidateQueries({ queryKey: ["brain-texts", brainId] });
       toast.success("Texto adicionado!");
+      // Trigger RAG processing in background
+      if (data) triggerRagProcessing(data.id);
     } catch (err: any) {
       toast.error(err.message);
     } finally {
@@ -119,6 +142,8 @@ export default function FeedTexts({ brainId }: Props) {
       }
       queryClient.invalidateQueries({ queryKey: ["brain-texts", brainId] });
       toast.success(`Arquivo "${file.name}" adicionado!`);
+      // RAG will be triggered for new texts
+      triggerRagProcessing();
     } catch (err: any) {
       toast.error(err.message);
     } finally {
@@ -146,6 +171,7 @@ export default function FeedTexts({ brainId }: Props) {
       toast.success(
         `"${data.title}" importado! (${data.chars.toLocaleString()} chars)`,
       );
+      triggerRagProcessing();
     } catch (err: any) {
       toast.error(err.message || "Erro ao importar URL");
     } finally {
@@ -290,6 +316,26 @@ export default function FeedTexts({ brainId }: Props) {
           <h3 className="font-medium text-sm text-muted-foreground shrink-0">
             {texts?.length || 0} texto(s) alimentado(s)
           </h3>
+          <div className="flex items-center gap-2">
+            {(texts?.length || 0) > 0 && texts?.some(t => !(t as any).rag_processed) && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-xs"
+                disabled={processingRag}
+                onClick={async () => {
+                  setProcessingRag(true);
+                  toast.info("Processando fontes com IA...");
+                  await triggerRagProcessing();
+                  queryClient.invalidateQueries({ queryKey: ["brain-texts", brainId] });
+                  toast.success("Fontes processadas!");
+                  setProcessingRag(false);
+                }}
+              >
+                {processingRag ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                Otimizar RAG
+              </Button>
+            )}
           {(texts?.length || 0) > 0 && (
             <div className="relative max-w-xs flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -301,6 +347,7 @@ export default function FeedTexts({ brainId }: Props) {
               />
             </div>
           )}
+          </div>
         </div>
 
         {isLoading ? (

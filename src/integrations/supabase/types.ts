@@ -87,6 +87,9 @@ export type Database = {
           created_at: string
           file_name: string | null
           id: string
+          rag_keywords: string[] | null
+          rag_processed: boolean | null
+          rag_summary: string | null
           source_type: string
         }
         Insert: {
@@ -96,6 +99,9 @@ export type Database = {
           created_at?: string
           file_name?: string | null
           id?: string
+          rag_keywords?: string[] | null
+          rag_processed?: boolean | null
+          rag_summary?: string | null
           source_type?: string
         }
         Update: {
@@ -105,6 +111,9 @@ export type Database = {
           created_at?: string
           file_name?: string | null
           id?: string
+          rag_keywords?: string[] | null
+          rag_processed?: boolean | null
+          rag_summary?: string | null
           source_type?: string
         }
         Relationships: [

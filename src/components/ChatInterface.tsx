@@ -144,7 +144,7 @@ export default function ChatInterface({
     SUGGESTIONS[brainType as BrainType] || SUGGESTIONS.default;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-7.5rem)] bg-background">
+    <div className="flex flex-col h-[calc(100vh-5.5rem)] bg-background">
       {/* Messages */}
       <div
         ref={scrollRef}

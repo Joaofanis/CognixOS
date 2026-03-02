@@ -10,15 +10,16 @@ import {
   MessageSquare,
   FileText,
   BarChart3,
-  History,
   Clock,
-  ChevronRight,
   MoreVertical,
   Pencil,
   Trash2,
   PlusCircle,
   Brain as BrainIcon,
   Sparkles,
+  PanelLeftClose,
+  PanelLeft,
+  Menu,
 } from "lucide-react";
 import FeedTexts from "@/components/FeedTexts";
 import ChatInterface from "@/components/ChatInterface";
@@ -44,8 +45,6 @@ import {
 import {
   Sheet,
   SheetContent,
-  SheetHeader,
-  SheetTitle,
 } from "@/components/ui/sheet";
 import EditBrainDialog from "@/components/EditBrainDialog";
 import { useBrainChat } from "@/hooks/useBrainChat";
@@ -56,7 +55,8 @@ export default function BrainDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [showHistory, setShowHistory] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -86,6 +86,7 @@ export default function BrainDetail() {
   const handleNewChat = () => {
     userResetRef.current = true;
     resetChat();
+    if (isMobile) setMobileSidebarOpen(false);
   };
 
   const { data: brain, isLoading } = useQuery({
@@ -119,13 +120,11 @@ export default function BrainDetail() {
   const locationHandledRef = useRef(false);
 
   useEffect(() => {
-    // Load a specific conversation from the picker — only once (prevents loop)
     if (locationConvId && !locationHandledRef.current) {
       locationHandledRef.current = true;
       loadHistory(locationConvId);
       return;
     }
-    // Auto-load last conversation on initial mount (no picker state)
     if (
       !locationConvId &&
       !conversationId &&
@@ -204,196 +203,237 @@ export default function BrainDetail() {
   const config = BRAIN_TYPE_CONFIG[brain.type as BrainType];
   const Icon = config?.icon || BrainIcon;
 
-  const renderHistoryContent = () => (
-    <div className="flex-1 flex flex-col h-full bg-card/50 backdrop-blur-xl animate-in slide-in-from-right duration-300">
-      <div className="px-4 py-3.5 border-b border-border/50 flex items-center justify-between">
-        <h3 className="font-bold text-sm text-gradient">Conversas Recentes</h3>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7 hidden sm:flex rounded-xl hover:bg-muted"
-          onClick={() => setShowHistory(false)}
-        >
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-      </div>
+  // Group conversations by date
+  const groupConversations = () => {
+    if (!conversations) return [];
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today.getTime() - 86400000);
+    const weekAgo = new Date(today.getTime() - 7 * 86400000);
+    const monthAgo = new Date(today.getTime() - 30 * 86400000);
+
+    const groups: { label: string; items: typeof conversations }[] = [
+      { label: "Hoje", items: [] },
+      { label: "Ontem", items: [] },
+      { label: "Últimos 7 dias", items: [] },
+      { label: "Últimos 30 dias", items: [] },
+      { label: "Mais antigas", items: [] },
+    ];
+
+    for (const conv of conversations) {
+      const d = new Date(conv.updated_at);
+      if (d >= today) groups[0].items.push(conv);
+      else if (d >= yesterday) groups[1].items.push(conv);
+      else if (d >= weekAgo) groups[2].items.push(conv);
+      else if (d >= monthAgo) groups[3].items.push(conv);
+      else groups[4].items.push(conv);
+    }
+
+    return groups.filter((g) => g.items.length > 0);
+  };
+
+  const sidebarContent = (
+    <div className="flex flex-col h-full">
+      {/* Sidebar header */}
       <div className="p-3 border-b border-border/50">
         <Button
           variant="outline"
-          className="w-full justify-start gap-2 rounded-2xl h-10 border border-dashed border-primary/30 hover:border-primary/60 hover:bg-primary/8 transition-all text-primary font-semibold text-sm"
-          onClick={() => {
-            handleNewChat();
-            setShowHistory(false);
-          }}
+          className="w-full justify-start gap-2 rounded-xl h-10 border border-dashed border-primary/30 hover:border-primary/60 hover:bg-primary/8 transition-all text-primary font-semibold text-sm"
+          onClick={handleNewChat}
         >
           <PlusCircle className="h-4 w-4" />
           Nova Conversa
         </Button>
       </div>
+
+      {/* Conversation list */}
       <ScrollArea className="flex-1">
-        <div className="p-3 space-y-1.5">
+        <div className="p-2 space-y-3">
           {conversations?.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground/80 italic text-sm">
+            <div className="text-center py-12 text-muted-foreground/60 italic text-xs">
               Nenhuma conversa ainda
             </div>
           ) : (
-            conversations?.map((conv) => (
-              <div
-                key={conv.id}
-                onClick={() => {
-                  userResetRef.current = false;
-                  loadHistory(conv.id);
-                  setShowHistory(false);
-                }}
-                className={`w-full text-left p-3 rounded-2xl transition-all group cursor-pointer border ${
-                  conversationId === conv.id
-                    ? "bg-primary/12 border-primary/30 shadow-sm"
-                    : "hover:bg-primary/5 border-transparent hover:border-primary/15"
-                }`}
-              >
-                <div className="flex items-center justify-between mb-1.5">
-                  <div className="flex items-center gap-1.5">
-                    <Clock className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-[10px] text-muted-foreground font-semibold tracking-wide">
-                      {new Date(conv.updated_at).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/15 hover:text-destructive rounded-xl"
-                    onClick={(e) => handleDeleteConversation(e, conv.id)}
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                </div>
-                <p
-                  className={`text-sm font-medium line-clamp-2 transition-colors ${
-                    conversationId === conv.id
-                      ? "text-primary"
-                      : "group-hover:text-primary"
-                  }`}
-                >
-                  {conv.title || "Nova Conversa"}
+            groupConversations().map((group) => (
+              <div key={group.label}>
+                <p className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider px-2 mb-1">
+                  {group.label}
                 </p>
+                {group.items.map((conv) => (
+                  <div
+                    key={conv.id}
+                    onClick={() => {
+                      userResetRef.current = false;
+                      loadHistory(conv.id);
+                      if (isMobile) setMobileSidebarOpen(false);
+                    }}
+                    className={`group flex items-center gap-2 w-full text-left px-2.5 py-2 rounded-lg transition-all cursor-pointer text-sm ${
+                      conversationId === conv.id
+                        ? "bg-primary/10 text-primary font-medium"
+                        : "text-foreground/80 hover:bg-muted/60"
+                    }`}
+                  >
+                    <MessageSquare className="h-3.5 w-3.5 shrink-0 opacity-50" />
+                    <span className="truncate flex-1">
+                      {conv.title || "Nova Conversa"}
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/15 hover:text-destructive rounded-md shrink-0"
+                      onClick={(e) => handleDeleteConversation(e, conv.id)}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
               </div>
             ))
           )}
         </div>
       </ScrollArea>
+
+      {/* Sidebar footer - brain info */}
+      <div className="p-3 border-t border-border/50">
+        <div
+          className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-muted/60 cursor-pointer transition-colors"
+          onClick={() => navigate("/")}
+        >
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/15">
+            <Icon className="h-3.5 w-3.5 text-primary" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-semibold truncate">{brain.name}</p>
+            <p className="text-[10px] text-muted-foreground">{config?.label}</p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 
   return (
-    <div className="flex min-h-screen flex-col bg-mesh bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-20 glass border-b border-border/50">
-        <div className="container flex h-16 items-center gap-2 sm:gap-4 px-4 sm:px-6">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate("/")}
-            className="rounded-2xl hover:bg-primary/10 h-9 w-9"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/20 to-accent/10 border border-primary/10 shadow-sm">
-            <Icon className="h-5 w-5 text-primary" />
-          </div>
-          <div className="min-w-0 mr-auto max-w-[130px] sm:max-w-none">
-            <h1 className="font-extrabold text-base sm:text-lg truncate leading-tight text-gradient">
-              {brain.name}
-            </h1>
-            <p className="text-[10px] sm:text-xs text-muted-foreground font-semibold uppercase tracking-widest">
-              {config?.label}
-            </p>
-          </div>
+    <div className="flex h-screen bg-background overflow-hidden">
+      {/* Desktop Sidebar */}
+      {!isMobile && sidebarOpen && (
+        <div className="w-64 border-r border-border/50 bg-sidebar-background flex flex-col shrink-0 animate-in slide-in-from-left duration-200">
+          {sidebarContent}
+        </div>
+      )}
 
-          <div className="flex items-center gap-1.5 sm:gap-2">
+      {/* Mobile Sidebar Sheet */}
+      <Sheet open={mobileSidebarOpen && !!isMobile} onOpenChange={setMobileSidebarOpen}>
+        <SheetContent side="left" className="p-0 w-[280px] bg-sidebar-background">
+          {sidebarContent}
+        </SheetContent>
+      </Sheet>
+
+      {/* Main content */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Header */}
+        <header className="sticky top-0 z-20 border-b border-border/50 bg-background/80 backdrop-blur-xl">
+          <div className="flex h-12 items-center gap-2 px-3">
+            {/* Sidebar toggle */}
+            {isMobile ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setMobileSidebarOpen(true)}
+                className="rounded-lg h-8 w-8"
+              >
+                <Menu className="h-4 w-4" />
+              </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="rounded-lg h-8 w-8"
+              >
+                {sidebarOpen ? (
+                  <PanelLeftClose className="h-4 w-4" />
+                ) : (
+                  <PanelLeft className="h-4 w-4" />
+                )}
+              </Button>
+            )}
+
             <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowHistory(!showHistory)}
-              className={`flex gap-1.5 rounded-2xl transition-all h-9 px-3 sm:px-4 font-medium text-xs sm:text-sm ${
-                showHistory
-                  ? "bg-primary/15 border-primary/50 text-primary shadow-inner"
-                  : "hover:bg-primary/10 hover:border-primary/30"
-              }`}
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate("/")}
+              className="rounded-lg h-8 w-8"
             >
-              <History className="h-4 w-4" />
-              <span className="hidden sm:inline">Histórico</span>
+              <ArrowLeft className="h-4 w-4" />
             </Button>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="rounded-2xl h-9 w-9 hover:bg-muted/80"
-                >
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="end"
-                className="w-44 glass rounded-2xl"
-              >
-                <DropdownMenuItem
-                  onClick={() => setShowEdit(true)}
-                  className="gap-2 cursor-pointer rounded-xl m-1"
-                >
-                  <Pencil className="h-4 w-4" /> Editar
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => setShowDelete(true)}
-                  className="gap-2 cursor-pointer text-destructive focus:text-destructive rounded-xl m-1"
-                >
-                  <Trash2 className="h-4 w-4" /> Excluir Cérebro
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-      </header>
+            <div className="min-w-0 mr-auto">
+              <h1 className="font-bold text-sm truncate leading-tight">
+                {brain.name}
+              </h1>
+            </div>
 
-      {/* Tabs */}
-      <Tabs defaultValue="chat" className="flex-1 flex flex-col">
-        <div className="border-b border-border/40 bg-card/40 backdrop-blur-xl">
-          <div className="container">
-            <TabsList className="h-12 w-full justify-start bg-transparent p-0 gap-6">
+            <div className="flex items-center gap-1">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="rounded-lg h-8 w-8"
+                  >
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-44 rounded-xl">
+                  <DropdownMenuItem
+                    onClick={() => setShowEdit(true)}
+                    className="gap-2 cursor-pointer rounded-lg m-1"
+                  >
+                    <Pencil className="h-4 w-4" /> Editar
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setShowDelete(true)}
+                    className="gap-2 cursor-pointer text-destructive focus:text-destructive rounded-lg m-1"
+                  >
+                    <Trash2 className="h-4 w-4" /> Excluir Cérebro
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+        </header>
+
+        {/* Tabs */}
+        <Tabs defaultValue="chat" className="flex-1 flex flex-col min-h-0">
+          <div className="border-b border-border/40 bg-card/40 backdrop-blur-xl">
+            <TabsList className="h-10 w-full justify-start bg-transparent p-0 gap-4 px-3">
               <TabsTrigger
                 value="chat"
-                className="gap-2 px-1 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none font-semibold transition-all text-sm text-muted-foreground"
+                className="gap-1.5 px-1 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none font-semibold transition-all text-xs text-muted-foreground"
               >
-                <MessageSquare className="h-4 w-4" /> Chat
+                <MessageSquare className="h-3.5 w-3.5" /> Chat
               </TabsTrigger>
               <TabsTrigger
                 value="texts"
-                className="gap-2 px-1 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none font-semibold transition-all text-sm text-muted-foreground"
+                className="gap-1.5 px-1 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none font-semibold transition-all text-xs text-muted-foreground"
               >
-                <FileText className="h-4 w-4" /> Fontes
+                <FileText className="h-3.5 w-3.5" /> Fontes
               </TabsTrigger>
               <TabsTrigger
                 value="analysis"
-                className="gap-2 px-1 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none font-semibold transition-all text-sm text-muted-foreground"
+                className="gap-1.5 px-1 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none font-semibold transition-all text-xs text-muted-foreground"
               >
-                <BarChart3 className="h-4 w-4" /> Análise
+                <BarChart3 className="h-3.5 w-3.5" /> Análise
               </TabsTrigger>
               <TabsTrigger
                 value="prompt"
-                className="gap-2 px-1 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none font-semibold transition-all text-sm text-muted-foreground"
+                className="gap-1.5 px-1 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none font-semibold transition-all text-xs text-muted-foreground"
               >
-                <Sparkles className="h-4 w-4" /> Prompt
+                <Sparkles className="h-3.5 w-3.5" /> Prompt
               </TabsTrigger>
             </TabsList>
           </div>
-        </div>
 
-        <TabsContent
-          value="chat"
-          className="flex-1 m-0 relative flex overflow-hidden"
-        >
-          <div className="flex-1 flex flex-col">
+          <TabsContent value="chat" className="flex-1 m-0 min-h-0">
             <ChatInterface
               brainId={brain.id}
               brainType={brain.type as BrainType}
@@ -407,33 +447,21 @@ export default function BrainDetail() {
               onRetry={retry}
               onRegenerate={retry}
             />
-          </div>
-
-          {showHistory && (
-            <div className="hidden sm:flex flex-col w-72 border-l">
-              {renderHistoryContent()}
-            </div>
-          )}
-
-          <Sheet open={showHistory && isMobile} onOpenChange={setShowHistory}>
-            <SheetContent side="right" className="p-0 w-[85%] sm:hidden glass">
-              {renderHistoryContent()}
-            </SheetContent>
-          </Sheet>
-        </TabsContent>
-        <TabsContent value="texts" className="m-0 bg-background/50 flex-1">
-          <FeedTexts brainId={brain.id} />
-        </TabsContent>
-        <TabsContent value="analysis" className="m-0 bg-background/50 flex-1">
-          <BrainAnalysis
-            brainId={brain.id}
-            brainType={brain.type as BrainType}
-          />
-        </TabsContent>
-        <TabsContent value="prompt" className="m-0 bg-background/50 flex-1">
-          <BrainPromptEditor brainId={brain.id} />
-        </TabsContent>
-      </Tabs>
+          </TabsContent>
+          <TabsContent value="texts" className="m-0 bg-background/50 flex-1 overflow-y-auto">
+            <FeedTexts brainId={brain.id} />
+          </TabsContent>
+          <TabsContent value="analysis" className="m-0 bg-background/50 flex-1 overflow-y-auto">
+            <BrainAnalysis
+              brainId={brain.id}
+              brainType={brain.type as BrainType}
+            />
+          </TabsContent>
+          <TabsContent value="prompt" className="m-0 bg-background/50 flex-1 overflow-y-auto">
+            <BrainPromptEditor brainId={brain.id} />
+          </TabsContent>
+        </Tabs>
+      </div>
 
       {/* Dialogs */}
       {brain && (
@@ -451,7 +479,7 @@ export default function BrainDetail() {
       )}
 
       <AlertDialog open={showDelete} onOpenChange={setShowDelete}>
-        <AlertDialogContent className="glass">
+        <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
             <AlertDialogDescription>
