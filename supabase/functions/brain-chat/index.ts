@@ -215,23 +215,36 @@ serve(async (req) => {
       );
     }
 
-    // Get brain texts for context
+    // Get brain texts for context — prefer RAG-processed summaries
     const { data: texts } = await supabase
       .from("brain_texts")
-      .select("content")
+      .select("content, rag_summary, rag_keywords, category, rag_processed")
       .eq("brain_id", brainId)
-      .order("created_at", { ascending: false }) // Newer first
-      .limit(50); // Simple limit for now
+      .order("created_at", { ascending: false })
+      .limit(50);
 
     const MAX_CONTEXT_CHARS = 30000;
-    let contextTexts = texts?.map((t) => t.content).join("\n\n---\n\n") || "";
+    
+    // Build optimized context: use RAG summaries + keywords for processed texts, full content for unprocessed
+    let contextParts: string[] = [];
+    if (texts) {
+      for (const t of texts) {
+        if (t.rag_processed && t.rag_summary) {
+          const keywords = t.rag_keywords ? `[Palavras-chave: ${(t.rag_keywords as string[]).join(", ")}]` : "";
+          const cat = t.category ? `[Categoria: ${t.category}]` : "";
+          contextParts.push(`${cat} ${keywords}\nResumo: ${t.rag_summary}\n\nConteúdo Original:\n${t.content}`);
+        } else {
+          contextParts.push(t.content);
+        }
+      }
+    }
+    
+    let contextTexts = contextParts.join("\n\n---\n\n");
     if (contextTexts.length > MAX_CONTEXT_CHARS) {
       contextTexts =
         contextTexts.slice(0, MAX_CONTEXT_CHARS) +
         "\n\n[...contexto truncado por limite]";
-      console.log(
-        `brain-chat: truncated context from ${texts?.map((t) => t.content).join("").length} to ${MAX_CONTEXT_CHARS} chars`,
-      );
+      console.log(`brain-chat: truncated context to ${MAX_CONTEXT_CHARS} chars`);
     }
 
     // Build system prompt - use custom prompt if available, otherwise default
