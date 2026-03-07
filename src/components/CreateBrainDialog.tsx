@@ -54,7 +54,8 @@ export default function CreateBrainDialog({ open, onOpenChange }: Props) {
   const [generatingDesc, setGeneratingDesc] = useState(false);
 
   // Step 2 — Knowledge base (held in memory, saved after brain created)
-  const [pastedText, setPastedText] = useState("");
+  const [currentText, setCurrentText] = useState("");
+  const [pendingTexts, setPendingTexts] = useState<string[]>([]);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -73,7 +74,8 @@ export default function CreateBrainDialog({ open, onOpenChange }: Props) {
     setDescription("");
     setTags([]);
     setType("person_clone");
-    setPastedText("");
+    setCurrentText("");
+    setPendingTexts([]);
     setPendingFiles([]);
     setPrompt("");
   };
@@ -148,14 +150,21 @@ export default function CreateBrainDialog({ open, onOpenChange }: Props) {
         .single();
       if (brainError) throw brainError;
 
-      // 2. Save knowledge base (pasted text)
-      if (pastedText.trim()) {
+      // 2. Save knowledge base (multiple texts)
+      const allTextsToSave = [...pendingTexts];
+      if (currentText.trim()) {
+        allTextsToSave.push(currentText.trim()); // Also save what's still in the box
+      }
+
+      if (allTextsToSave.length > 0) {
         setSavingBase(true);
-        await supabase.from("brain_texts").insert({
-          brain_id: brain.id,
-          content: pastedText.trim(),
-          source_type: "paste",
-        });
+        for (const pt of allTextsToSave) {
+          await supabase.from("brain_texts").insert({
+            brain_id: brain.id,
+            content: pt,
+            source_type: "paste",
+          });
+        }
       }
 
       // 3. Upload pending files
@@ -378,18 +387,41 @@ export default function CreateBrainDialog({ open, onOpenChange }: Props) {
             {/* Paste textarea (auto-resize) */}
             <div className="space-y-2">
               <Label>Colar texto</Label>
-              <textarea
-                value={pastedText}
-                onChange={(e) => setPastedText(e.target.value)}
-                placeholder="Cole aqui qualquer texto, artigo, anotações..."
-                style={{ minHeight: 120, maxHeight: 320 }}
-                className="w-full resize-y rounded-xl border border-border/60 bg-card/60 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-colors leading-relaxed"
-              />
-              {pastedText.length > 0 && (
-                <p className="text-xs text-muted-foreground text-right">
-                  {pastedText.length.toLocaleString()} chars
-                </p>
-              )}
+              <div className="relative">
+                <textarea
+                  value={currentText}
+                  onChange={(e) => setCurrentText(e.target.value)}
+                  placeholder="Cole aqui qualquer texto, artigo, anotações..."
+                  style={{ minHeight: 120, maxHeight: 320 }}
+                  className="w-full resize-y rounded-xl border border-border/60 bg-card/60 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-colors leading-relaxed"
+                />
+                <div className="flex justify-between items-center mt-1">
+                  <span className="text-xs text-muted-foreground">
+                    {currentText.length > 0
+                      ? `${currentText.length.toLocaleString()} chars`
+                      : ""}
+                  </span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="rounded-lg h-7 text-xs gap-1"
+                    disabled={!currentText.trim()}
+                    onClick={() => {
+                      if (currentText.trim()) {
+                        setPendingTexts((prev) => [
+                          ...prev,
+                          currentText.trim(),
+                        ]);
+                        setCurrentText("");
+                      }
+                    }}
+                  >
+                    <Plus className="h-3 w-3" />
+                    Adicionar texto
+                  </Button>
+                </div>
+              </div>
             </div>
 
             {/* File upload */}
@@ -419,27 +451,56 @@ export default function CreateBrainDialog({ open, onOpenChange }: Props) {
                   onChange={handleFileSelect}
                 />
               </div>
-              {pendingFiles.length > 0 && (
-                <ul className="space-y-1">
-                  {pendingFiles.map((f, i) => (
-                    <li
-                      key={i}
-                      className="flex items-center justify-between text-xs bg-card/60 rounded-lg px-3 py-2 border border-border/40"
-                    >
-                      <span className="truncate text-foreground">{f.name}</span>
-                      <button
-                        className="ml-2 text-muted-foreground hover:text-destructive shrink-0"
-                        onClick={() =>
-                          setPendingFiles((prev) =>
-                            prev.filter((_, j) => j !== i),
-                          )
-                        }
+              {/* Queued sources list */}
+              {(pendingFiles.length > 0 || pendingTexts.length > 0) && (
+                <div className="mt-4">
+                  <Label className="text-xs text-muted-foreground mb-2 block">
+                    Fontes na fila ({pendingFiles.length + pendingTexts.length}
+                    ):
+                  </Label>
+                  <ul className="space-y-1">
+                    {pendingTexts.map((txt, i) => (
+                      <li
+                        key={`txt-${i}`}
+                        className="flex items-center justify-between text-xs bg-card/60 rounded-lg px-3 py-2 border border-border/40"
                       >
-                        ✕
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+                        <span className="truncate text-foreground">
+                          Texto colado ({txt.length} chars)
+                        </span>
+                        <button
+                          className="ml-2 text-muted-foreground hover:text-destructive shrink-0"
+                          onClick={() =>
+                            setPendingTexts((prev) =>
+                              prev.filter((_, j) => j !== i),
+                            )
+                          }
+                        >
+                          ✕
+                        </button>
+                      </li>
+                    ))}
+                    {pendingFiles.map((f, i) => (
+                      <li
+                        key={`file-${i}`}
+                        className="flex items-center justify-between text-xs bg-card/60 rounded-lg px-3 py-2 border border-border/40"
+                      >
+                        <span className="truncate text-foreground">
+                          {f.name}
+                        </span>
+                        <button
+                          className="ml-2 text-muted-foreground hover:text-destructive shrink-0"
+                          onClick={() =>
+                            setPendingFiles((prev) =>
+                              prev.filter((_, j) => j !== i),
+                            )
+                          }
+                        >
+                          ✕
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
             </div>
 
@@ -464,7 +525,11 @@ export default function CreateBrainDialog({ open, onOpenChange }: Props) {
               <Button
                 className="gap-2 gradient-jewel text-white font-semibold rounded-xl"
                 onClick={() => setStep(3)}
-                disabled={pastedText.trim() === "" && pendingFiles.length === 0}
+                disabled={
+                  currentText.trim() === "" &&
+                  pendingTexts.length === 0 &&
+                  pendingFiles.length === 0
+                }
               >
                 <Plus className="h-4 w-4" />
                 Próximo

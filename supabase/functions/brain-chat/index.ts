@@ -347,8 +347,7 @@ serve(async (req) => {
 
       return new Response(
         JSON.stringify({
-          error: errorMsg,
-          details: lastErrorInfo,
+          error: "Falha ao processar resposta da IA. Tente novamente mais tarde.",
         }),
         {
           status: lastErrorInfo?.status || 500,
