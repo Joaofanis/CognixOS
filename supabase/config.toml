@@ -14,3 +14,9 @@ verify_jwt = false
 
 [functions.process-rag]
 verify_jwt = false
+
+[functions.summon-clone]
+verify_jwt = false
+
+[functions.update-user-profile]
+verify_jwt = false

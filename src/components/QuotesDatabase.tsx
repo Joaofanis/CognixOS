@@ -49,7 +49,7 @@ export default function QuotesDatabase({ brainId }: Props) {
   const { data: quotes, isLoading } = useQuery({
     queryKey: ["brain-quotes", brainId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("brain_quotes")
         .select("*")
         .eq("brain_id", brainId)
