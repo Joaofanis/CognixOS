@@ -20,3 +20,21 @@ verify_jwt = false
 
 [functions.update-user-profile]
 verify_jwt = false
+
+[functions.general-chat]
+verify_jwt = false
+
+[functions.extract-quotes]
+verify_jwt = false
+
+[functions.import-url]
+verify_jwt = false
+
+[functions.generate-description]
+verify_jwt = false
+
+[functions.agent-squad]
+verify_jwt = false
+
+[functions.ai-health-check]
+verify_jwt = false
