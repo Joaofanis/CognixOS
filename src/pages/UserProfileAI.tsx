@@ -43,11 +43,13 @@ interface UserAIProfile {
   formality_level: number;
   prefers_bullet_points: boolean;
   prefers_examples: boolean;
+  prefers_portuguese: boolean;
   traits: Record<string, number>;
   frequent_words: string[];
   topics_of_interest: string[];
   user_notes: string | null;
   ai_summary: string | null;
+  style_examples: any;
   message_count: number;
   avg_message_length: number;
   last_analyzed_at: string | null;
@@ -93,7 +95,7 @@ export default function UserProfileAI() {
     queryKey: ["user_ai_profile", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("user_ai_profiles")
         .select("*")
         .eq("user_id", user!.id)
@@ -109,7 +111,7 @@ export default function UserProfileAI() {
 
   const saveNotesMutation = useMutation({
     mutationFn: async (newNotes: string) => {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("user_ai_profiles")
         .upsert(
           { user_id: user!.id, user_notes: newNotes },

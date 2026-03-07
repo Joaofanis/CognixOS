@@ -74,7 +74,7 @@ export default function QuotesDatabase({ brainId }: Props) {
     if (!newQuote.trim()) return;
     setAdding(true);
     try {
-      const { error } = await supabase.from("brain_quotes").insert({
+      const { error } = await (supabase as any).from("brain_quotes").insert({
         brain_id: brainId,
         quote: newQuote.trim(),
         context: newContext.trim() || null,
@@ -126,7 +126,7 @@ export default function QuotesDatabase({ brainId }: Props) {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("brain_quotes")
         .delete()
         .eq("id", deleteTarget);
