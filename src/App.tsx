@@ -10,6 +10,8 @@ import BrainDetail from "./pages/BrainDetail";
 import Compare from "./pages/Compare";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
+import GeneralChat from "./pages/GeneralChat";
+import UserProfileAI from "./pages/UserProfileAI";
 import { ThemeProvider } from "./components/ThemeProvider";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 
@@ -81,6 +83,22 @@ const App = () => (
                   element={
                     <ProtectedRoute>
                       <Profile />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/chat"
+                  element={
+                    <ProtectedRoute>
+                      <GeneralChat />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/profile/ia"
+                  element={
+                    <ProtectedRoute>
+                      <UserProfileAI />
                     </ProtectedRoute>
                   }
                 />

@@ -2,11 +2,13 @@ import { useState, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export type Message = { role: "user" | "assistant"; content: string };
+export type ChatMode = "fast" | "thinking" | "default";
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/brain-chat`;
 
 interface UseBrainChatProps {
   brainId: string;
+  mode?: ChatMode;
   onAssistantMessage?: (content: string) => void;
   onStreamingStart?: () => void;
   onStreamingEnd?: () => void;
@@ -15,6 +17,7 @@ interface UseBrainChatProps {
 
 export function useBrainChat({
   brainId,
+  mode = "default",
   onAssistantMessage,
   onStreamingStart,
   onStreamingEnd,
@@ -104,6 +107,7 @@ export function useBrainChat({
         },
         body: JSON.stringify({
           brainId,
+          mode,
           messages: [...messages, userMsg].map((m) => ({
             role: m.role,
             content: m.content,

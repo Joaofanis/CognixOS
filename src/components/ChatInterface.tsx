@@ -1,6 +1,8 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { BrainType } from "@/lib/brain-types";
+import type { ChatMode } from "@/hooks/useBrainChat";
+import type { SummonedMessage } from "@/hooks/useCloneSummon";
 import {
   Send,
   User,
@@ -13,10 +15,18 @@ import {
   Copy,
   Check,
   Languages,
+  Zap,
+  Brain,
+  ChevronDown,
+  ChevronRight,
+  UserPlus,
+  Sparkles,
 } from "lucide-react";
 import ObsidianMarkdown from "@/components/ObsidianMarkdown";
 import { Message } from "@/hooks/useBrainChat";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
   brainId: string;
@@ -24,12 +34,16 @@ interface Props {
   brainName: string;
   messages: Message[];
   isStreaming: boolean;
-  sendMessage: (input: string) => void;
+  sendMessage: (input: string, mode?: ChatMode) => void;
   stopStreaming?: () => void;
   onNewChat: () => void;
   conversationId: string | null;
   onRetry?: () => void;
   onRegenerate?: () => void;
+  showModeToggle?: boolean;
+  summonedMessages?: SummonedMessage[];
+  isSummoning?: boolean;
+  onSummonClone?: (brainId: string, reason: string) => void;
 }
 
 // Suggested questions per brain type
@@ -72,12 +86,54 @@ export default function ChatInterface({
   conversationId,
   onRetry,
   onRegenerate,
+  showModeToggle = true,
+  summonedMessages = [],
+  isSummoning = false,
+  onSummonClone,
 }: Props) {
   const [input, setInput] = useState("");
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const [spellLang, setSpellLang] = useState<"pt-BR" | "en-US">("pt-BR");
+  const [chatMode, setChatMode] = useState<ChatMode>(() => {
+    return (localStorage.getItem("chatMode") as ChatMode) || "default";
+  });
+  const [expandedReasoning, setExpandedReasoning] = useState<Set<number>>(
+    new Set(),
+  );
+  const [showSummonPicker, setShowSummonPicker] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState("");
+  const [showMention, setShowMention] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  const setMode = (m: ChatMode) => {
+    setChatMode(m);
+    localStorage.setItem("chatMode", m);
+  };
+
+  // Load available brains for @mention and picker
+  const { data: availableBrains } = useQuery({
+    queryKey: ["brains_for_summon"],
+    queryFn: async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return [];
+      const { data } = await supabase
+        .from("brains")
+        .select("id, name, type")
+        .eq("user_id", user.id)
+        .order("name");
+      return data || [];
+    },
+    staleTime: 60_000,
+  });
+
+  const filteredBrains = (availableBrains || []).filter(
+    (b) =>
+      b.name.toLowerCase().includes(mentionQuery.toLowerCase()) &&
+      b.id !== brainType,
+  );
 
   const toggleLang = () => {
     const next = spellLang === "pt-BR" ? "en-US" : "pt-BR";
@@ -105,14 +161,56 @@ export default function ChatInterface({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isStreaming) return;
-    sendMessage(input);
+    sendMessage(input, chatMode);
     setInput("");
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // @mention detection
+    if (e.key === "@") {
+      setShowMention(true);
+      setMentionQuery("");
+    } else if (showMention) {
+      if (e.key === "Escape") {
+        setShowMention(false);
+      } else if (e.key === "Backspace" && mentionQuery === "") {
+        setShowMention(false);
+      } else if (e.key !== "Enter") {
+        // update mention query - will be handled by onChange
+      }
+    }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSubmit(e as unknown as React.FormEvent);
+    }
+  };
+
+  const handleInputChange = useCallback(
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      const val = e.target.value;
+      setInput(val);
+      const mentionMatch = val.match(/@([\w\s]*)$/);
+      if (mentionMatch) {
+        setShowMention(true);
+        setMentionQuery(mentionMatch[1]);
+      } else {
+        setShowMention(false);
+      }
+    },
+    [],
+  );
+
+  const handleSelectMention = (brain: { id: string; name: string }) => {
+    // Replace @query with the full clone name and trigger summon
+    const newInput = input.replace(/@[\w\s]*$/, "").trim();
+    setInput(newInput);
+    setShowMention(false);
+    if (onSummonClone) {
+      onSummonClone(brain.id, `Usuário convocou ${brain.name} para a conversa`);
+    } else {
+      toast.info(
+        `Clone "${brain.name}" seria convocado (integre onSummonClone prop)`,
+      );
     }
   };
 
@@ -149,6 +247,17 @@ export default function ChatInterface({
 
   const isErrorMessage = (msg: Message) =>
     msg.role === "assistant" && (msg.content || "").includes("⚠️ Erro:");
+
+  // Extract reasoning from thinking-mode messages between <raciocinio>...</raciocinio>
+  const extractReasoning = (content: string) => {
+    const match = content.match(/<raciocinio>([\s\S]*?)<\/raciocinio>/);
+    if (!match) return { reasoning: null, answer: content };
+    const reasoning = match[1].trim();
+    const answer = content
+      .replace(/<raciocinio>[\s\S]*?<\/raciocinio>/, "")
+      .trim();
+    return { reasoning, answer };
+  };
 
   const suggestions =
     SUGGESTIONS[brainType as BrainType] || SUGGESTIONS.default;
@@ -232,16 +341,54 @@ export default function ChatInterface({
                     <div className="text-[15px] leading-7 text-foreground">
                       {msg.role === "assistant" ? (
                         <div className="space-y-2">
-                          <ObsidianMarkdown
-                            content={
-                              isError
-                                ? (msg.content || "")
-                                    .replace("⚠️ Erro:", "")
-                                    .trim()
-                                : msg.content || ""
-                            }
-                            isError={isError}
-                          />
+                          {(() => {
+                            const { reasoning, answer } = extractReasoning(
+                              msg.content || "",
+                            );
+                            const isExpanded = expandedReasoning.has(i);
+                            return (
+                              <>
+                                {reasoning && (
+                                  <div className="mb-2">
+                                    <button
+                                      onClick={() =>
+                                        setExpandedReasoning((prev) => {
+                                          const next = new Set(prev);
+                                          isExpanded
+                                            ? next.delete(i)
+                                            : next.add(i);
+                                          return next;
+                                        })
+                                      }
+                                      className="flex items-center gap-1.5 text-xs font-semibold text-primary/70 hover:text-primary transition-colors py-1"
+                                    >
+                                      {isExpanded ? (
+                                        <ChevronDown className="h-3 w-3" />
+                                      ) : (
+                                        <ChevronRight className="h-3 w-3" />
+                                      )}
+                                      🧠 Raciocínio
+                                    </button>
+                                    {isExpanded && (
+                                      <div className="mt-1 pl-3 border-l-2 border-primary/20 text-sm text-muted-foreground leading-relaxed">
+                                        <ObsidianMarkdown content={reasoning} />
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                                <ObsidianMarkdown
+                                  content={
+                                    isError
+                                      ? (answer || msg.content || "")
+                                          .replace("⚠️ Erro:", "")
+                                          .trim()
+                                      : answer || msg.content || ""
+                                  }
+                                  isError={isError}
+                                />
+                              </>
+                            );
+                          })()}
                           {isError && onRetry && (
                             <Button
                               variant="outline"
@@ -314,6 +461,52 @@ export default function ChatInterface({
             </div>
           </div>
         )}
+
+        {/* Summoned clone messages */}
+        {summonedMessages.map((sm, si) => (
+          <div
+            key={`summoned-${si}`}
+            className="w-full border-t border-violet-500/10"
+          >
+            <div className="max-w-3xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
+              <div className="flex gap-3 sm:gap-4">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-500/20 border border-violet-500/30">
+                  <Sparkles className="h-4 w-4 text-violet-400" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="text-sm font-semibold text-violet-400">
+                      {sm.cloneName}
+                    </p>
+                    <span className="text-[10px] bg-violet-500/10 text-violet-400 border border-violet-500/20 rounded-full px-2 py-0.5">
+                      Convocado
+                    </span>
+                  </div>
+                  <div className="text-[15px] leading-7 text-foreground">
+                    {sm.content ? (
+                      <ObsidianMarkdown content={sm.content} />
+                    ) : (
+                      <div className="flex gap-1.5">
+                        <span className="h-2 w-2 bg-violet-400/60 rounded-full animate-bounce [animation-delay:0ms]" />
+                        <span className="h-2 w-2 bg-violet-400/40 rounded-full animate-bounce [animation-delay:150ms]" />
+                        <span className="h-2 w-2 bg-violet-400/20 rounded-full animate-bounce [animation-delay:300ms]" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+
+        {isSummoning && (
+          <div className="max-w-3xl mx-auto px-3 sm:px-4 py-2">
+            <div className="flex items-center gap-2 text-xs text-violet-400/80">
+              <Sparkles className="h-3 w-3 animate-pulse" />
+              Convocando clone...
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Input Bar */}
@@ -344,6 +537,87 @@ export default function ChatInterface({
               <Languages className="h-3 w-3" />
               {spellLang === "pt-BR" ? "🇧🇷 PT" : "🇺🇸 EN"}
             </Button>
+
+            {/* Summon clone button */}
+            {onSummonClone && (
+              <div className="relative">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowSummonPicker((p) => !p)}
+                  disabled={isSummoning}
+                  className="gap-1.5 h-7 px-3 text-xs rounded-xl text-violet-400 hover:text-violet-300 hover:bg-violet-500/10"
+                >
+                  <UserPlus className="h-3 w-3" />
+                  {isSummoning ? "Invocando..." : "+ Clone"}
+                </Button>
+                {showSummonPicker && (
+                  <div className="absolute bottom-full mb-1 left-0 z-50 w-52 rounded-xl border border-border/60 bg-card shadow-lg shadow-black/20 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-150">
+                    <p className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 border-b border-border/40">
+                      Chamar Clone
+                    </p>
+                    <div className="max-h-48 overflow-y-auto">
+                      {(availableBrains || []).map((b) => (
+                        <button
+                          key={b.id}
+                          onClick={() => {
+                            setShowSummonPicker(false);
+                            onSummonClone(b.id, `Usuário convocou ${b.name}`);
+                          }}
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-muted/60 transition-colors flex items-center gap-2"
+                        >
+                          <Sparkles className="h-3 w-3 text-violet-400 shrink-0" />
+                          <span className="truncate">{b.name}</span>
+                        </button>
+                      ))}
+                      {(availableBrains || []).length === 0 && (
+                        <p className="px-3 py-2 text-xs text-muted-foreground">
+                          Nenhum clone disponível
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Mode toggle */}
+            {showModeToggle && (
+              <div className="ml-auto flex items-center rounded-xl border border-border/60 bg-background/60 p-0.5 gap-0.5">
+                <button
+                  onClick={() => setMode("fast")}
+                  title="Modo Rápido: respostas diretas e concisas"
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all ${
+                    chatMode === "fast"
+                      ? "bg-amber-500/15 text-amber-400 border border-amber-500/30"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Zap className="h-3 w-3" /> Rápido
+                </button>
+                <button
+                  onClick={() => setMode("default")}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all ${
+                    chatMode === "default"
+                      ? "bg-primary/15 text-primary border border-primary/30"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Padrão
+                </button>
+                <button
+                  onClick={() => setMode("thinking")}
+                  title="Modo Pensamento: raciocínio chain-of-thought antes da resposta"
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all ${
+                    chatMode === "thinking"
+                      ? "bg-violet-500/15 text-violet-400 border border-violet-500/30"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Brain className="h-3 w-3" /> Pensamento
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -351,13 +625,32 @@ export default function ChatInterface({
           onSubmit={handleSubmit}
           className="max-w-3xl mx-auto flex items-end gap-2 sm:gap-3"
         >
+          {/* @mention autocomplete dropdown */}
+          {showMention && filteredBrains.length > 0 && (
+            <div className="absolute bottom-full mb-1 left-4 z-50 w-52 rounded-xl border border-border/60 bg-card shadow-lg overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-150">
+              <p className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 border-b border-border/40">
+                @Clone
+              </p>
+              {filteredBrains.map((b) => (
+                <button
+                  key={b.id}
+                  type="button"
+                  onClick={() => handleSelectMention(b)}
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-muted/60 transition-colors flex items-center gap-2"
+                >
+                  <Sparkles className="h-3 w-3 text-violet-400 shrink-0" />
+                  <span className="truncate">{b.name}</span>
+                </button>
+              ))}
+            </div>
+          )}
           <div className="relative flex-1 bg-background/80 border border-border/60 rounded-2xl sm:rounded-3xl shadow-inner focus-within:border-primary/50 focus-within:shadow-primary/10 focus-within:shadow-lg transition-all duration-300">
             <textarea
               ref={inputRef}
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              placeholder="Envie uma mensagem… (Enter para enviar)"
+              placeholder="Envie uma mensagem… (Enter para enviar, @ para chamar clone)"
               disabled={isStreaming}
               rows={1}
               spellCheck

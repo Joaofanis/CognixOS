@@ -11,9 +11,9 @@ const corsHeaders = {
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const VALID_ROLES = ["user", "assistant", "system"];
-const MAX_MESSAGES = 100;
-const MAX_MESSAGE_CONTENT_LENGTH = 50000; // 50k chars per message
-const MAX_BODY_SIZE = 3 * 1024 * 1024; // 3MB total body size (3x increase)
+const MAX_MESSAGES = 1000;                            // 1k messages
+const MAX_MESSAGE_CONTENT_LENGTH = 4_000_000;         // ~4M chars per message
+const MAX_BODY_SIZE = 20 * 1024 * 1024;              // 20MB total body size
 
 serve(async (req) => {
   if (req.method === "OPTIONS")
@@ -61,9 +61,10 @@ serve(async (req) => {
       );
     }
 
-    const { brainId, messages } = body as {
+    const { brainId, messages, mode } = body as {
       brainId: unknown;
       messages: unknown;
+      mode: "fast" | "thinking" | undefined;
     };
 
     // --- Input Validation ---
@@ -223,7 +224,7 @@ serve(async (req) => {
       .order("created_at", { ascending: false })
       .limit(50);
 
-    const MAX_CONTEXT_CHARS = 30000;
+    const MAX_CONTEXT_CHARS = 800_000; // ~800k chars ≈ 200k tokens
     
     // Build optimized context: use RAG summaries + keywords for processed texts, full content for unprocessed
     const contextParts: string[] = [];
@@ -246,6 +247,16 @@ serve(async (req) => {
         "\n\n[...contexto truncado por limite]";
       console.log(`brain-chat: truncated context to ${MAX_CONTEXT_CHARS} chars`);
     }
+
+    // Mode modifiers
+    const chatMode = mode === "thinking" ? "thinking" : mode === "fast" ? "fast" : "default";
+    const thinkingInstruction = chatMode === "thinking"
+      ? `\n\n## Modo Pensamento Ativo\nAntes de responder, raciocine passo a passo entre as tags <raciocinio> e </raciocinio>. Após o raciocínio, forneça sua resposta final de forma clara. Formato obrigatório:\n<raciocinio>\n[seu raciocínio aqui]\n</raciocinio>\n\n[sua resposta final aqui]`
+      : chatMode === "fast"
+      ? `\n\n## Modo Rápido Ativo\nResponda de forma direta e concisa, sem elaborar desnecessariamente. Priorize clareza e velocidade.`
+      : "";
+
+    const chatTemperature = chatMode === "fast" ? 0.3 : chatMode === "thinking" ? 0.8 : 0.7;
 
     // Build system prompt - use custom prompt if available, otherwise default
     let systemPrompt = "";
@@ -277,8 +288,14 @@ serve(async (req) => {
       systemPrompt += `\n\nContexto de Conhecimento de "${brain.name}":\n${contextTexts}`;
     }
 
+    // Append mode instruction
+    systemPrompt += thinkingInstruction;
+
+    // Models ordered by context size (largest first for 1M token support)
     const models = [
-      "meta-llama/llama-3.3-70b-instruct:free",
+      "google/gemini-2.0-flash-exp:free",        // 1M context window
+      "google/gemini-2.5-pro-exp-03-25:free",    // 1M context window
+      "meta-llama/llama-3.3-70b-instruct:free",  // 128k context
       "nvidia/nemotron-3-nano-30b-a3b:free",
       "arcee-ai/trinity-large-preview:free",
       "stepfun/step-3.5-flash:free",
@@ -290,7 +307,7 @@ serve(async (req) => {
 
     for (const model of models) {
       try {
-        console.log(`Attempting with model: ${model}`);
+        console.log(`Attempting with model: ${model} (mode: ${chatMode})`);
         const aiResponse = await fetch(
           "https://openrouter.ai/api/v1/chat/completions",
           {
@@ -308,8 +325,8 @@ serve(async (req) => {
                 ...sanitizedMessages,
               ],
               stream: true,
-              temperature: 0.7,
-              max_tokens: 30000, // 3x increase from 10000
+              temperature: chatTemperature,
+              max_tokens: 128_000, // Maximum practical for most models
             }),
           },
         );

@@ -40,6 +40,8 @@ import {
   SortAsc,
   ChevronDown,
   Loader2,
+  MessagesSquare,
+  UserCog,
 } from "lucide-react";
 import { toast } from "sonner";
 import CreateBrainDialog from "@/components/CreateBrainDialog";
@@ -311,6 +313,24 @@ export default function Dashboard() {
               )}
             </DropdownMenuContent>
           </DropdownMenu>
+
+          <Button
+            variant="outline"
+            onClick={() => navigate("/chat")}
+            className="h-12 px-5 gap-2 rounded-2xl font-semibold shrink-0"
+          >
+            <MessagesSquare className="h-4 w-4" />
+            Chat Geral
+          </Button>
+
+          <Button
+            variant="outline"
+            onClick={() => navigate("/profile/ia")}
+            className="h-12 px-5 gap-2 rounded-2xl font-semibold shrink-0"
+          >
+            <UserCog className="h-4 w-4" />
+            Perfil IA
+          </Button>
 
           <Button
             variant="outline"
