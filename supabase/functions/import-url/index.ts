@@ -76,8 +76,13 @@ serve(async (req) => {
     // Fetch the URL
     const resp = await fetch(url, {
       headers: { "User-Agent": "Mozilla/5.0 (compatible; SegundoCerebro/1.0)" },
+      redirect: "manual",
       signal: AbortSignal.timeout(15000),
     });
+    // Block redirects to prevent SSRF via redirect
+    if (resp.status >= 300 && resp.status < 400) {
+      throw new Error("Redirecionamentos não são permitidos por segurança");
+    }
     if (!resp.ok) throw new Error(`Falha ao acessar URL: ${resp.status}`);
     
     const contentType = resp.headers.get("content-type") || "";
