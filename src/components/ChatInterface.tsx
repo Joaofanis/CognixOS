@@ -3,10 +3,8 @@ import { Button } from "@/components/ui/button";
 import { BrainType } from "@/lib/brain-types";
 import {
   Send,
-  Loader2,
   User,
   Bot,
-  Sparkles,
   PlusCircle,
   RefreshCw,
   AlertTriangle,
@@ -14,6 +12,7 @@ import {
   Download,
   Copy,
   Check,
+  Languages,
 } from "lucide-react";
 import ObsidianMarkdown from "@/components/ObsidianMarkdown";
 import { Message } from "@/hooks/useBrainChat";
@@ -76,8 +75,19 @@ export default function ChatInterface({
 }: Props) {
   const [input, setInput] = useState("");
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
+  const [spellLang, setSpellLang] = useState<"pt-BR" | "en-US">("pt-BR");
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  const toggleLang = () => {
+    const next = spellLang === "pt-BR" ? "en-US" : "pt-BR";
+    setSpellLang(next);
+    toast.success(
+      next === "pt-BR"
+        ? "🇧🇷 Corretor: Português (BR)"
+        : "🇺🇸 Spell checker: English (US)",
+    );
+  };
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -99,10 +109,10 @@ export default function ChatInterface({
     setInput("");
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      handleSubmit(e as any);
+      handleSubmit(e as unknown as React.FormEvent);
     }
   };
 
@@ -146,10 +156,7 @@ export default function ChatInterface({
   return (
     <div className="flex flex-col h-[calc(100vh-5.5rem)] bg-background">
       {/* Messages */}
-      <div
-        ref={scrollRef}
-        className="flex-1 overflow-y-auto scrollbar-thin"
-      >
+      <div ref={scrollRef} className="flex-1 overflow-y-auto scrollbar-thin">
         {messages.length === 0 && !isStreaming && (
           <div className="flex flex-col items-center justify-center h-full text-center space-y-6 animate-in fade-in duration-700 px-4">
             <div className="h-20 w-20 rounded-2xl bg-secondary flex items-center justify-center border border-border">
@@ -228,7 +235,9 @@ export default function ChatInterface({
                           <ObsidianMarkdown
                             content={
                               isError
-                                ? (msg.content || "").replace("⚠️ Erro:", "").trim()
+                                ? (msg.content || "")
+                                    .replace("⚠️ Erro:", "")
+                                    .trim()
                                 : msg.content || ""
                             }
                             isError={isError}
@@ -321,6 +330,20 @@ export default function ChatInterface({
               <Download className="h-3 w-3" />
               Exportar
             </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggleLang}
+              title={
+                spellLang === "pt-BR"
+                  ? "Corretor: Português — clique para mudar para Inglês"
+                  : "Spell checker: English — click to switch to Portuguese"
+              }
+              className="gap-1.5 h-7 px-3 text-xs rounded-xl text-muted-foreground hover:text-foreground"
+            >
+              <Languages className="h-3 w-3" />
+              {spellLang === "pt-BR" ? "🇧🇷 PT" : "🇺🇸 EN"}
+            </Button>
           </div>
         )}
 
@@ -338,6 +361,7 @@ export default function ChatInterface({
               disabled={isStreaming}
               rows={1}
               spellCheck
+              lang={spellLang}
               className="w-full resize-none bg-transparent text-sm px-4 py-3.5 pr-2 outline-none text-foreground placeholder:text-muted-foreground overflow-y-auto"
             />
           </div>

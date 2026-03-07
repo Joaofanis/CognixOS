@@ -42,10 +42,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Sheet,
-  SheetContent,
-} from "@/components/ui/sheet";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import EditBrainDialog from "@/components/EditBrainDialog";
 import { useBrainChat } from "@/hooks/useBrainChat";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -135,6 +132,7 @@ export default function BrainDetail() {
     ) {
       loadHistory(conversations[0].id);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversations, conversationId]);
 
   const handleDeleteBrain = async () => {
@@ -321,8 +319,14 @@ export default function BrainDetail() {
       )}
 
       {/* Mobile Sidebar Sheet */}
-      <Sheet open={mobileSidebarOpen && !!isMobile} onOpenChange={setMobileSidebarOpen}>
-        <SheetContent side="left" className="p-0 w-[280px] bg-sidebar-background">
+      <Sheet
+        open={mobileSidebarOpen && !!isMobile}
+        onOpenChange={setMobileSidebarOpen}
+      >
+        <SheetContent
+          side="left"
+          className="p-0 w-[280px] bg-sidebar-background"
+        >
           {sidebarContent}
         </SheetContent>
       </Sheet>
@@ -448,16 +452,25 @@ export default function BrainDetail() {
               onRegenerate={retry}
             />
           </TabsContent>
-          <TabsContent value="texts" className="m-0 bg-background/50 flex-1 overflow-y-auto">
+          <TabsContent
+            value="texts"
+            className="m-0 bg-background/50 flex-1 overflow-y-auto"
+          >
             <FeedTexts brainId={brain.id} />
           </TabsContent>
-          <TabsContent value="analysis" className="m-0 bg-background/50 flex-1 overflow-y-auto">
+          <TabsContent
+            value="analysis"
+            className="m-0 bg-background/50 flex-1 overflow-y-auto"
+          >
             <BrainAnalysis
               brainId={brain.id}
               brainType={brain.type as BrainType}
             />
           </TabsContent>
-          <TabsContent value="prompt" className="m-0 bg-background/50 flex-1 overflow-y-auto">
+          <TabsContent
+            value="prompt"
+            className="m-0 bg-background/50 flex-1 overflow-y-auto"
+          >
             <BrainPromptEditor brainId={brain.id} />
           </TabsContent>
         </Tabs>

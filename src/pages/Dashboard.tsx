@@ -45,7 +45,6 @@ import { toast } from "sonner";
 import CreateBrainDialog from "@/components/CreateBrainDialog";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import BrainChatPicker from "@/components/BrainChatPicker";
 
 type SortKey = "updated" | "name" | "sources";
@@ -232,7 +231,6 @@ export default function Dashboard() {
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <ThemeToggle />
             <Button
               variant="ghost"
               size="sm"

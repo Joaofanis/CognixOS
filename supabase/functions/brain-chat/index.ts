@@ -226,7 +226,7 @@ serve(async (req) => {
     const MAX_CONTEXT_CHARS = 30000;
     
     // Build optimized context: use RAG summaries + keywords for processed texts, full content for unprocessed
-    let contextParts: string[] = [];
+    const contextParts: string[] = [];
     if (texts) {
       for (const t of texts) {
         if (t.rag_processed && t.rag_summary) {

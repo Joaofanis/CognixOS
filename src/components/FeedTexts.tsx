@@ -1,8 +1,7 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +25,8 @@ import {
   Link,
   X,
   Sparkles,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -36,16 +37,19 @@ interface Props {
 export default function FeedTexts({ brainId }: Props) {
   const queryClient = useQueryClient();
   const [text, setText] = useState("");
+  const [textExpanded, setTextExpanded] = useState(false);
   const [adding, setAdding] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
-  // URL import
   const [urlInput, setUrlInput] = useState("");
   const [importingUrl, setImportingUrl] = useState(false);
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [processingRag, setProcessingRag] = useState(false);
+  // expanded source viewer
+  const [expandedSourceId, setExpandedSourceId] = useState<string | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const { data: texts, isLoading } = useQuery({
     queryKey: ["brain-texts", brainId],
@@ -62,7 +66,9 @@ export default function FeedTexts({ brainId }: Props) {
 
   const triggerRagProcessing = async (textId?: string) => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/process-rag`,
         {
@@ -71,7 +77,9 @@ export default function FeedTexts({ brainId }: Props) {
             "Content-Type": "application/json",
             Authorization: `Bearer ${session?.access_token}`,
           },
-          body: JSON.stringify(textId ? { brainId, textId } : { brainId, processAll: true }),
+          body: JSON.stringify(
+            textId ? { brainId, textId } : { brainId, processAll: true },
+          ),
         },
       );
     } catch (e) {
@@ -83,11 +91,15 @@ export default function FeedTexts({ brainId }: Props) {
     if (!text.trim()) return;
     setAdding(true);
     try {
-      const { data, error } = await supabase.from("brain_texts").insert({
-        brain_id: brainId,
-        content: text.trim(),
-        source_type: "paste",
-      }).select("id").single();
+      const { data, error } = await supabase
+        .from("brain_texts")
+        .insert({
+          brain_id: brainId,
+          content: text.trim(),
+          source_type: "paste",
+        })
+        .select("id")
+        .single();
       if (error) throw error;
       setText("");
       queryClient.invalidateQueries({ queryKey: ["brain-texts", brainId] });
@@ -219,12 +231,38 @@ export default function FeedTexts({ brainId }: Props) {
       {/* Add text */}
       <Card>
         <CardContent className="pt-6 space-y-3">
-          <Textarea
-            placeholder="Cole um texto aqui para alimentar o cérebro..."
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            rows={4}
-          />
+          <div className="relative">
+            <textarea
+              ref={textareaRef}
+              placeholder="Cole um texto aqui para alimentar o cérebro..."
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              style={{
+                minHeight: textExpanded ? 400 : 96,
+                maxHeight: textExpanded ? "70vh" : 240,
+                resize: textExpanded ? "vertical" : "both",
+                transition: "min-height 0.2s ease, max-height 0.2s ease",
+              }}
+              className="w-full rounded-xl border border-border/60 bg-background/60 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-colors leading-relaxed"
+            />
+            {/* Expand toggle */}
+            <button
+              type="button"
+              onClick={() => setTextExpanded((v) => !v)}
+              title={textExpanded ? "Recolher" : "Expandir"}
+              className="absolute bottom-2 right-2 flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+            >
+              {textExpanded ? (
+                <>
+                  <Minimize2 className="h-3 w-3" /> Recolher
+                </>
+              ) : (
+                <>
+                  <Maximize2 className="h-3 w-3" /> Expandir
+                </>
+              )}
+            </button>
+          </div>
           {/* URL import row */}
           {showUrlInput && (
             <div className="flex gap-2 animate-in fade-in slide-in-from-top-2 duration-200">
@@ -317,36 +355,43 @@ export default function FeedTexts({ brainId }: Props) {
             {texts?.length || 0} texto(s) alimentado(s)
           </h3>
           <div className="flex items-center gap-2">
-            {(texts?.length || 0) > 0 && texts?.some(t => !(t as any).rag_processed) && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5 text-xs"
-                disabled={processingRag}
-                onClick={async () => {
-                  setProcessingRag(true);
-                  toast.info("Processando fontes com IA...");
-                  await triggerRagProcessing();
-                  queryClient.invalidateQueries({ queryKey: ["brain-texts", brainId] });
-                  toast.success("Fontes processadas!");
-                  setProcessingRag(false);
-                }}
-              >
-                {processingRag ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-                Otimizar RAG
-              </Button>
+            {(texts?.length || 0) > 0 &&
+              texts?.some((t) => !(t as any).rag_processed) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-xs"
+                  disabled={processingRag}
+                  onClick={async () => {
+                    setProcessingRag(true);
+                    toast.info("Processando fontes com IA...");
+                    await triggerRagProcessing();
+                    queryClient.invalidateQueries({
+                      queryKey: ["brain-texts", brainId],
+                    });
+                    toast.success("Fontes processadas!");
+                    setProcessingRag(false);
+                  }}
+                >
+                  {processingRag ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3 w-3" />
+                  )}
+                  Otimizar RAG
+                </Button>
+              )}
+            {(texts?.length || 0) > 0 && (
+              <div className="relative max-w-xs flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar nos textos..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 h-9 text-sm rounded-2xl"
+                />
+              </div>
             )}
-          {(texts?.length || 0) > 0 && (
-            <div className="relative max-w-xs flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-              <Input
-                placeholder="Buscar nos textos..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 h-9 text-sm rounded-2xl"
-              />
-            </div>
-          )}
           </div>
         </div>
 
