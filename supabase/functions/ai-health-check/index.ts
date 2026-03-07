@@ -36,7 +36,7 @@ async function testModel(model: string, apiKey: string): Promise<ModelResult> {
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
-        "HTTP-Referer": "https://ai-second-brain.lovable.app",
+        "HTTP-Referer": "https://ai-second-brain.app",
         "X-Title": "AI Second Brain",
       },
       body: JSON.stringify({

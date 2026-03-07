@@ -120,7 +120,7 @@ serve(async (req) => {
           headers: {
             Authorization: `Bearer ${OPENROUTER_API_KEY}`,
             "Content-Type": "application/json",
-            "HTTP-Referer": "https://ai-second-brain.lovable.app",
+            "HTTP-Referer": "https://ai-second-brain.app",
             "X-Title": "AI Second Brain - RAG Processor",
           },
           body: JSON.stringify({
