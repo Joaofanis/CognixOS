@@ -44,30 +44,39 @@ export type Database = {
       brain_analysis: {
         Row: {
           brain_id: string
+          communication_style: Json | null
           frequent_themes: Json | null
           id: string
           knowledge_areas: Json | null
           personality_traits: Json | null
+          signature_phrases: Json | null
           skills: Json | null
           updated_at: string
+          voice_patterns: Json | null
         }
         Insert: {
           brain_id: string
+          communication_style?: Json | null
           frequent_themes?: Json | null
           id?: string
           knowledge_areas?: Json | null
           personality_traits?: Json | null
+          signature_phrases?: Json | null
           skills?: Json | null
           updated_at?: string
+          voice_patterns?: Json | null
         }
         Update: {
           brain_id?: string
+          communication_style?: Json | null
           frequent_themes?: Json | null
           id?: string
           knowledge_areas?: Json | null
           personality_traits?: Json | null
+          signature_phrases?: Json | null
           skills?: Json | null
           updated_at?: string
+          voice_patterns?: Json | null
         }
         Relationships: [
           {
@@ -75,6 +84,48 @@ export type Database = {
             columns: ["brain_id"]
             isOneToOne: true
             referencedRelation: "brains"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      brain_quotes: {
+        Row: {
+          brain_id: string
+          context: string | null
+          created_at: string
+          id: string
+          quote: string
+          source_text_id: string | null
+        }
+        Insert: {
+          brain_id: string
+          context?: string | null
+          created_at?: string
+          id?: string
+          quote: string
+          source_text_id?: string | null
+        }
+        Update: {
+          brain_id?: string
+          context?: string | null
+          created_at?: string
+          id?: string
+          quote?: string
+          source_text_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brain_quotes_brain_id_fkey"
+            columns: ["brain_id"]
+            isOneToOne: false
+            referencedRelation: "brains"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brain_quotes_source_text_id_fkey"
+            columns: ["source_text_id"]
+            isOneToOne: false
+            referencedRelation: "brain_texts"
             referencedColumns: ["id"]
           },
         ]
@@ -250,6 +301,69 @@ export type Database = {
           display_name?: string | null
           id?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      user_ai_profiles: {
+        Row: {
+          ai_summary: string | null
+          avg_message_length: number | null
+          created_at: string | null
+          formality_level: number | null
+          frequent_words: Json | null
+          id: string
+          last_analyzed_at: string | null
+          message_count: number | null
+          prefers_bullet_points: boolean | null
+          prefers_examples: boolean | null
+          prefers_portuguese: boolean | null
+          response_length_pref: string | null
+          style_examples: Json | null
+          topics_of_interest: Json | null
+          traits: Json | null
+          updated_at: string | null
+          user_id: string
+          user_notes: string | null
+        }
+        Insert: {
+          ai_summary?: string | null
+          avg_message_length?: number | null
+          created_at?: string | null
+          formality_level?: number | null
+          frequent_words?: Json | null
+          id?: string
+          last_analyzed_at?: string | null
+          message_count?: number | null
+          prefers_bullet_points?: boolean | null
+          prefers_examples?: boolean | null
+          prefers_portuguese?: boolean | null
+          response_length_pref?: string | null
+          style_examples?: Json | null
+          topics_of_interest?: Json | null
+          traits?: Json | null
+          updated_at?: string | null
+          user_id: string
+          user_notes?: string | null
+        }
+        Update: {
+          ai_summary?: string | null
+          avg_message_length?: number | null
+          created_at?: string | null
+          formality_level?: number | null
+          frequent_words?: Json | null
+          id?: string
+          last_analyzed_at?: string | null
+          message_count?: number | null
+          prefers_bullet_points?: boolean | null
+          prefers_examples?: boolean | null
+          prefers_portuguese?: boolean | null
+          response_length_pref?: string | null
+          style_examples?: Json | null
+          topics_of_interest?: Json | null
+          traits?: Json | null
+          updated_at?: string | null
+          user_id?: string
+          user_notes?: string | null
         }
         Relationships: []
       }
