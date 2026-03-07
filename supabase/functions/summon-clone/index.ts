@@ -54,8 +54,8 @@ serve(async (req) => {
 
     // Validate and sanitize messages
     const sanitizedMessages = [];
-    for (let i = 0; i < Math.min(contextMessages.length, MAX_MESSAGES); i++) {
-      const msg = contextMessages[i];
+    for (let i = 0; i < Math.min(rawMessages.length, MAX_MESSAGES); i++) {
+      const msg = rawMessages[i];
       if (!msg || typeof msg !== "object" || !VALID_ROLES.includes(msg.role) || typeof msg.content !== "string") {
         continue;
       }
