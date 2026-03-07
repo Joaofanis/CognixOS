@@ -50,17 +50,12 @@ serve(async (req) => {
       });
     }
 
-    if (!Array.isArray(contextMessages) || contextMessages.length === 0) {
-      return new Response(JSON.stringify({ error: "Invalid contextMessages" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const rawMessages = Array.isArray(contextMessages) ? contextMessages : [];
 
     // Validate and sanitize messages
     const sanitizedMessages = [];
-    for (let i = 0; i < Math.min(contextMessages.length, MAX_MESSAGES); i++) {
-      const msg = contextMessages[i];
+    for (let i = 0; i < Math.min(rawMessages.length, MAX_MESSAGES); i++) {
+      const msg = rawMessages[i];
       if (!msg || typeof msg !== "object" || !VALID_ROLES.includes(msg.role) || typeof msg.content !== "string") {
         continue;
       }
