@@ -23,6 +23,38 @@ serve(async (req) => {
     }
     if (!["http:", "https:"].includes(parsed.protocol)) throw new Error("Protocolo inválido");
 
+    // SSRF protection: block private/internal IP ranges
+    const hostname = parsed.hostname;
+    const blockedPatterns = [
+      /^localhost$/i,
+      /^127\./,
+      /^10\./,
+      /^172\.(1[6-9]|2\d|3[01])\./,
+      /^192\.168\./,
+      /^169\.254\./,
+      /^0\./,
+      /^\[?::1\]?$/,
+      /^\[?fd/i,
+      /^\[?fe80/i,
+      /^metadata\.google\.internal$/i,
+    ];
+    if (blockedPatterns.some(p => p.test(hostname))) {
+      throw new Error("URL não permitida: endereço interno ou reservado");
+    }
+
+    // Resolve DNS to check actual IP
+    try {
+      const ips = await Deno.resolveDns(hostname, "A");
+      for (const ip of ips) {
+        if (blockedPatterns.some(p => p.test(ip))) {
+          throw new Error("URL não permitida: resolve para endereço interno");
+        }
+      }
+    } catch (e) {
+      if (e instanceof Error && e.message.includes("não permitida")) throw e;
+      // DNS resolution may fail for valid URLs in some environments, continue
+    }
+
     // Auth
     const authHeader = req.headers.get("authorization");
     if (!authHeader) throw new Error("Não autenticado");

@@ -46,14 +46,40 @@ serve(async (req) => {
     const userId = claimsData.claims.sub as string;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Verify brain ownership
-    if (brainId) {
+    // Verify ownership - always check regardless of input shape
+    const verifyBrainOwnership = async (brainIdToCheck: string) => {
       const { data: brain } = await supabase
         .from("brains")
         .select("user_id")
-        .eq("id", brainId)
+        .eq("id", brainIdToCheck)
         .single();
       if (!brain || brain.user_id !== userId) {
+        return false;
+      }
+      return true;
+    };
+
+    if (textId) {
+      // When textId is provided, look up its brain and verify ownership
+      const { data: text } = await supabase
+        .from("brain_texts")
+        .select("brain_id")
+        .eq("id", textId)
+        .single();
+      if (!text) {
+        return new Response(JSON.stringify({ error: "Text not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (!(await verifyBrainOwnership(text.brain_id))) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    } else if (brainId) {
+      if (!(await verifyBrainOwnership(brainId))) {
         return new Response(JSON.stringify({ error: "Forbidden" }), {
           status: 403,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
