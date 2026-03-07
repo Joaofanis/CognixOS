@@ -87,6 +87,24 @@ export default function FeedTexts({ brainId }: Props) {
     }
   };
 
+  const triggerAnalysis = async () => {
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-brain`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({ brainId }),
+      }).catch((e) => console.error("Background analysis error:", e));
+    } catch (e) {
+      console.error("triggerAnalysis error:", e);
+    }
+  };
+
   const addText = async () => {
     if (!text.trim()) return;
     setAdding(true);
@@ -106,6 +124,8 @@ export default function FeedTexts({ brainId }: Props) {
       toast.success("Texto adicionado!");
       // Trigger RAG processing in background
       if (data) triggerRagProcessing(data.id);
+      // Trigger analysis update in background (fire-and-forget)
+      triggerAnalysis();
     } catch (err: any) {
       toast.error(err.message);
     } finally {
@@ -156,6 +176,8 @@ export default function FeedTexts({ brainId }: Props) {
       toast.success(`Arquivo "${file.name}" adicionado!`);
       // RAG will be triggered for new texts
       triggerRagProcessing();
+      // Auto-update clone analysis
+      triggerAnalysis();
     } catch (err: any) {
       toast.error(err.message);
     } finally {
@@ -184,6 +206,8 @@ export default function FeedTexts({ brainId }: Props) {
         `"${data.title}" importado! (${data.chars.toLocaleString()} chars)`,
       );
       triggerRagProcessing();
+      // Auto-update clone analysis
+      triggerAnalysis();
     } catch (err: any) {
       toast.error(err.message || "Erro ao importar URL");
     } finally {

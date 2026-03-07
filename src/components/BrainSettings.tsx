@@ -16,10 +16,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Loader2, Save, Sparkles, Trash2, Wand2, Copy } from "lucide-react";
+import {
+  Loader2,
+  Save,
+  Sparkles,
+  Trash2,
+  Wand2,
+  Copy,
+  Quote,
+} from "lucide-react";
 import { toast } from "sonner";
 import TagInput from "@/components/TagInput";
 import { BRAIN_TYPE_CONFIG, BrainType } from "@/lib/brain-types";
+import QuotesDatabase from "@/components/QuotesDatabase";
 
 interface Brain {
   id: string;
@@ -376,7 +385,22 @@ export default function BrainSettings({ brain }: Props) {
         )}
       </section>
 
-      {/* ── Metadata section ─────────────────────────────────────────────── */}
+      {/* ── Quotes Database (person_clone only) ────────────────────────── */}
+      {brain.type === "person_clone" && (
+        <section className="rounded-2xl border border-border/60 bg-card/60 p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Quote className="h-5 w-5 text-primary" />
+            <div>
+              <h3 className="font-bold text-foreground">Frases &amp; Falas</h3>
+              <p className="text-xs text-muted-foreground">
+                Banco de expressões e frases características do clone — usadas
+                para enriquecer o prompt
+              </p>
+            </div>
+          </div>
+          <QuotesDatabase brainId={brain.id} />
+        </section>
+      )}
       <section className="rounded-2xl border border-border/60 bg-card/60 p-5 space-y-3">
         <h3 className="font-bold text-foreground text-sm">
           Informações do Clone

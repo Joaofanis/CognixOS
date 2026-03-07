@@ -103,7 +103,8 @@ serve(async (req) => {
       .order("created_at", { ascending: false })
       .limit(30);
 
-    const MAX_CONTEXT = 20000;
+    // Larger context for person_clone
+    const MAX_CONTEXT = brain.type === "person_clone" ? 40000 : 20000;
     let context = texts?.map((t) => t.content).join("\n\n---\n\n") || "";
     if (context.length > MAX_CONTEXT) {
       context = context.slice(0, MAX_CONTEXT) + "\n\n[...truncado]";
@@ -116,21 +117,72 @@ serve(async (req) => {
       });
     }
 
-    const metaPrompt = `Você é um especialista em criar System Prompts para clones de IA. Analise os textos abaixo que pertencem ao clone "${brain.name}" (tipo: ${brain.type}) e gere um System Prompt completo e detalhado em português.
+    // Get existing brain analysis for enrichment (if person_clone)
+    let analysisEnrichment = "";
+    if (brain.type === "person_clone") {
+      const { data: analysis } = await supabase
+        .from("brain_analysis")
+        .select("communication_style, voice_patterns, signature_phrases, skills, personality_traits")
+        .eq("brain_id", brainId)
+        .single();
+
+      if (analysis) {
+        const parts: string[] = [];
+        if (analysis.personality_traits && Object.keys(analysis.personality_traits).length > 0) {
+          const pt = analysis.personality_traits as Record<string, number>;
+          parts.push(`TRAÇOS DE PERSONALIDADE (escala 0-10):\n${Object.entries(pt).map(([k,v]) => `  - ${k}: ${v}/10`).join("\n")}`);
+        }
+        if (analysis.communication_style && Object.keys(analysis.communication_style).length > 0) {
+          const cs = analysis.communication_style as Record<string, number>;
+          parts.push(`ESTILO DE COMUNICAÇÃO (escala 0-10):\n${Object.entries(cs).map(([k,v]) => `  - ${k}: ${v}/10`).join("\n")}`);
+        }
+        if (analysis.voice_patterns && typeof analysis.voice_patterns === "object") {
+          const vp = analysis.voice_patterns as Record<string, unknown>;
+          const vpStr = Object.entries(vp)
+            .map(([k, v]) => `  - ${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
+            .join("\n");
+          parts.push(`PADRÕES DE VOZ E ESCRITA:\n${vpStr}`);
+        }
+        if (Array.isArray(analysis.signature_phrases) && analysis.signature_phrases.length > 0) {
+          parts.push(`FRASES CARACTERÍSTICAS (use como exemplos few-shot):\n${(analysis.signature_phrases as string[]).map(p => `  "${p}"`).join("\n")}`);
+        }
+        if (analysis.skills && Object.keys(analysis.skills).length > 0) {
+          const sk = analysis.skills as Record<string, number>;
+          parts.push(`HABILIDADES IDENTIFICADAS:\n${Object.entries(sk).map(([k,v]) => `  - ${k}: ${v}/10`).join("\n")}`);
+        }
+        if (parts.length > 0) {
+          analysisEnrichment = `\n\n== PERFIL ANALÍTICO DO CLONE (gerado por análise de IA) ==\n${parts.join("\n\n")}`;
+        }
+      }
+
+      // Also get signature quotes from brain_quotes
+      const { data: quotes } = await supabase
+        .from("brain_quotes")
+        .select("quote, context")
+        .eq("brain_id", brainId)
+        .limit(20);
+
+      if (quotes && quotes.length > 0) {
+        const quotesStr = quotes.map(q => `  "${q.quote}"${q.context ? ` [${q.context}]` : ""}`).join("\n");
+        analysisEnrichment += `\n\nBANCO DE FALAS E FRASES (use na seção de exemplos do prompt):\n${quotesStr}`;
+      }
+    }
+
+    const isPersonClone = brain.type === "person_clone";
+
+    const metaPrompt = `Você é um especialista em criar System Prompts para clones de IA. Analise os textos abaixo que pertencem ao clone "${brain.name}" (tipo: ${brain.type}) e gere um System Prompt MUITO detalhado e extenso em português.${isPersonClone ? "\n\nEste é um CLONE DE PESSOA — o objetivo é replicar PERFEITAMENTE a personalidade, voz, estilo e conhecimentos desta pessoa. O prompt deve ser tão completo que qualquer IA lendo-o saberá exatamente como esta pessoa pensa, fala e reage." : ""}
 
 O System Prompt gerado deve:
-1. Definir a IDENTIDADE CENTRAL do clone — quem ele é, como pensa, como se posiciona
-2. Capturar o ESTILO DE COMUNICAÇÃO — vocabulário, gírias, tom, nível de formalidade, expressões recorrentes
-3. Identificar TEMAS E ÁREAS DE CONHECIMENTO que o clone domina
+1. Definir a IDENTIDADE CENTRAL do clone — quem ele é, como pensa, como se posiciona no mundo
+2. Capturar o ESTILO DE COMUNICAÇÃO — vocabulário, gírias, tom, nível de formalidade, expressões recorrentes, ritmo de escrita
+3. Identificar TEMAS E ÁREAS DE CONHECIMENTO que o clone domina (com profundidade de detalhamento)
 4. Definir a POSTURA MENTAL — crenças, princípios, valores que transparecem nos textos
-5. Estabelecer REGRAS DE COMPORTAMENTO — como responder, o que evitar, formato preferido
-6. Incluir EXEMPLOS de como o clone falaria (few-shot), baseados nos textos reais
-7. Ser auto-contido — quem ler o prompt deve entender perfeitamente como a IA deve agir
+5. Estabelecer REGRAS DE COMPORTAMENTO — como responder, o que evitar, formato preferido, limites
+${isPersonClone ? "6. Incluir seção 'COMO ESTA PESSOA FALA' com pelo menos 8 exemplos reais de frases/expressões retiradas dos textos\n7. Incluir seção 'MODOS DE RESPOSTA' — como reagiria a diferentes tipos de pergunta (técnica, emocional, filosófica, casual)\n8. Incluir seção 'VOCABULÁRIO CARACTERÍSTICO' — palavras e expressões únicas desta pessoa\n9. Nunca quebrar o personagem — regras explícitas para manter a persona" : "6. Incluir EXEMPLOS de como o clone responderia (few-shot), baseados nos textos reais\n7. Ser auto-contido — quem ler o prompt deve entender perfeitamente como a IA deve agir"}
 
-Formato: Escreva o System Prompt completo, pronto para uso. Use seções com emojis e títulos como no exemplo do usuário. Seja extenso e detalhado.
+Formato: Escreva o System Prompt completo, pronto para uso. Use seções com emojis e títulos. Seja EXTENSO e DETALHADO — não há limite de tamanho, quanto mais rico e específico, melhor.${analysisEnrichment}
 
-TEXTOS DO CLONE:
-${context}`;
+TEXTOS DO CLONE:\n${context}`;
 
     // Try each model in order — skip on rate limits, break on auth errors
     let generatedPrompt = "";
@@ -150,11 +202,11 @@ ${context}`;
           body: JSON.stringify({
             model,
             messages: [
-              { role: "system", content: "Você gera System Prompts profissionais para clones de IA. Responda APENAS com o System Prompt gerado, sem explicações extras." },
+              { role: "system", content: "Você gera System Prompts profissionais e detalhados para clones de IA. Responda APENAS com o System Prompt gerado, sem explicações extras, sem markdown extra. O prompt deve ser extenso, rico em detalhes e capturar perfeitamente a essência da pessoa." },
               { role: "user", content: metaPrompt },
             ],
             temperature: 0.7,
-            max_tokens: 8000,
+            max_tokens: 16000,
           }),
         });
 
@@ -162,7 +214,6 @@ ${context}`;
           const errText = await aiResponse.text();
           console.error(`generate-prompt: model ${model} failed with ${aiResponse.status}:`, errText);
           lastError = { status: aiResponse.status, text: errText };
-          // Fatal errors — don't bother trying other models
           if (aiResponse.status === 401 || aiResponse.status === 403) break;
           continue;
         }
@@ -171,7 +222,7 @@ ${context}`;
         const content = result.choices?.[0]?.message?.content?.trim() || "";
         if (content.length > 20) {
           generatedPrompt = content;
-          console.log(`generate-prompt: success with model ${model}`);
+          console.log(`generate-prompt: success with model ${model}, length: ${content.length}`);
           break;
         } else {
           console.warn(`generate-prompt: model ${model} returned empty/short content`);

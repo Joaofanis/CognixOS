@@ -26,7 +26,7 @@ function extractJSON(text: string): Record<string, unknown> | null {
   return null;
 }
 
-// Build prompts based on brain type — AI chooses skill names freely
+// Build prompts based on brain type
 function getPrompts(brainType: string, allText: string) {
   let systemPrompt: string;
   let radarField: string;
@@ -83,9 +83,11 @@ ${skillsInstruction},
   ]
 }`;
       break;
-    default: // person_clone
+    default: // person_clone — análise AVANÇADA de personalidade
       radarField = "personality_traits";
-      systemPrompt = `Você é um analista de personalidade especialista. Analise os textos fornecidos e retorne APENAS um objeto JSON válido, sem nenhum texto adicional, sem markdown, sem explicações. O JSON deve ter exatamente esta estrutura:
+      systemPrompt = `Você é um psicólogo comportamental e linguista especialista em perfis humanos. Sua missão é analisar profundamente os textos fornecidos para criar um perfil completo e detalhado desta pessoa, capturando sua essência para cloná-la com perfeição máxima.
+
+Analise os textos e retorne APENAS um objeto JSON válido, sem nenhum texto adicional, sem markdown, sem explicações. O JSON deve ter exatamente esta estrutura:
 {
   "personality_traits": {
     "extroversão": <número 0-10>,
@@ -98,6 +100,31 @@ ${skillsInstruction},
     "otimismo": <número 0-10>
   },
 ${skillsInstruction},
+  "communication_style": {
+    "formalidade": <0=super informal, 10=extremamente formal>,
+    "humor": <0=sério, 10=muito bem-humorado>,
+    "riqueza_vocabular": <0=simples, 10=vocabulário complexo/técnico>,
+    "diretividade": <0=muito indireto/diplomático, 10=muito direto/objetivo>,
+    "expressividade_emocional": <0=reservado, 10=muito expressivo>,
+    "linguagem_tecnica": <0=cotidiana, 10=muito técnica/especializada>
+  },
+  "voice_patterns": {
+    "aberturas_tipicas": ["<como costuma começar textos/argumentos — 3 exemplos reais ou padrões>"],
+    "palavras_de_transicao": ["<conectivos e marcadores discursivos que usa frequentemente>"],
+    "expressoes_recorrentes": ["<expressões, jargões ou frases feitas que repete — baseadas nos textos>"],
+    "estrutura_preferida": "<descreva o padrão: ex 'começa com pergunta retórica, desenvolve com exemplos, conclui com insight'>",
+    "tom_predominante": "<ex: reflexivo e analítico, entusiasmado e inspiracional, cético e questionador>"
+  },
+  "signature_phrases": [
+    "<frase ou expressão marcante RETIRADA DIRETAMENTE dos textos 1>",
+    "<frase ou expressão marcante RETIRADA DIRETAMENTE dos textos 2>",
+    "<frase ou expressão marcante RETIRADA DIRETAMENTE dos textos 3>",
+    "<frase ou expressão marcante RETIRADA DIRETAMENTE dos textos 4>",
+    "<frase ou expressão marcante RETIRADA DIRETAMENTE dos textos 5>",
+    "<frase ou expressão marcante RETIRADA DIRETAMENTE dos textos 6>",
+    "<frase ou expressão marcante RETIRADA DIRETAMENTE dos textos 7>",
+    "<frase ou expressão marcante RETIRADA DIRETAMENTE dos textos 8>"
+  ],
   "frequent_themes": [
     {"name": "<tema>", "count": <número inteiro>}
   ]
@@ -187,7 +214,7 @@ serve(async (req) => {
 
     const { data: brain, error: brainErr } = await supabase
       .from("brains")
-      .select("user_id, type")
+      .select("user_id, type, name")
       .eq("id", brainId)
       .single();
 
@@ -219,8 +246,9 @@ serve(async (req) => {
       });
     }
 
-    const MAX_CHARS = 30000;
-    let allText = texts.map((t) => t.content).join("\n\n");
+    // Larger context for person_clone to capture personality better
+    const MAX_CHARS = brainType === "person_clone" ? 60000 : 30000;
+    let allText = texts.map((t) => t.content).join("\n\n---\n\n");
     if (allText.length > MAX_CHARS) {
       allText = allText.slice(0, MAX_CHARS) + "\n\n[...texto truncado por limite de contexto]";
       console.log(`analyze-brain: truncated text to ${MAX_CHARS} chars`);
@@ -228,13 +256,22 @@ serve(async (req) => {
 
     const { systemPrompt, userPrompt, radarField } = getPrompts(brainType, allText);
 
-    const models = [
-      "meta-llama/llama-3.3-70b-instruct:free",
-      "nvidia/nemotron-3-nano-30b-a3b:free",
-      "stepfun/step-3.5-flash:free",
-      "google/gemma-3-27b-it:free",
-      "mistralai/mistral-7b-instruct:free",
-    ];
+    // For person_clone use more capable models first
+    const models = brainType === "person_clone"
+      ? [
+          "meta-llama/llama-3.3-70b-instruct:free",
+          "google/gemma-3-27b-it:free",
+          "nvidia/nemotron-3-nano-30b-a3b:free",
+          "stepfun/step-3.5-flash:free",
+          "mistralai/mistral-7b-instruct:free",
+        ]
+      : [
+          "meta-llama/llama-3.3-70b-instruct:free",
+          "nvidia/nemotron-3-nano-30b-a3b:free",
+          "stepfun/step-3.5-flash:free",
+          "google/gemma-3-27b-it:free",
+          "mistralai/mistral-7b-instruct:free",
+        ];
 
     let analysisData: Record<string, unknown> | null = null;
     let lastError: { status?: number; text?: string; error?: string } | null = null;
@@ -247,6 +284,8 @@ serve(async (req) => {
           headers: {
             Authorization: `Bearer ${OPENROUTER_API_KEY}`,
             "Content-Type": "application/json",
+            "HTTP-Referer": "https://ai-second-brain.app",
+            "X-Title": "AI Second Brain - Brain Analyzer",
           },
           body: JSON.stringify({
             model,
@@ -255,7 +294,7 @@ serve(async (req) => {
               { role: "user", content: userPrompt },
             ],
             temperature: 0.2,
-            max_tokens: 2000,
+            max_tokens: 4000,
             response_format: { type: "json_object" },
           }),
         });
@@ -270,7 +309,7 @@ serve(async (req) => {
 
         const result = await response.json();
         const rawContent: string = result.choices?.[0]?.message?.content || "";
-        console.log(`analyze-brain: raw content from ${model}:`, rawContent.slice(0, 200));
+        console.log(`analyze-brain: raw content from ${model}:`, rawContent.slice(0, 300));
 
         const parsed = extractJSON(rawContent);
         if (
@@ -304,7 +343,7 @@ serve(async (req) => {
     // Extract radar data
     const radarData = (analysisData[radarField] || analysisData.personality_traits || analysisData.knowledge_areas) as Record<string, number>;
     for (const key of Object.keys(radarData)) {
-      radarData[key] = Number(radarData[key]) || 0;
+      radarData[key] = Math.min(10, Math.max(0, Number(radarData[key]) || 0));
     }
 
     // Extract AI-chosen skills (normalize to numbers, cap at 8)
@@ -331,6 +370,43 @@ serve(async (req) => {
     if (brainType === "person_clone") {
       upsertData.personality_traits = radarData;
       upsertData.knowledge_areas = null;
+
+      // Save enhanced person_clone analysis fields
+      if (analysisData.communication_style && typeof analysisData.communication_style === "object") {
+        const cs = analysisData.communication_style as Record<string, unknown>;
+        const normalizedCS: Record<string, number> = {};
+        for (const [k, v] of Object.entries(cs)) {
+          normalizedCS[k] = Math.min(10, Math.max(0, Number(v) || 0));
+        }
+        upsertData.communication_style = normalizedCS;
+      }
+
+      if (analysisData.voice_patterns && typeof analysisData.voice_patterns === "object") {
+        upsertData.voice_patterns = analysisData.voice_patterns;
+      }
+
+      if (Array.isArray(analysisData.signature_phrases)) {
+        const sp = (analysisData.signature_phrases as unknown[])
+          .filter((p) => typeof p === "string" && (p as string).length > 5)
+          .slice(0, 12);
+        upsertData.signature_phrases = sp;
+
+        // Upsert signature phrases into brain_quotes table
+        if (sp.length > 0) {
+          const quotesToInsert = sp.map((q) => ({
+            brain_id: brainId,
+            quote: q as string,
+            context: "Análise automática de perfil",
+          }));
+          // Delete old auto-generated quotes (those without source_text_id) and re-insert
+          await supabase
+            .from("brain_quotes")
+            .delete()
+            .eq("brain_id", brainId)
+            .is("source_text_id", null);
+          await supabase.from("brain_quotes").insert(quotesToInsert);
+        }
+      }
     } else {
       upsertData.knowledge_areas = radarData;
       upsertData.personality_traits = null;
