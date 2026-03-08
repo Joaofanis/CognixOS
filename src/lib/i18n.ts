@@ -222,6 +222,8 @@ const translations = {
   "picker.noConversations": { "pt-BR": "Nenhuma conversa ainda", "en-US": "No conversations yet", "es-ES": "Sin conversaciones aún" },
   "picker.startConversation": { "pt-BR": "Inicie uma nova conversa para explorar", "en-US": "Start a new conversation to explore", "es-ES": "Inicia una nueva conversación para explorar" },
   "picker.untitled": { "pt-BR": "Conversa sem título", "en-US": "Untitled conversation", "es-ES": "Conversación sin título" },
+  "picker.conversationRenamed": { "pt-BR": "Conversa renomeada!", "en-US": "Conversation renamed!", "es-ES": "¡Conversación renombrada!" },
+  "picker.conversationDeleted": { "pt-BR": "Conversa excluída.", "en-US": "Conversation deleted.", "es-ES": "Conversación eliminada." },
 
   // ── Settings Page ──────────────────────────────────────
   "settings.title": { "pt-BR": "Configurações", "en-US": "Settings", "es-ES": "Configuración" },
