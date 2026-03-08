@@ -120,6 +120,34 @@
   html {
     font-family: "Inter", system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
+    font-size: 16px;
+    transition: font-size 0.2s ease;
+  }
+
+  html.font-large {
+    font-size: 18px;
+  }
+
+  html.font-xlarge {
+    font-size: 20px;
+  }
+
+  html.high-contrast {
+    --foreground: 0 0% 0%;
+    --muted-foreground: 220 10% 30%;
+  }
+
+  html.high-contrast.dark {
+    --foreground: 0 0% 100%;
+    --muted-foreground: 220 12% 80%;
+  }
+
+  html.reduced-motion *,
+  html.reduced-motion *::before,
+  html.reduced-motion *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 
   body {
