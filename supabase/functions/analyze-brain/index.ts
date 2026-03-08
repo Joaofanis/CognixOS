@@ -301,9 +301,10 @@ serve(async (req) => {
         });
 
         if (!response.ok) {
-          const t = await response.text();
-          console.error(`Model ${model} failed: ${response.status}`, t);
-          lastError = { status: response.status, text: t };
+          const errorBody = await response.text();
+          // Log detailed error server-side only — never expose to client
+          console.error(`Model ${model} failed: ${response.status}`, errorBody);
+          lastError = { status: response.status, error: "Falha na verificação do modelo" };
           if (response.status === 401 || response.status === 403) break;
           continue;
         }
