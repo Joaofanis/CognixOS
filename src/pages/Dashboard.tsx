@@ -354,7 +354,7 @@ export default function Dashboard() {
             className="h-12 px-6 gap-2 rounded-2xl gradient-jewel hover:opacity-90 shadow-lg shadow-primary/25 hover:shadow-primary/40 active:scale-[0.98] transition-all text-white font-semibold shrink-0"
           >
             <Plus className="h-5 w-5" />
-            Criar Cérebro
+            {t("dashboard.createBrain")}
           </Button>
         </div>
 
