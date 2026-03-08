@@ -1,0 +1,1 @@
+ALTER TABLE brain_analysis ADD COLUMN IF NOT EXISTS skills_evaluation text;

@@ -51,6 +51,7 @@ export type Database = {
           personality_traits: Json | null
           signature_phrases: Json | null
           skills: Json | null
+          skills_evaluation: string | null
           updated_at: string
           voice_patterns: Json | null
         }
@@ -63,6 +64,7 @@ export type Database = {
           personality_traits?: Json | null
           signature_phrases?: Json | null
           skills?: Json | null
+          skills_evaluation?: string | null
           updated_at?: string
           voice_patterns?: Json | null
         }
@@ -75,6 +77,7 @@ export type Database = {
           personality_traits?: Json | null
           signature_phrases?: Json | null
           skills?: Json | null
+          skills_evaluation?: string | null
           updated_at?: string
           voice_patterns?: Json | null
         }
