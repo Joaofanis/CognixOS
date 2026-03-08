@@ -222,16 +222,16 @@ serve(async (req) => {
       .order("created_at", { ascending: false })
       .limit(50);
 
-    const MAX_CONTEXT_CHARS = 800_000; // ~800k chars ≈ 200k tokens
+    const MAX_CONTEXT_CHARS = 120_000; // ~120k chars ≈ 30k tokens (fits in 65k context windows)
     
-    // Build optimized context: use RAG summaries + keywords for processed texts, full content for unprocessed
+    // Build optimized context: use RAG summaries for processed texts, full content for unprocessed
     const contextParts: string[] = [];
     if (texts) {
       for (const t of texts) {
         if (t.rag_processed && t.rag_summary) {
           const keywords = t.rag_keywords ? `[Palavras-chave: ${(t.rag_keywords as string[]).join(", ")}]` : "";
           const cat = t.category ? `[Categoria: ${t.category}]` : "";
-          contextParts.push(`${cat} ${keywords}\nResumo: ${t.rag_summary}\n\nConteúdo Original:\n${t.content}`);
+          contextParts.push(`${cat} ${keywords}\nResumo: ${t.rag_summary}`);
         } else {
           contextParts.push(t.content);
         }
