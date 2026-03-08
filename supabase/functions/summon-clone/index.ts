@@ -186,7 +186,7 @@ serve(async (req) => {
 
     for (const model of models) {
       try {
-        console.log(`summon-clone: trying model ${model}`);
+        console.log(`summon-clone: trying model ${model} (mode: ${chatMode})`);
         const aiResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
           method: "POST",
           headers: {
@@ -214,7 +214,7 @@ serve(async (req) => {
           const errorText = await aiResponse.text();
           lastErrorInfo = { status: aiResponse.status, text: errorText };
           if (aiResponse.status === 401) break;
-          await new Promise(r => setTimeout(r, 500));
+          await new Promise(r => setTimeout(r, 1000));
         }
       } catch (e) {
         lastErrorInfo = { text: "Erro interno" };

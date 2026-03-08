@@ -111,44 +111,73 @@ serve(async (req) => {
         // Truncate content for analysis
         const contentForAnalysis = text.content.slice(0, 8000);
 
-        const aiResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-            "Content-Type": "application/json",
-            "HTTP-Referer": "https://ai-second-brain.app",
-            "X-Title": "AI Second Brain - RAG Processor",
-          },
-          body: JSON.stringify({
-            model: "google/gemini-2.0-flash-001",
-            messages: [
-              {
-                role: "system",
-                content: `Você é um sistema de análise de texto. Analise o texto fornecido e retorne um JSON com:
+        const MODELS = [
+          "google/gemini-2.5-flash-lite",
+          "google/gemini-2.0-flash-001",
+          "meta-llama/llama-3.3-70b-instruct:free",
+          "arcee-ai/trinity-large-preview:free",
+          "mistralai/mistral-small-3.1-24b-instruct:free",
+        ];
+
+        let rawContent = "";
+        let aiSuccess = false;
+
+        for (const model of MODELS) {
+          try {
+            console.log(`process-rag: trying model ${model} for text ${text.id}`);
+            const aiResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://ai-second-brain.app",
+                "X-Title": "AI Second Brain - RAG Processor",
+              },
+              body: JSON.stringify({
+                model,
+                messages: [
+                  {
+                    role: "system",
+                    content: `Você é um sistema de análise de texto. Analise o texto fornecido e retorne um JSON com:
 1. "summary": Um resumo conciso de 2-3 frases capturando os pontos principais do texto
 2. "keywords": Uma lista de 5-15 palavras-chave relevantes que descrevem os temas, tópicos e conceitos do texto
 3. "category": Uma categoria curta (ex: "tecnologia", "filosofia", "negócios", "pessoal", "saúde", "educação", etc)
 
 Retorne APENAS o JSON válido, sem markdown, sem explicação. Exemplo:
 {"summary": "...", "keywords": ["palavra1", "palavra2"], "category": "tecnologia"}`
-              },
-              {
-                role: "user",
-                content: contentForAnalysis,
-              },
-            ],
-            temperature: 0.3,
-            max_tokens: 1000,
-          }),
-        });
+                  },
+                  {
+                    role: "user",
+                    content: contentForAnalysis,
+                  },
+                ],
+                temperature: 0.3,
+                max_tokens: 1000,
+              }),
+            });
 
-        if (!aiResponse.ok) {
-          console.error(`AI error for text ${text.id}:`, await aiResponse.text());
-          continue;
+            if (aiResponse.ok) {
+              const aiData = await aiResponse.json();
+              rawContent = aiData.choices?.[0]?.message?.content || "";
+              aiSuccess = true;
+              console.log(`process-rag: success with model ${model}`);
+              break;
+            } else {
+              const errText = await aiResponse.text();
+              console.error(`process-rag: model ${model} failed (${aiResponse.status}):`, errText);
+              if (aiResponse.status === 401) break;
+              await new Promise(r => setTimeout(r, 1000));
+            }
+          } catch (fetchErr) {
+            console.error(`process-rag: fetch error for model ${model}:`, fetchErr);
+            await new Promise(r => setTimeout(r, 1000));
+          }
         }
 
-        const aiData = await aiResponse.json();
-        const rawContent = aiData.choices?.[0]?.message?.content || "";
+        if (!aiSuccess) {
+          console.error(`process-rag: all models failed for text ${text.id}`);
+          continue;
+        }
         
         // Parse JSON from response (handle potential markdown wrapping)
         let parsed;

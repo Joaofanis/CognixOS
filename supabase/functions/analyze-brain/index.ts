@@ -315,32 +315,25 @@ serve(async (req: Request) => {
           console.error(`Model ${model} failed: ${response.status}`, errorBody);
           lastError = { status: response.status, error: `Model ${model}: ${response.status}` };
           if (response.status === 401) break;
-          await new Promise(r => setTimeout(r, 500));
+          await new Promise(r => setTimeout(r, 1000));
           continue;
         }
 
-        const result = await response.json();
-        const rawContent: string = result.choices?.[0]?.message?.content || "";
-        console.log(`analyze-brain: raw content from ${model}:`, rawContent.slice(0, 300));
-
+        const rawContent = (data.choices?.[0]?.message?.content ?? "").trim();
         const parsed = extractJSON(rawContent);
-        if (
-          parsed &&
-          (parsed[radarField] || parsed.personality_traits || parsed.knowledge_areas) &&
-          Array.isArray(parsed.frequent_themes)
-        ) {
-          analysisData = parsed;
-          console.log(`analyze-brain: success with model ${model}`);
+        if (parsed && typeof parsed === "object" && Object.keys(parsed).length > 0) {
+          result = parsed;
+          usedModel = model;
           break;
         } else {
           console.warn(`Model ${model} returned invalid structure:`, rawContent.slice(0, 300));
           lastError = { error: "Invalid JSON structure from model" };
-          await new Promise(r => setTimeout(r, 500));
+          await new Promise(r => setTimeout(r, 1000));
         }
       } catch (e) {
         console.error(`Fetch error for model ${model}:`, e);
         lastError = { error: "Erro interno" };
-        await new Promise(r => setTimeout(r, 500));
+        await new Promise(r => setTimeout(r, 1000));
       }
     }
 
