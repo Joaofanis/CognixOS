@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useSettings } from "@/hooks/useSettings";
 import { Button } from "@/components/ui/button";
 import { BrainType } from "@/lib/brain-types";
 import type { ChatMode } from "@/hooks/useBrainChat";
@@ -93,7 +94,7 @@ export default function ChatInterface({
 }: Props) {
   const [input, setInput] = useState("");
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
-  const [spellLang, setSpellLang] = useState<"pt-BR" | "en-US">("pt-BR");
+  const { language } = useSettings();
   const [chatMode, setChatMode] = useState<ChatMode>(() => {
     return (localStorage.getItem("chatMode") as ChatMode) || "default";
   });
@@ -135,15 +136,7 @@ export default function ChatInterface({
       b.id !== brainType,
   );
 
-  const toggleLang = () => {
-    const next = spellLang === "pt-BR" ? "en-US" : "pt-BR";
-    setSpellLang(next);
-    toast.success(
-      next === "pt-BR"
-        ? "🇧🇷 Corretor: Português (BR)"
-        : "🇺🇸 Spell checker: English (US)",
-    );
-  };
+  // Language now comes from global settings
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -523,20 +516,6 @@ export default function ChatInterface({
               <Download className="h-3 w-3" />
               Exportar
             </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={toggleLang}
-              title={
-                spellLang === "pt-BR"
-                  ? "Corretor: Português — clique para mudar para Inglês"
-                  : "Spell checker: English — click to switch to Portuguese"
-              }
-              className="gap-1.5 h-7 px-3 text-xs rounded-xl text-muted-foreground hover:text-foreground"
-            >
-              <Languages className="h-3 w-3" />
-              {spellLang === "pt-BR" ? "🇧🇷 PT" : "🇺🇸 EN"}
-            </Button>
 
             {/* Summon clone button */}
             {onSummonClone && (
@@ -654,7 +633,7 @@ export default function ChatInterface({
               disabled={isStreaming}
               rows={1}
               spellCheck
-              lang={spellLang}
+              lang={language}
               className="w-full resize-none bg-transparent text-sm px-4 py-3.5 pr-2 outline-none text-foreground placeholder:text-muted-foreground overflow-y-auto"
             />
           </div>

@@ -12,7 +12,9 @@ import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import GeneralChat from "./pages/GeneralChat";
 import UserProfileAI from "./pages/UserProfileAI";
+import Settings from "./pages/Settings";
 import { ThemeProvider } from "./components/ThemeProvider";
+import { SettingsProvider } from "./hooks/useSettings";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 
 const queryClient = new QueryClient();
@@ -39,6 +41,7 @@ function AuthRoute({ children }: { children: React.ReactNode }) {
 const App = () => (
   <ErrorBoundary>
     <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+      <SettingsProvider>
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <Toaster />
@@ -102,12 +105,21 @@ const App = () => (
                     </ProtectedRoute>
                   }
                 />
+                <Route
+                  path="/settings"
+                  element={
+                    <ProtectedRoute>
+                      <Settings />
+                    </ProtectedRoute>
+                  }
+                />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </AuthProvider>
           </BrowserRouter>
         </TooltipProvider>
       </QueryClientProvider>
+      </SettingsProvider>
     </ThemeProvider>
   </ErrorBoundary>
 );

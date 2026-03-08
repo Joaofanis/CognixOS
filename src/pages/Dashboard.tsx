@@ -42,6 +42,7 @@ import {
   Loader2,
   MessagesSquare,
   UserCog,
+  Settings,
 } from "lucide-react";
 import { toast } from "sonner";
 import CreateBrainDialog from "@/components/CreateBrainDialog";
@@ -233,6 +234,15 @@ export default function Dashboard() {
             </span>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate("/settings")}
+              className="rounded-2xl h-9 w-9 hover:bg-primary/10"
+              title="Configurações"
+            >
+              <Settings className="h-4 w-4" />
+            </Button>
             <Button
               variant="ghost"
               size="sm"
