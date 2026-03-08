@@ -41,6 +41,8 @@ export default function BrainDetail() {
   const [showDelete, setShowDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const isMobile = useIsMobile();
+  const [editingConvId, setEditingConvId] = useState<string | null>(null);
+  const [editingConvTitle, setEditingConvTitle] = useState("");
 
   const userResetRef = useRef(false);
   const location = useLocation();
