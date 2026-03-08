@@ -260,7 +260,7 @@ export default function FeedTexts({ brainId }: Props) {
           <div className="relative">
             <textarea
               ref={textareaRef}
-              placeholder="Cole um texto aqui para alimentar o cérebro..."
+              placeholder={t("feed.pastePlaceholder")}
               value={text}
               onChange={(e) => setText(e.target.value)}
               style={{
