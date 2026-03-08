@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useSettings } from "@/hooks/useSettings";
 import { Button } from "@/components/ui/button";
 import { BrainType } from "@/lib/brain-types";
 import type { ChatMode } from "@/hooks/useBrainChat";
