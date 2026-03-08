@@ -279,18 +279,17 @@ serve(async (req: Request) => {
 
     const models = [
       "google/gemini-2.0-flash-001",
-      "google/gemini-2.0-pro-exp-02-05:free",
-      "google/gemini-2.0-flash-lite-preview-02-05:free",
       "meta-llama/llama-3.3-70b-instruct:free",
-      "qwen/qwen-2.5-72b-instruct:free",
+      "arcee-ai/trinity-large-preview:free",
       "mistralai/mistral-small-3.1-24b-instruct:free",
-      "cognitivecomputations/dolphin3.0-r1-mistral-24b:free",
+      "qwen/qwen-2.5-72b-instruct:free",
     ];
 
     let analysisData: Record<string, unknown> | null = null;
     let lastError: { status?: number; text?: string; error?: string } | null = null;
 
-    for (const model of models) {
+    for (let i = 0; i < models.length; i++) {
+      const model = models[i];
       try {
         console.log(`analyze-brain: trying model ${model} for type ${brainType}`);
         const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -316,8 +315,8 @@ serve(async (req: Request) => {
           const errorBody = await response.text();
           console.error(`Model ${model} failed: ${response.status}`, errorBody);
           lastError = { status: response.status, error: `Model ${model}: ${response.status}` };
-          // Only break on 401 (invalid key); for 403/429/other try next model (free models may still work)
-          if (response.status === 401) break;
+          if ([401, 400, 403].includes(response.status)) break;
+          await new Promise(r => setTimeout(r, 500));
           continue;
         }
 
@@ -337,10 +336,12 @@ serve(async (req: Request) => {
         } else {
           console.warn(`Model ${model} returned invalid structure:`, rawContent.slice(0, 300));
           lastError = { error: "Invalid JSON structure from model" };
+          await new Promise(r => setTimeout(r, 500));
         }
       } catch (e) {
         console.error(`Fetch error for model ${model}:`, e);
         lastError = { error: "Erro interno" };
+        await new Promise(r => setTimeout(r, 500));
       }
     }
 
