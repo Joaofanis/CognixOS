@@ -347,7 +347,7 @@ export default function FeedTexts({ brainId }: Props) {
                   ) : (
                     <Upload className="h-4 w-4" />
                   )}
-                  Arquivo
+                   {t("feed.file")}
                   <input
                     type="file"
                     accept=".txt,.pdf,.docx"
