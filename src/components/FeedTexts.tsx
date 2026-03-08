@@ -477,10 +477,9 @@ export default function FeedTexts({ brainId }: Props) {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remover texto?</AlertDialogTitle>
+            <AlertDialogTitle>{t("feed.removeTextTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação não pode ser desfeita. O texto será removido
-              permanentemente do cérebro.
+              {t("feed.removeTextDesc")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
