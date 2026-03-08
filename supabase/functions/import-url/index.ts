@@ -142,8 +142,10 @@ serve(async (req) => {
       { global: { headers: { authorization: authHeader } } }
     );
 
-    const { data: { user }, error: authErr } = await supabase.auth.getUser();
-    if (authErr || !user) throw new Error("Token inválido");
+    const token = authHeader.replace("Bearer ", "").replace("bearer ", "");
+    const { data: claimsData, error: claimsErr } = await supabase.auth.getClaims(token);
+    if (claimsErr || !claimsData?.claims) throw new Error("Token inválido");
+    const userId = claimsData.claims.sub as string;
 
     // Verify brain belongs to user
     const { data: brain, error: brainErr } = await supabase
