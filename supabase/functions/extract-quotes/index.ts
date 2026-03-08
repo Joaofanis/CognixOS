@@ -94,7 +94,7 @@ serve(async (req) => {
       });
     }
 
-    const OPENROUTER_API_KEY2 = Deno.env.get("OPENROUTER_API_KEY");
+    
 
     let totalExtracted = 0;
 
