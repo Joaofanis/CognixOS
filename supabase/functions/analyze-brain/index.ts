@@ -272,6 +272,8 @@ serve(async (req) => {
       "google/gemini-2.0-flash-001",
       "meta-llama/llama-3.3-70b-instruct:free",
       "mistralai/mistral-small-3.1-24b-instruct:free",
+      "qwen/qwen3-14b:free",
+      "deepseek/deepseek-chat-v3-0324:free",
     ];
 
     let analysisData: Record<string, unknown> | null = null;
