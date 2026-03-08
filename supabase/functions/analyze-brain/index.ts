@@ -277,11 +277,11 @@ serve(async (req: Request) => {
     const { systemPrompt, userPrompt, radarField } = getPrompts(brainType as string, allText);
 
     const models = [
+      "google/gemini-2.5-flash-lite",
       "google/gemini-2.0-flash-001",
       "meta-llama/llama-3.3-70b-instruct:free",
       "arcee-ai/trinity-large-preview:free",
       "mistralai/mistral-small-3.1-24b-instruct:free",
-      "qwen/qwen-2.5-72b-instruct:free",
     ];
 
     let analysisData: Record<string, unknown> | null = null;
