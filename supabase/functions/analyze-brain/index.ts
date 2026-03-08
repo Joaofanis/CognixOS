@@ -26,16 +26,28 @@ function extractJSON(text: string): Record<string, unknown> | null {
   return null;
 }
 
+const SKILLS_INSTRUCTION = `  "skills": {
+    Avalie habilidades ESPECÍFICAS e GRANULARES encontradas nos textos.
+    NÃO use categorias genéricas como "comunicação", "liderança", "gestão".
+    Use nomes PRECISOS e DETALHADOS como:
+    - "persuasão emocional" (não "comunicação")
+    - "fechamento de objeções" (não "vendas")
+    - "storytelling de produto" (não "narrativa")
+    - "negociação de preço" (não "negociação")
+    - "rapport com cliente" (não "relacionamento")
+    - "análise de dados financeiros" (não "análise")
+    Dê nota 0-10 baseada em EVIDÊNCIAS REAIS dos textos.
+    Justifique internamente cada nota antes de atribuí-la.
+    "<habilidade específica e granular 1>": <número 0-10>,
+    "<habilidade específica e granular 2>": <número 0-10>,
+    ...até 12 habilidades específicas identificadas nos textos
+  },
+  "skills_evaluation": "<parágrafo detalhado (200-400 palavras) avaliando qualitativamente os pontos fortes, fracos e diferenciais desta pessoa/conteúdo. Explique POR QUE cada habilidade recebeu a nota que recebeu, citando evidências dos textos. Compare as habilidades entre si: quais são dominantes, quais precisam de desenvolvimento, e qual o perfil geral de competências.>"`;
+
 // Build prompts based on brain type
 function getPrompts(brainType: string, allText: string) {
   let systemPrompt: string;
   let radarField: string;
-
-  const skillsInstruction = `  "skills": {
-    "<nome da habilidade escolhida pela IA 1>": <número 0-10 representando nível de domínio>,
-    "<nome da habilidade escolhida pela IA 2>": <número 0-10>,
-    ...até 8 habilidades específicas identificadas nos textos, nomeadas livremente pela IA com base no conteúdo real
-  }`;
 
   switch (brainType) {
     case "knowledge_base":
@@ -47,7 +59,7 @@ function getPrompts(brainType: string, allText: string) {
     "<área de conhecimento 2>": <número 0-10>,
     ...até 8 áreas
   },
-${skillsInstruction},
+${SKILLS_INSTRUCTION},
   "frequent_themes": [
     {"name": "<tema>", "count": <número inteiro>}
   ]
@@ -62,7 +74,7 @@ ${skillsInstruction},
     "<princípio filosófico 2>": <número 0-10>,
     ...até 8 princípios
   },
-${skillsInstruction},
+${SKILLS_INSTRUCTION},
   "frequent_themes": [
     {"name": "<tema>", "count": <número inteiro>}
   ]
@@ -77,13 +89,13 @@ ${skillsInstruction},
     "<competência prática 2>": <número 0-10>,
     ...até 8 competências
   },
-${skillsInstruction},
+${SKILLS_INSTRUCTION},
   "frequent_themes": [
     {"name": "<tema>", "count": <número inteiro>}
   ]
 }`;
       break;
-    default: // person_clone — análise AVANÇADA de personalidade
+    default: // person_clone
       radarField = "personality_traits";
       systemPrompt = `Você é um psicólogo comportamental e linguista especialista em perfis humanos. Sua missão é analisar profundamente os textos fornecidos para criar um perfil completo e detalhado desta pessoa, capturando sua essência para cloná-la com perfeição máxima.
 
@@ -99,7 +111,7 @@ Analise os textos e retorne APENAS um objeto JSON válido, sem nenhum texto adic
     "disciplina": <número 0-10>,
     "otimismo": <número 0-10>
   },
-${skillsInstruction},
+${SKILLS_INSTRUCTION},
   "communication_style": {
     "formalidade": <0=super informal, 10=extremamente formal>,
     "humor": <0=sério, 10=muito bem-humorado>,
@@ -245,7 +257,6 @@ serve(async (req) => {
       });
     }
 
-    // Larger context for person_clone to capture personality better
     const MAX_CHARS = brainType === "person_clone" ? 60000 : 30000;
     let allText = texts.map((t) => t.content).join("\n\n---\n\n");
     if (allText.length > MAX_CHARS) {
@@ -253,9 +264,8 @@ serve(async (req) => {
       console.log(`analyze-brain: truncated text to ${MAX_CHARS} chars`);
     }
 
-    const { systemPrompt, userPrompt, radarField } = getPrompts(brainType, allText);
+    const { systemPrompt, userPrompt, radarField } = getPrompts(brainType as string, allText);
 
-    // For person_clone use more capable models first
     const models = [
       "google/gemini-2.0-flash-001",
       "meta-llama/llama-3.3-70b-instruct:free",
@@ -283,7 +293,7 @@ serve(async (req) => {
               { role: "user", content: userPrompt },
             ],
             temperature: 0.2,
-            max_tokens: 4000,
+            max_tokens: 5000,
             response_format: { type: "json_object" },
           }),
         });
@@ -335,12 +345,17 @@ serve(async (req) => {
       radarData[key] = Math.min(10, Math.max(0, Number(radarData[key]) || 0));
     }
 
-    // Extract AI-chosen skills (normalize to numbers, cap at 8)
+    // Extract AI-chosen skills (normalize to numbers, cap at 12)
     const rawSkills = (analysisData.skills || {}) as Record<string, unknown>;
     const skills: Record<string, number> = {};
-    for (const [key, val] of Object.entries(rawSkills).slice(0, 8)) {
+    for (const [key, val] of Object.entries(rawSkills).slice(0, 12)) {
       skills[key] = Math.min(10, Math.max(0, Number(val) || 0));
     }
+
+    // Extract skills evaluation text
+    const skillsEvaluation = typeof analysisData.skills_evaluation === "string" 
+      ? analysisData.skills_evaluation 
+      : null;
 
     // Extract themes
     const themes = (analysisData.frequent_themes as Array<{ name: string; count: number }>)
@@ -353,6 +368,7 @@ serve(async (req) => {
       brain_id: brainId,
       frequent_themes: themes,
       skills,
+      skills_evaluation: skillsEvaluation,
       updated_at: new Date().toISOString(),
     };
 
@@ -360,7 +376,6 @@ serve(async (req) => {
       upsertData.personality_traits = radarData;
       upsertData.knowledge_areas = null;
 
-      // Save enhanced person_clone analysis fields
       if (analysisData.communication_style && typeof analysisData.communication_style === "object") {
         const cs = analysisData.communication_style as Record<string, unknown>;
         const normalizedCS: Record<string, number> = {};
@@ -380,14 +395,12 @@ serve(async (req) => {
           .slice(0, 12);
         upsertData.signature_phrases = sp;
 
-        // Upsert signature phrases into brain_quotes table
         if (sp.length > 0) {
           const quotesToInsert = sp.map((q) => ({
             brain_id: brainId,
             quote: q as string,
             context: "Análise automática de perfil",
           }));
-          // Delete old auto-generated quotes (those without source_text_id) and re-insert
           await supabase
             .from("brain_quotes")
             .delete()
