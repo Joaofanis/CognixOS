@@ -10,7 +10,7 @@ const corsHeaders = {
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const VALID_ROLES = ["user", "assistant", "system"];
 const MAX_MESSAGES = 100;
-const MAX_CONTEXT_CHARS = 800_000;
+const MAX_CONTEXT_CHARS = 120_000;
 
 serve(async (req) => {
   if (req.method === "OPTIONS")
@@ -120,7 +120,7 @@ serve(async (req) => {
         if (t.rag_processed && t.rag_summary) {
           const keywords = t.rag_keywords ? `[Palavras-chave: ${(t.rag_keywords as string[]).join(", ")}]` : "";
           const cat = t.category ? `[Categoria: ${t.category}]` : "";
-          contextParts.push(`${cat} ${keywords}\nResumo: ${t.rag_summary}\n\nConteúdo Original:\n${t.content}`);
+          contextParts.push(`${cat} ${keywords}\nResumo: ${t.rag_summary}`);
         } else {
           contextParts.push(t.content);
         }
@@ -173,7 +173,7 @@ serve(async (req) => {
     }
 
     const models = [
-      "google/gemini-2.0-flash-001:free",
+      "google/gemini-2.5-flash-preview-05-20",
       "google/gemma-3-27b-it:free",
       "meta-llama/llama-3.3-70b-instruct:free",
       "mistralai/mistral-small-3.1-24b-instruct:free",

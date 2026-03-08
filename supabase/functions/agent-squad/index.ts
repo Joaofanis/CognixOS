@@ -8,10 +8,10 @@ const corsHeaders = {
 };
 
 const MAX_ITERATIONS = 5;
-const MAX_CONTEXT_CHARS = 400_000;
+const MAX_CONTEXT_CHARS = 120_000;
 
 const MODELS = [
-  "google/gemini-2.0-flash-001:free",
+  "google/gemini-2.5-flash-preview-05-20",
   "google/gemma-3-27b-it:free",
   "meta-llama/llama-3.3-70b-instruct:free",
   "mistralai/mistral-small-3.1-24b-instruct:free",
