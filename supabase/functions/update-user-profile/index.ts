@@ -50,7 +50,7 @@ serve(async (req) => {
     }
 
     // Simple profile update: increment message count
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
     const userMessages = recentMessages.filter((m: any) => m.role === "user");
     const totalLength = userMessages.reduce((sum: number, m: any) => sum + (m.content?.length || 0), 0);

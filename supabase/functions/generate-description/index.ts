@@ -42,21 +42,9 @@ serve(async (req) => {
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    // Use getUser() — the correct way to verify JWT in Supabase edge functions
-    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: { user }, error: authError } = await userClient.auth.getUser();
-
-    if (authError || !user) {
-      console.error("Auth error:", authError?.message);
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    // Verify auth via JWT decode (no network call)
+    getUserIdFromJwt(authHeader);
 
     // Safe JSON parsing
     let body: Record<string, unknown>;
