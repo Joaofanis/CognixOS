@@ -166,25 +166,25 @@ export default function ChatInterface({
   const suggestions = SUGGESTIONS[brainType as BrainType] || SUGGESTIONS.default;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-5.5rem)] bg-background">
+    <div className="flex flex-col h-[calc(100vh-3.5rem)] sm:h-[calc(100vh-5.5rem)] bg-background">
       <div ref={scrollRef} className="flex-1 overflow-y-auto scrollbar-thin">
         {messages.length === 0 && !isStreaming && (
-          <div className="flex flex-col items-center justify-center h-full text-center space-y-6 animate-in fade-in duration-700 px-4">
-            <div className="h-20 w-20 rounded-2xl bg-secondary flex items-center justify-center border border-border">
-              <Bot className="h-10 w-10 text-foreground" />
+          <div className="flex flex-col items-center justify-center h-full text-center space-y-4 sm:space-y-6 animate-in fade-in duration-700 px-4 py-6">
+            <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl bg-secondary flex items-center justify-center border border-border">
+              <Bot className="h-8 w-8 sm:h-10 sm:w-10 text-foreground" />
             </div>
-            <div className="space-y-2">
-              <p className="text-2xl font-bold text-foreground">{t("chat.talkTo")} {brainName}</p>
-              <p className="text-sm text-muted-foreground max-w-xs mx-auto">{t("chat.startOrSuggestion")}</p>
+            <div className="space-y-1.5">
+              <p className="text-xl sm:text-2xl font-bold text-foreground">{t("chat.talkTo")} {brainName}</p>
+              <p className="text-xs sm:text-sm text-muted-foreground max-w-xs mx-auto">{t("chat.startOrSuggestion")}</p>
             </div>
             <div className="flex flex-col gap-2 w-full max-w-md">
               {suggestions.map((q) => (
-                <button key={q} onClick={() => sendMessage(q)} className="text-left text-sm px-4 py-3 rounded-xl border border-border bg-card hover:border-primary/40 hover:bg-muted/60 transition-all text-foreground">
+                <button key={q} onClick={() => sendMessage(q)} className="text-left text-xs sm:text-sm px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-border bg-card hover:border-primary/40 hover:bg-muted/60 transition-all text-foreground">
                   {q}
                 </button>
               ))}
             </div>
-            <Button variant="outline" onClick={onNewChat} className="rounded-xl gap-2 transition-all px-6 py-5 font-semibold">
+            <Button variant="outline" onClick={onNewChat} className="rounded-xl gap-2 transition-all px-5 py-4 sm:px-6 sm:py-5 font-semibold text-sm">
               <PlusCircle className="h-4 w-4" />
               {t("chat.newConversation")}
             </Button>
@@ -323,21 +323,21 @@ export default function ChatInterface({
         )}
       </div>
 
-      <div className="border-t border-border/40 bg-card/60 backdrop-blur-xl px-3 sm:px-4 py-3 pb-5 sm:pb-3">
+      <div className="border-t border-border/40 bg-card/60 backdrop-blur-xl px-3 sm:px-4 py-2 sm:py-3 pb-[env(safe-area-inset-bottom,8px)] sm:pb-3">
         {messages.length > 0 && (
-          <div className="max-w-3xl mx-auto flex items-center gap-2 mb-2">
+          <div className="max-w-3xl mx-auto flex items-center gap-1 sm:gap-2 mb-1.5 sm:mb-2 overflow-x-auto no-scrollbar">
             <Button variant="ghost" size="sm" onClick={handleExport}
-              className="gap-1.5 h-7 px-3 text-xs rounded-xl text-muted-foreground hover:text-foreground">
+              className="gap-1 h-7 px-2 sm:px-3 text-[10px] sm:text-xs rounded-xl text-muted-foreground hover:text-foreground shrink-0">
               <Download className="h-3 w-3" />
-              {t("common.export")}
+              <span className="hidden sm:inline">{t("common.export")}</span>
             </Button>
 
             {onSummonClone && (
-              <div className="relative">
+              <div className="relative shrink-0">
                 <Button variant="ghost" size="sm" onClick={() => setShowSummonPicker((p) => !p)} disabled={isSummoning}
-                  className="gap-1.5 h-7 px-3 text-xs rounded-xl text-violet-400 hover:text-violet-300 hover:bg-violet-500/10">
+                  className="gap-1 h-7 px-2 sm:px-3 text-[10px] sm:text-xs rounded-xl text-violet-400 hover:text-violet-300 hover:bg-violet-500/10">
                   <UserPlus className="h-3 w-3" />
-                  {isSummoning ? t("chat.invoking") : t("chat.clone")}
+                  <span className="hidden sm:inline">{isSummoning ? t("chat.invoking") : t("chat.clone")}</span>
                 </Button>
                 {showSummonPicker && (
                   <div className="absolute bottom-full mb-1 left-0 z-50 w-52 rounded-xl border border-border/60 bg-card shadow-lg shadow-black/20 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-150">
@@ -360,25 +360,25 @@ export default function ChatInterface({
             )}
 
             {showModeToggle && (
-              <div className="ml-auto flex items-center rounded-xl border border-border/60 bg-background/60 p-0.5 gap-0.5">
+              <div className="ml-auto flex items-center rounded-xl border border-border/60 bg-background/60 p-0.5 gap-0.5 shrink-0">
                 <button onClick={() => setMode("fast")} title={t("chat.fastDesc")}
-                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all ${chatMode === "fast" ? "bg-amber-500/15 text-amber-400 border border-amber-500/30" : "text-muted-foreground hover:text-foreground"}`}>
-                  <Zap className="h-3 w-3" /> {t("chat.fast")}
+                  className={`flex items-center gap-1 px-2 sm:px-2.5 py-1 rounded-lg text-[10px] sm:text-[11px] font-semibold transition-all ${chatMode === "fast" ? "bg-amber-500/15 text-amber-400 border border-amber-500/30" : "text-muted-foreground hover:text-foreground"}`}>
+                  <Zap className="h-3 w-3" /> <span className="hidden sm:inline">{t("chat.fast")}</span>
                 </button>
                 <button onClick={() => setMode("default")}
-                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all ${chatMode === "default" ? "bg-primary/15 text-primary border border-primary/30" : "text-muted-foreground hover:text-foreground"}`}>
+                  className={`flex items-center gap-1 px-2 sm:px-2.5 py-1 rounded-lg text-[10px] sm:text-[11px] font-semibold transition-all ${chatMode === "default" ? "bg-primary/15 text-primary border border-primary/30" : "text-muted-foreground hover:text-foreground"}`}>
                   {t("chat.default")}
                 </button>
                 <button onClick={() => setMode("thinking")} title={t("chat.thinkingDesc")}
-                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all ${chatMode === "thinking" ? "bg-violet-500/15 text-violet-400 border border-violet-500/30" : "text-muted-foreground hover:text-foreground"}`}>
-                  <Brain className="h-3 w-3" /> {t("chat.thinking")}
+                  className={`flex items-center gap-1 px-2 sm:px-2.5 py-1 rounded-lg text-[10px] sm:text-[11px] font-semibold transition-all ${chatMode === "thinking" ? "bg-violet-500/15 text-violet-400 border border-violet-500/30" : "text-muted-foreground hover:text-foreground"}`}>
+                  <Brain className="h-3 w-3" /> <span className="hidden sm:inline">{t("chat.thinking")}</span>
                 </button>
               </div>
             )}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="max-w-3xl mx-auto flex items-end gap-2 sm:gap-3">
+        <form onSubmit={handleSubmit} className="max-w-3xl mx-auto flex items-end gap-2">
           {showMention && filteredBrains.length > 0 && (
             <div className="absolute bottom-full mb-1 left-4 z-50 w-52 rounded-xl border border-border/60 bg-card shadow-lg overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-150">
               <p className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 border-b border-border/40">@Clone</p>
@@ -391,25 +391,26 @@ export default function ChatInterface({
               ))}
             </div>
           )}
-          <div className="relative flex-1 bg-background/80 border border-border/60 rounded-2xl sm:rounded-3xl shadow-inner focus-within:border-primary/50 focus-within:shadow-primary/10 focus-within:shadow-lg transition-all duration-300">
+          <div className="relative flex-1 bg-background/80 border border-border/60 rounded-2xl shadow-inner focus-within:border-primary/50 focus-within:shadow-primary/10 focus-within:shadow-lg transition-all duration-300">
             <textarea ref={inputRef} value={input} onChange={handleInputChange} onKeyDown={handleKeyDown}
               placeholder={t("chat.placeholder")} disabled={isStreaming} rows={1} spellCheck lang={language}
-              className="w-full resize-none bg-transparent text-sm px-4 py-3.5 pr-2 outline-none text-foreground placeholder:text-muted-foreground overflow-y-auto" />
+              className="w-full resize-none bg-transparent text-sm px-3 sm:px-4 py-3 pr-2 outline-none text-foreground placeholder:text-muted-foreground overflow-y-auto"
+              style={{ maxHeight: "120px" }} />
           </div>
 
           {isStreaming && stopStreaming ? (
             <Button type="button" size="icon" onClick={stopStreaming}
-              className="h-11 w-11 rounded-2xl shrink-0 bg-destructive/20 hover:bg-destructive/30 border border-destructive/40 text-destructive transition-all active:scale-95 shadow-none">
+              className="h-10 w-10 sm:h-11 sm:w-11 rounded-2xl shrink-0 bg-destructive/20 hover:bg-destructive/30 border border-destructive/40 text-destructive transition-all active:scale-95 shadow-none">
               <Square className="h-4 w-4 fill-current" />
             </Button>
           ) : (
             <Button type="submit" size="icon" disabled={!input.trim() || isStreaming}
-              className="h-11 w-11 rounded-2xl shrink-0 bg-gradient-to-br from-primary to-violet-600 hover:from-primary/90 hover:to-violet-600/90 shadow-lg shadow-primary/30 hover:shadow-primary/50 transition-all active:scale-95 disabled:opacity-40 disabled:shadow-none">
+              className="h-10 w-10 sm:h-11 sm:w-11 rounded-2xl shrink-0 bg-gradient-to-br from-primary to-violet-600 hover:from-primary/90 hover:to-violet-600/90 shadow-lg shadow-primary/30 hover:shadow-primary/50 transition-all active:scale-95 disabled:opacity-40 disabled:shadow-none">
               <Send className="h-4 w-4" />
             </Button>
           )}
         </form>
-        <p className="text-[10px] text-muted-foreground/60 text-center mt-2">{t("common.shiftEnter")}</p>
+        <p className="text-[10px] text-muted-foreground/60 text-center mt-1.5 hidden sm:block">{t("common.shiftEnter")}</p>
       </div>
     </div>
   );

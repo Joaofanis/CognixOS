@@ -3,9 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { BRAIN_TYPE_CONFIG, BrainType } from "@/lib/brain-types";
 import { useTranslation } from "@/lib/i18n";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
 } from "@/components/ui/sheet";
+import {
+  Drawer, DrawerContent, DrawerHeader, DrawerTitle,
+} from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -25,6 +29,7 @@ interface Props {
 export default function BrainChatPicker({ brainId, brainName, open, onClose }: Props) {
   const navigate = useNavigate();
   const { t, language } = useTranslation();
+  const isMobile = useIsMobile();
   const dateLocale = language === "en-US" ? enUS : language === "es-ES" ? es : ptBR;
 
   const { data: brain } = useQuery({
@@ -77,116 +82,141 @@ export default function BrainChatPicker({ brainId, brainName, open, onClose }: P
     navigate(`/brain/${brainId}`, { state: { tab: "settings" } });
   };
 
-  return (
-    <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
-      <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col bg-background">
-        <SheetHeader className="px-6 pt-6 pb-0 space-y-0">
-          <div className="flex items-start gap-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/15 to-accent/10 border border-primary/10 shadow-sm">
-              <Icon className="h-7 w-7 text-primary" />
-            </div>
-            <div className="min-w-0 flex-1">
+  const innerContent = (
+    <div className="flex flex-col max-h-[85vh] sm:max-h-full sm:h-full">
+      {/* Header */}
+      <div className="px-5 pt-5 pb-0 space-y-0">
+        <div className="flex items-start gap-3">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/15 to-accent/10 border border-primary/10 shadow-sm">
+            <Icon className="h-6 w-6 text-primary" />
+          </div>
+          <div className="min-w-0 flex-1">
+            {isMobile ? (
+              <DrawerTitle className="text-lg font-bold text-foreground leading-tight">
+                {brainName}
+              </DrawerTitle>
+            ) : (
               <SheetTitle className="text-lg font-bold text-foreground leading-tight">
                 {brainName}
               </SheetTitle>
-              {config && (
-                <Badge variant="secondary" className="text-[10px] uppercase tracking-widest font-bold bg-primary/8 text-primary/70 border-0 mt-1.5">
-                  {config.label}
-                </Badge>
-              )}
-            </div>
-          </div>
-
-          {brain?.description && (
-            <p className="text-sm text-muted-foreground leading-relaxed mt-3">
-              {brain.description}
-            </p>
-          )}
-
-          <div className="flex items-center gap-4 mt-4 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1.5">
-              <FileText className="h-3.5 w-3.5" />
-              {textsCount ?? 0} {(textsCount ?? 0) !== 1 ? t("dashboard.sources") : t("dashboard.source")}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <MessageSquare className="h-3.5 w-3.5" />
-              {conversations?.length ?? 0} {(conversations?.length ?? 0) !== 1 ? t("dashboard.conversations") : t("dashboard.conversation")}
-            </span>
-            {brain?.updated_at && (
-              <span className="flex items-center gap-1.5 ml-auto">
-                <Clock className="h-3.5 w-3.5" />
-                {formatDistanceToNow(new Date(brain.updated_at), { addSuffix: true, locale: dateLocale })}
-              </span>
+            )}
+            {config && (
+              <Badge variant="secondary" className="text-[10px] uppercase tracking-widest font-bold bg-primary/8 text-primary/70 border-0 mt-1">
+                {config.label}
+              </Badge>
             )}
           </div>
-        </SheetHeader>
-
-        <div className="px-6 pt-5 pb-2">
-          <div className="grid grid-cols-2 gap-2">
-            <Button
-              onClick={() => goToChat()}
-              className="h-12 gap-2 rounded-2xl gradient-jewel text-white font-semibold shadow-md hover:opacity-90 transition-all"
-            >
-              <PlusCircle className="h-4 w-4" />
-              {t("picker.newConversation")}
-            </Button>
-            <Button variant="outline" onClick={goToSettings} className="h-12 gap-2 rounded-2xl font-semibold">
-              <Settings className="h-4 w-4" />
-              {t("picker.configure")}
-            </Button>
-          </div>
         </div>
 
-        <Separator className="mx-6 mt-2" />
-
-        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 px-2 pb-2 flex items-center gap-1.5">
-            <Clock className="h-3 w-3" />
-            {t("picker.conversationHistory")}
+        {brain?.description && (
+          <p className="text-sm text-muted-foreground leading-relaxed mt-3">
+            {brain.description}
           </p>
+        )}
 
-          {isLoading ? (
-            <div className="space-y-2 px-2">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="h-14 rounded-2xl bg-muted/40 animate-pulse" />
-              ))}
-            </div>
-          ) : conversations && conversations.length > 0 ? (
-            conversations.map((conv) => (
-              <button
-                key={conv.id}
-                onClick={() => goToChat(conv.id)}
-                className="w-full flex items-center gap-3 px-3 py-3 rounded-2xl hover:bg-muted/60 transition-all text-left group"
-              >
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/8 group-hover:bg-primary/15 transition-colors">
-                  <MessageSquare className="h-4 w-4 text-primary/70 group-hover:text-primary transition-colors" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium truncate text-foreground group-hover:text-primary transition-colors">
-                    {conv.title ?? t("picker.untitled")}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground/60 mt-0.5">
-                    {formatDistanceToNow(
-                      new Date(conv.updated_at ?? conv.created_at),
-                      { addSuffix: true, locale: dateLocale },
-                    )}
-                  </p>
-                </div>
-                <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-primary/60 transition-colors shrink-0" />
-              </button>
-            ))
-          ) : (
-            <div className="flex flex-col items-center justify-center py-12 gap-3 text-center px-4">
-              <div className="h-16 w-16 rounded-3xl bg-muted/50 flex items-center justify-center">
-                <Sparkles className="h-7 w-7 text-muted-foreground/30" />
-              </div>
-              <p className="font-semibold text-sm text-foreground">{t("picker.noConversations")}</p>
-              <p className="text-xs text-muted-foreground max-w-[200px]">
-                {t("picker.startConversation")} {brainName}
-              </p>
-            </div>
+        <div className="flex items-center gap-3 mt-3 text-xs text-muted-foreground flex-wrap">
+          <span className="flex items-center gap-1.5">
+            <FileText className="h-3.5 w-3.5" />
+            {textsCount ?? 0} {(textsCount ?? 0) !== 1 ? t("dashboard.sources") : t("dashboard.source")}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <MessageSquare className="h-3.5 w-3.5" />
+            {conversations?.length ?? 0} {(conversations?.length ?? 0) !== 1 ? t("dashboard.conversations") : t("dashboard.conversation")}
+          </span>
+          {brain?.updated_at && (
+            <span className="flex items-center gap-1.5 ml-auto">
+              <Clock className="h-3.5 w-3.5" />
+              {formatDistanceToNow(new Date(brain.updated_at), { addSuffix: true, locale: dateLocale })}
+            </span>
           )}
         </div>
+      </div>
+
+      {/* Action buttons */}
+      <div className="px-5 pt-4 pb-2">
+        <div className="grid grid-cols-2 gap-2">
+          <Button
+            onClick={() => goToChat()}
+            className="h-11 gap-2 rounded-2xl gradient-jewel text-white font-semibold shadow-md hover:opacity-90 transition-all text-sm"
+          >
+            <PlusCircle className="h-4 w-4" />
+            {t("picker.newConversation")}
+          </Button>
+          <Button variant="outline" onClick={goToSettings} className="h-11 gap-2 rounded-2xl font-semibold text-sm">
+            <Settings className="h-4 w-4" />
+            {t("picker.configure")}
+          </Button>
+        </div>
+      </div>
+
+      <Separator className="mx-5 mt-2" />
+
+      {/* Conversation list */}
+      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 px-2 pb-2 flex items-center gap-1.5">
+          <Clock className="h-3 w-3" />
+          {t("picker.conversationHistory")}
+        </p>
+
+        {isLoading ? (
+          <div className="space-y-2 px-2">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-12 rounded-2xl bg-muted/40 animate-pulse" />
+            ))}
+          </div>
+        ) : conversations && conversations.length > 0 ? (
+          conversations.map((conv) => (
+            <button
+              key={conv.id}
+              onClick={() => goToChat(conv.id)}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl hover:bg-muted/60 transition-all text-left group"
+            >
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary/8 group-hover:bg-primary/15 transition-colors">
+                <MessageSquare className="h-3.5 w-3.5 text-primary/70 group-hover:text-primary transition-colors" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium truncate text-foreground group-hover:text-primary transition-colors">
+                  {conv.title ?? t("picker.untitled")}
+                </p>
+                <p className="text-[11px] text-muted-foreground/60 mt-0.5">
+                  {formatDistanceToNow(
+                    new Date(conv.updated_at ?? conv.created_at),
+                    { addSuffix: true, locale: dateLocale },
+                  )}
+                </p>
+              </div>
+              <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-primary/60 transition-colors shrink-0" />
+            </button>
+          ))
+        ) : (
+          <div className="flex flex-col items-center justify-center py-8 gap-2 text-center px-4">
+            <div className="h-14 w-14 rounded-3xl bg-muted/50 flex items-center justify-center">
+              <Sparkles className="h-6 w-6 text-muted-foreground/30" />
+            </div>
+            <p className="font-semibold text-sm text-foreground">{t("picker.noConversations")}</p>
+            <p className="text-xs text-muted-foreground max-w-[200px]">
+              {t("picker.startConversation")} {brainName}
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  if (isMobile) {
+    return (
+      <Drawer open={open} onOpenChange={(v) => !v && onClose()}>
+        <DrawerContent className="bg-background">
+          {innerContent}
+        </DrawerContent>
+      </Drawer>
+    );
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
+      <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col bg-background">
+        {innerContent}
       </SheetContent>
     </Sheet>
   );

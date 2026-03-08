@@ -264,10 +264,10 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <main className="container py-10 space-y-8 max-w-6xl relative">
+      <main className="container py-6 sm:py-10 space-y-6 sm:space-y-8 max-w-6xl relative px-4 sm:px-8">
         {/* Hero greeting */}
         <div className="space-y-1 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight">
             {t("dashboard.greeting")}{" "}
             <span className="text-gradient">
               {profile?.display_name
@@ -276,7 +276,7 @@ export default function Dashboard() {
             </span>{" "}
             👋
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-sm sm:text-base text-muted-foreground">
             {brains?.length
               ? `${brains.length} ${t("dashboard.brainsCount")}`
               : t("dashboard.brainsWaiting")}
@@ -284,78 +284,84 @@ export default function Dashboard() {
         </div>
 
         {/* Search & Actions */}
-        <div className="flex flex-col sm:flex-row gap-3 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100">
-          <div className="relative flex-1 group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-            <Input
-              placeholder={t("dashboard.searchPlaceholder")}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-11 h-12 bg-card/60 border-border/50 focus:border-primary/50 transition-all rounded-2xl shadow-sm"
-            />
+        <div className="flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100">
+          <div className="flex gap-2">
+            <div className="relative flex-1 group">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+              <Input
+                placeholder={t("dashboard.searchPlaceholder")}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-11 h-11 sm:h-12 bg-card/60 border-border/50 focus:border-primary/50 transition-all rounded-2xl shadow-sm"
+              />
+            </div>
+
+            {/* Sort dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-11 w-11 sm:h-12 sm:w-auto sm:px-4 sm:gap-2 rounded-2xl font-semibold shrink-0"
+                >
+                  <SortAsc className="h-4 w-4" />
+                  <span className="hidden sm:inline">{SORT_LABELS[sortKey]}</span>
+                  <ChevronDown className="h-3.5 w-3.5 opacity-60 hidden sm:block" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="rounded-2xl">
+                {(Object.entries(SORT_LABELS) as [SortKey, string][]).map(
+                  ([k, label]) => (
+                    <DropdownMenuItem
+                      key={k}
+                      onClick={() => setSortKey(k)}
+                      className={`rounded-xl font-semibold ${sortKey === k ? "text-primary" : ""}`}
+                    >
+                      {label}
+                    </DropdownMenuItem>
+                  ),
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <Button
+              onClick={() => setShowCreate(true)}
+              className="h-11 w-11 sm:h-12 sm:w-auto sm:px-6 gap-2 rounded-2xl gradient-jewel hover:opacity-90 shadow-lg shadow-primary/25 hover:shadow-primary/40 active:scale-[0.98] transition-all text-white font-semibold shrink-0"
+            >
+              <Plus className="h-5 w-5" />
+              <span className="hidden sm:inline">{t("dashboard.createBrain")}</span>
+            </Button>
           </div>
 
-          {/* Sort dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                className="h-12 px-4 gap-2 rounded-2xl font-semibold shrink-0"
-              >
-                <SortAsc className="h-4 w-4" />
-                <span className="hidden sm:inline">{SORT_LABELS[sortKey]}</span>
-                <ChevronDown className="h-3.5 w-3.5 opacity-60" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="rounded-2xl">
-              {(Object.entries(SORT_LABELS) as [SortKey, string][]).map(
-                ([k, label]) => (
-                  <DropdownMenuItem
-                    key={k}
-                    onClick={() => setSortKey(k)}
-                    className={`rounded-xl font-semibold ${sortKey === k ? "text-primary" : ""}`}
-                  >
-                    {label}
-                  </DropdownMenuItem>
-                ),
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/* Quick action row — icon-only on mobile */}
+          <div className="flex gap-2 overflow-x-auto no-scrollbar">
+            <Button
+              variant="outline"
+              onClick={() => navigate("/chat")}
+              className="h-10 sm:h-11 px-3 sm:px-5 gap-2 rounded-2xl font-semibold shrink-0 text-xs sm:text-sm"
+            >
+              <MessagesSquare className="h-4 w-4" />
+              <span className="hidden xs:inline">{t("dashboard.generalChat")}</span>
+            </Button>
 
-          <Button
-            variant="outline"
-            onClick={() => navigate("/chat")}
-            className="h-12 px-5 gap-2 rounded-2xl font-semibold shrink-0"
-          >
-            <MessagesSquare className="h-4 w-4" />
-            {t("dashboard.generalChat")}
-          </Button>
+            <Button
+              variant="outline"
+              onClick={() => navigate("/profile/ia")}
+              className="h-10 sm:h-11 px-3 sm:px-5 gap-2 rounded-2xl font-semibold shrink-0 text-xs sm:text-sm"
+            >
+              <UserCog className="h-4 w-4" />
+              <span className="hidden xs:inline">{t("dashboard.aiProfile")}</span>
+            </Button>
 
-          <Button
-            variant="outline"
-            onClick={() => navigate("/profile/ia")}
-            className="h-12 px-5 gap-2 rounded-2xl font-semibold shrink-0"
-          >
-            <UserCog className="h-4 w-4" />
-            {t("dashboard.aiProfile")}
-          </Button>
-
-          <Button
-            variant="outline"
-            onClick={() => navigate("/compare")}
-            className="h-12 px-5 gap-2 rounded-2xl font-semibold shrink-0"
-          >
-            <GitCompareArrows className="h-4 w-4" />
-            {t("dashboard.compare")}
-          </Button>
-
-          <Button
-            onClick={() => setShowCreate(true)}
-            className="h-12 px-6 gap-2 rounded-2xl gradient-jewel hover:opacity-90 shadow-lg shadow-primary/25 hover:shadow-primary/40 active:scale-[0.98] transition-all text-white font-semibold shrink-0"
-          >
-            <Plus className="h-5 w-5" />
-            {t("dashboard.createBrain")}
-          </Button>
+            <Button
+              variant="outline"
+              onClick={() => navigate("/compare")}
+              className="h-10 sm:h-11 px-3 sm:px-5 gap-2 rounded-2xl font-semibold shrink-0 text-xs sm:text-sm"
+            >
+              <GitCompareArrows className="h-4 w-4" />
+              <span className="hidden xs:inline">{t("dashboard.compare")}</span>
+            </Button>
+          </div>
         </div>
 
         {/* Type Filter Pills */}
