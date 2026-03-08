@@ -296,21 +296,14 @@ serve(async (req) => {
             ],
             temperature: 0.2,
             max_tokens: 5000,
-            response_format: { type: "json_object" },
           }),
         });
 
         if (!response.ok) {
           const errorBody = await response.text();
           console.error(`Model ${model} failed: ${response.status}`, errorBody);
-          
-          // Check if it's an API key limit error (affects all models)
-          if (response.status === 403 && errorBody.includes("Key limit exceeded")) {
-            lastError = { status: 429, error: "Limite da chave de API excedido" };
-            break;
-          }
-          
-          lastError = { status: response.status, error: "Falha na verificação do modelo" };
+          lastError = { status: response.status, error: `Model ${model}: ${response.status}` };
+          // Only break on 401 (invalid key); for 403/429/other try next model (free models may still work)
           if (response.status === 401) break;
           continue;
         }
