@@ -264,10 +264,10 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <main className="container py-10 space-y-8 max-w-6xl relative">
+      <main className="container py-6 sm:py-10 space-y-6 sm:space-y-8 max-w-6xl relative px-4 sm:px-8">
         {/* Hero greeting */}
         <div className="space-y-1 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight">
             {t("dashboard.greeting")}{" "}
             <span className="text-gradient">
               {profile?.display_name
@@ -276,7 +276,7 @@ export default function Dashboard() {
             </span>{" "}
             👋
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-sm sm:text-base text-muted-foreground">
             {brains?.length
               ? `${brains.length} ${t("dashboard.brainsCount")}`
               : t("dashboard.brainsWaiting")}
