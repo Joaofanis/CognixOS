@@ -378,7 +378,7 @@ export default function FeedTexts({ brainId }: Props) {
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-3">
           <h3 className="font-medium text-sm text-muted-foreground shrink-0">
-            {texts?.length || 0} texto(s) alimentado(s)
+            {texts?.length || 0} {t("feed.textsFed")}
           </h3>
           <div className="flex items-center gap-2">
             {(texts?.length || 0) > 0 &&
