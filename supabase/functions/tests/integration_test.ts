@@ -7,6 +7,20 @@
  * These tests sign in as a real user and test the full flow.
  */
 import "https://deno.land/std@0.224.0/dotenv/load.ts";
+// Also try loading .env.test for test-specific credentials
+try {
+  const envTest = await Deno.readTextFile("../../.env.test");
+  for (const line of envTest.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eqIdx = trimmed.indexOf("=");
+    if (eqIdx > 0) {
+      const key = trimmed.slice(0, eqIdx).trim();
+      const val = trimmed.slice(eqIdx + 1).trim();
+      if (!Deno.env.get(key)) Deno.env.set(key, val);
+    }
+  }
+} catch { /* .env.test not found — that's fine */ }
 import { assertEquals, assertExists } from "https://deno.land/std@0.168.0/testing/asserts.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
