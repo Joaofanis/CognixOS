@@ -188,6 +188,6 @@ serve(async (req) => {
   console.log("[ai-health-check] Done:", JSON.stringify(summary));
   return new Response(JSON.stringify(summary), {
     status: 200,
-    headers: { "Content-Type": "application/json" },
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 });
