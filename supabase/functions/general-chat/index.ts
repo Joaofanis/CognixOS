@@ -255,7 +255,7 @@ serve(async (req) => {
           if (aiResponse.status === 401 || aiResponse.status === 400 || aiResponse.status === 403) break;
         }
       } catch (e) {
-        lastErrorInfo = { text: e instanceof Error ? e.message : String(e) };
+        lastErrorInfo = { text: "Erro interno" };
         console.error(`Fetch error for model ${model}:`, e);
       }
     }
@@ -276,7 +276,7 @@ serve(async (req) => {
   } catch (e) {
     console.error("general-chat error:", e);
     return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Erro desconhecido" }),
+      JSON.stringify({ error: "Erro desconhecido" }),
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

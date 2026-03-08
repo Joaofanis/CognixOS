@@ -345,7 +345,7 @@ serve(async (req) => {
           }
         }
       } catch (e) {
-        lastErrorInfo = { error: e instanceof Error ? e.message : String(e) };
+        lastErrorInfo = { error: "Erro interno" };
         console.error(`Fetch error for model ${model}:`, e);
       }
     }
@@ -373,7 +373,7 @@ serve(async (req) => {
     console.error("brain-chat error:", e);
     return new Response(
       JSON.stringify({
-        error: e instanceof Error ? e.message : "Erro desconhecido",
+        error: "Erro desconhecido",
       }),
       {
         status: 500,

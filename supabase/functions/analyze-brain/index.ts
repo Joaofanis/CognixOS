@@ -338,7 +338,7 @@ serve(async (req: Request) => {
         }
       } catch (e) {
         console.error(`Fetch error for model ${model}:`, e);
-        lastError = { error: e instanceof Error ? e.message : String(e) };
+        lastError = { error: "Erro interno" };
       }
     }
 
@@ -438,7 +438,7 @@ serve(async (req: Request) => {
     });
   } catch (e) {
     console.error("analyze-brain error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Erro interno" }), {
+    return new Response(JSON.stringify({ error: "Erro interno" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

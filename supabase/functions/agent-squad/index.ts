@@ -343,7 +343,7 @@ Escreva em português brasileiro. Seja claro, preciso e bem estruturado.`;
           send({ type: "done", finalAnswer: fullSynthesis });
 
         } catch (err) {
-          send({ type: "error", message: err instanceof Error ? err.message : "Erro desconhecido" });
+          send({ type: "error", message: "Erro desconhecido" });
         } finally {
           controller.close();
         }
@@ -357,7 +357,7 @@ Escreva em português brasileiro. Seja claro, preciso e bem estruturado.`;
   } catch (e) {
     console.error("agent-squad error:", e);
     return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Erro desconhecido" }),
+      JSON.stringify({ error: "Erro desconhecido" }),
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

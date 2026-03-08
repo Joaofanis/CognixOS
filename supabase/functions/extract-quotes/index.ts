@@ -204,7 +204,7 @@ Regras:
   } catch (e) {
     console.error("extract-quotes error:", e);
     return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Erro desconhecido" }),
+      JSON.stringify({ error: "Erro desconhecido" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }

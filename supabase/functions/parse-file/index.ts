@@ -130,7 +130,7 @@ serve(async (req) => {
     });
   } catch (e) {
     console.error("parse-file error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Erro interno" }), {
+    return new Response(JSON.stringify({ error: "Erro interno" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

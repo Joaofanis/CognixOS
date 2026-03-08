@@ -227,7 +227,7 @@ TEXTOS DO CLONE:\n${context}`;
         }
       } catch (e) {
         console.error(`generate-prompt: fetch error for model ${model}:`, e);
-        lastError = { text: e instanceof Error ? e.message : String(e) };
+        lastError = { text: "Erro interno" };
       }
     }
 
@@ -249,7 +249,7 @@ TEXTOS DO CLONE:\n${context}`;
     });
   } catch (e) {
     console.error("generate-prompt error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Erro desconhecido" }), {
+    return new Response(JSON.stringify({ error: "Erro desconhecido" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
