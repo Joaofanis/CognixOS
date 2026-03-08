@@ -571,7 +571,7 @@ export default function Dashboard() {
               ) : (
                 <Trash2 className="h-4 w-4" />
               )}
-              Excluir
+              {t("common.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
