@@ -1,4 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { BRAIN_TYPE_CONFIG, BrainType } from "@/lib/brain-types";
@@ -13,11 +14,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
 import {
   MessageSquare, PlusCircle, Clock, ChevronRight, Settings, FileText, Brain, Sparkles,
+  Trash2, Pencil, Check, X,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR, enUS, es } from "date-fns/locale";
+import { toast } from "sonner";
 
 interface Props {
   brainId: string;
@@ -28,9 +32,13 @@ interface Props {
 
 export default function BrainChatPicker({ brainId, brainName, open, onClose }: Props) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { t, language } = useTranslation();
   const isMobile = useIsMobile();
   const dateLocale = language === "en-US" ? enUS : language === "es-ES" ? es : ptBR;
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
 
   const { data: brain } = useQuery({
     queryKey: ["brain-detail-picker", brainId],
@@ -80,6 +88,34 @@ export default function BrainChatPicker({ brainId, brainName, open, onClose }: P
   const goToSettings = () => {
     onClose();
     navigate(`/brain/${brainId}`, { state: { tab: "settings" } });
+  };
+
+  const handleRename = async (convId: string) => {
+    const trimmed = editingTitle.trim();
+    if (!trimmed) { setEditingId(null); return; }
+    try {
+      const { error } = await supabase.from("conversations").update({ title: trimmed }).eq("id", convId);
+      if (error) throw error;
+      toast.success(t("picker.conversationRenamed"));
+      queryClient.invalidateQueries({ queryKey: ["conversations-picker", brainId] });
+      queryClient.invalidateQueries({ queryKey: ["conversations", brainId] });
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+    setEditingId(null);
+  };
+
+  const handleDelete = async (e: React.MouseEvent, convId: string) => {
+    e.stopPropagation();
+    try {
+      const { error } = await supabase.from("conversations").delete().eq("id", convId);
+      if (error) throw error;
+      toast.success(t("picker.conversationDeleted"));
+      queryClient.invalidateQueries({ queryKey: ["conversations-picker", brainId] });
+      queryClient.invalidateQueries({ queryKey: ["conversations", brainId] });
+    } catch (err: any) {
+      toast.error(err.message);
+    }
   };
 
   /* ── Info section (brain details + action buttons) ── */
@@ -165,27 +201,68 @@ export default function BrainChatPicker({ brainId, brainName, open, onClose }: P
         </div>
       ) : conversations && conversations.length > 0 ? (
         conversations.map((conv) => (
-          <button
+          <div
             key={conv.id}
-            onClick={() => goToChat(conv.id)}
-            className={`w-full flex items-center gap-3 px-3 rounded-2xl hover:bg-muted/60 transition-all text-left group ${isMobile ? "py-2" : "py-2.5"}`}
+            onClick={() => { if (editingId !== conv.id) goToChat(conv.id); }}
+            className={`w-full flex items-center gap-3 px-3 rounded-2xl hover:bg-muted/60 transition-all text-left group cursor-pointer ${isMobile ? "py-2" : "py-2.5"}`}
           >
             <div className={`flex shrink-0 items-center justify-center rounded-xl bg-primary/8 group-hover:bg-primary/15 transition-colors ${isMobile ? "h-7 w-7" : "h-8 w-8"}`}>
               <MessageSquare className="h-3.5 w-3.5 text-primary/70 group-hover:text-primary transition-colors" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium truncate text-foreground group-hover:text-primary transition-colors">
-                {conv.title ?? t("picker.untitled")}
-              </p>
-              <p className="text-[11px] text-muted-foreground/60 mt-0.5">
-                {formatDistanceToNow(
-                  new Date(conv.updated_at ?? conv.created_at),
-                  { addSuffix: true, locale: dateLocale },
-                )}
-              </p>
+              {editingId === conv.id ? (
+                <div className="flex items-center gap-1">
+                  <Input
+                    value={editingTitle}
+                    onChange={(e) => setEditingTitle(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleRename(conv.id);
+                      if (e.key === "Escape") setEditingId(null);
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    autoFocus
+                    className="h-7 text-sm px-2"
+                  />
+                  <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-primary hover:bg-primary/10" onClick={(e) => { e.stopPropagation(); handleRename(conv.id); }}>
+                    <Check className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-muted-foreground hover:bg-muted" onClick={(e) => { e.stopPropagation(); setEditingId(null); }}>
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm font-medium truncate text-foreground group-hover:text-primary transition-colors">
+                    {conv.title ?? t("picker.untitled")}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground/60 mt-0.5">
+                    {formatDistanceToNow(
+                      new Date(conv.updated_at ?? conv.created_at),
+                      { addSuffix: true, locale: dateLocale },
+                    )}
+                  </p>
+                </>
+              )}
             </div>
-            <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-primary/60 transition-colors shrink-0" />
-          </button>
+            {editingId !== conv.id && (
+              <div className="flex items-center gap-0.5 shrink-0">
+                <Button
+                  variant="ghost" size="icon"
+                  className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-muted rounded-md"
+                  onClick={(e) => { e.stopPropagation(); setEditingId(conv.id); setEditingTitle(conv.title || ""); }}
+                >
+                  <Pencil className="h-3 w-3" />
+                </Button>
+                <Button
+                  variant="ghost" size="icon"
+                  className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/15 hover:text-destructive rounded-md"
+                  onClick={(e) => handleDelete(e, conv.id)}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </div>
+            )}
+          </div>
         ))
       ) : (
         <div className={`flex flex-col items-center justify-center gap-2 text-center px-4 ${isMobile ? "py-5" : "py-8"}`}>

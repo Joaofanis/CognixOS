@@ -221,19 +221,49 @@ export default function BrainDetail() {
                 {group.items.map((conv) => (
                   <div
                     key={conv.id}
-                    onClick={() => { userResetRef.current = false; loadHistory(conv.id); if (isMobile) setMobileSidebarOpen(false); }}
+                    onClick={() => { if (editingConvId !== conv.id) { userResetRef.current = false; loadHistory(conv.id); if (isMobile) setMobileSidebarOpen(false); } }}
                     className={`group flex items-center gap-2 w-full text-left px-2.5 py-2 rounded-lg transition-all cursor-pointer text-sm ${
                       conversationId === conv.id ? "bg-primary/10 text-primary font-medium" : "text-foreground/80 hover:bg-muted/60"
                     }`}
                   >
                     <MessageSquare className="h-3.5 w-3.5 shrink-0 opacity-50" />
-                    <span className="truncate flex-1">{conv.title || t("brainDetail.newConversation")}</span>
-                    <Button variant="ghost" size="icon"
-                      className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/15 hover:text-destructive rounded-md shrink-0"
-                      onClick={(e) => handleDeleteConversation(e, conv.id)}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
+                    {editingConvId === conv.id ? (
+                      <div className="flex items-center gap-1 flex-1 min-w-0">
+                        <Input
+                          value={editingConvTitle}
+                          onChange={(e) => setEditingConvTitle(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleRenameConversation(conv.id);
+                            if (e.key === "Escape") setEditingConvId(null);
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          autoFocus
+                          className="h-6 text-xs px-1.5 flex-1"
+                        />
+                        <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 text-primary hover:bg-primary/10" onClick={(e) => { e.stopPropagation(); handleRenameConversation(conv.id); }}>
+                          <Check className="h-3 w-3" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 text-muted-foreground hover:bg-muted" onClick={(e) => { e.stopPropagation(); setEditingConvId(null); }}>
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <span className="truncate flex-1">{conv.title || t("brainDetail.newConversation")}</span>
+                        <Button variant="ghost" size="icon"
+                          className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-muted rounded-md shrink-0"
+                          onClick={(e) => { e.stopPropagation(); setEditingConvId(conv.id); setEditingConvTitle(conv.title || ""); }}
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                        <Button variant="ghost" size="icon"
+                          className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/15 hover:text-destructive rounded-md shrink-0"
+                          onClick={(e) => handleDeleteConversation(e, conv.id)}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </>
+                    )}
                   </div>
                 ))}
               </div>
