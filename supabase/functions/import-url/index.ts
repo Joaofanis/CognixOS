@@ -86,17 +86,28 @@ async function fetchYouTubeTranscript(videoId: string): Promise<{ title: string;
   // Get title and description
   const title = playerResponse?.videoDetails?.title || `YouTube ${videoId}`;
   const description = playerResponse?.videoDetails?.shortDescription || "";
+  const author = playerResponse?.videoDetails?.author || "";
+  const keywords = playerResponse?.videoDetails?.keywords || [];
+  const lengthSeconds = playerResponse?.videoDetails?.lengthSeconds || "";
 
   // Get caption tracks
   const captionTracks =
     playerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
 
   if (!captionTracks || !Array.isArray(captionTracks) || captionTracks.length === 0) {
-    // Fallback to description if no captions exist
-    if (description.trim().length > 0) {
-      return { title: `${title} [Sem Legendas]`, transcript: `[Descrição do Vídeo]:\n${description}` };
+    // Build fallback content from all available metadata
+    const parts: string[] = [];
+    parts.push(`Título: ${title}`);
+    if (author) parts.push(`Canal: ${author}`);
+    if (lengthSeconds) parts.push(`Duração: ${Math.floor(Number(lengthSeconds) / 60)}min`);
+    if (keywords.length > 0) parts.push(`Tags: ${keywords.slice(0, 20).join(", ")}`);
+    if (description.trim().length > 0) parts.push(`\n[Descrição do Vídeo]:\n${description}`);
+
+    const fallbackContent = parts.join("\n");
+    if (fallbackContent.length < 20) {
+      throw new Error("Este vídeo não possui legendas, descrição ou metadados suficientes para importação.");
     }
-    throw new Error("Este vídeo não possui legendas disponíveis nem descrição legível.");
+    return { title: `${title} [Sem Legendas]`, transcript: fallbackContent };
   }
 
   // Priority: pt → en → first available
