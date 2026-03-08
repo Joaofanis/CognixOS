@@ -173,9 +173,10 @@ serve(async (req) => {
     }
 
     const models = [
-      "google/gemini-2.0-flash-exp:free",
-      "google/gemini-2.5-pro-exp-03-25:free",
+      "google/gemini-2.0-flash-001:free",
+      "google/gemma-3-27b-it:free",
       "meta-llama/llama-3.3-70b-instruct:free",
+      "mistralai/mistral-small-3.1-24b-instruct:free",
     ];
 
     let lastErrorInfo: { status?: number; text?: string } | null = null;
