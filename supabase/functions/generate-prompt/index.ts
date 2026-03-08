@@ -295,7 +295,9 @@ TEXTOS DO CLONE:\n${context}`;
           body: JSON.stringify({
             model,
             messages: [
-              { role: "system", content: "Você gera System Prompts profissionais e detalhados para clones de IA. Responda APENAS com o System Prompt gerado, sem explicações extras, sem markdown extra. O prompt deve ser extenso, rico em detalhes e capturar perfeitamente a essência da pessoa." },
+              { role: "system", content: isPersonClone
+                ? "Você é um engenheiro de System Prompts de elite. Gere APENAS o System Prompt final, sem explicações, sem comentários, sem markdown extra. O prompt deve ser um SISTEMA OPERACIONAL COGNITIVO — com estrutura de decisão, heurísticas, exemplos few-shot e regras operacionais. NÃO gere biografia narrativa. Gere um sistema que OPERA como a pessoa."
+                : "Você gera System Prompts profissionais e detalhados para assistentes de IA. Responda APENAS com o System Prompt gerado, sem explicações extras, sem markdown extra." },
               { role: "user", content: metaPrompt },
             ],
             temperature: 0.7,
