@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { useProfile } from "@/hooks/useProfile"; // Added this import
+import { useProfile } from "@/hooks/useProfile";
+import { useTranslation } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -47,27 +48,24 @@ import {
 import { toast } from "sonner";
 import CreateBrainDialog from "@/components/CreateBrainDialog";
 import { formatDistanceToNow } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { ptBR, enUS, es } from "date-fns/locale";
 import BrainChatPicker from "@/components/BrainChatPicker";
 
 type SortKey = "updated" | "name" | "sources";
-
-function relativeDate(dateStr: string) {
-  try {
-    return formatDistanceToNow(new Date(dateStr), {
-      addSuffix: true,
-      locale: ptBR,
-    });
-  } catch {
-    return "";
-  }
-}
 
 export default function Dashboard() {
   const { user, signOut } = useAuth();
   const { data: profile } = useProfile();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { t, language } = useTranslation();
+  const dateLocale = language === "en-US" ? enUS : language === "es-ES" ? es : ptBR;
+
+  function relativeDate(dateStr: string) {
+    try {
+      return formatDistanceToNow(new Date(dateStr), { addSuffix: true, locale: dateLocale });
+    } catch { return ""; }
+  }
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<BrainType | "all">("all");
   const [showCreate, setShowCreate] = useState(false);
@@ -179,7 +177,7 @@ export default function Dashboard() {
         .eq("id", brainId);
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ["brains", user?.id] });
-      toast.success(pinned ? "Brain desafixado" : "Brain fixado no topo!");
+      toast.success(pinned ? t("dashboard.unpinned") : t("dashboard.pinned"));
     } catch (err: any) {
       toast.error(err.message);
     } finally {
@@ -197,7 +195,7 @@ export default function Dashboard() {
         .eq("id", deleteTarget.id);
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ["brains", user?.id] });
-      toast.success(`"${deleteTarget.name}" removido`);
+      toast.success(`"${deleteTarget.name}" ${t("dashboard.removed")}`);
     } catch (err: any) {
       toast.error(err.message);
     } finally {
@@ -207,9 +205,9 @@ export default function Dashboard() {
   };
 
   const SORT_LABELS: Record<SortKey, string> = {
-    updated: "Atualização",
-    name: "Nome (A-Z)",
-    sources: "Mais fontes",
+    updated: t("dashboard.sortUpdate"),
+    name: t("dashboard.sortName"),
+    sources: t("dashboard.sortSources"),
   };
 
   return (
@@ -270,7 +268,7 @@ export default function Dashboard() {
         {/* Hero greeting */}
         <div className="space-y-1 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
-            Olá,{" "}
+            {t("dashboard.greeting")}{" "}
             <span className="text-gradient">
               {profile?.display_name
                 ? profile.display_name.split(" ")[0]
@@ -280,8 +278,8 @@ export default function Dashboard() {
           </h1>
           <p className="text-muted-foreground">
             {brains?.length
-              ? `${brains.length} cérebro${brains.length !== 1 ? "s" : ""} no seu segundo cérebro.`
-              : "Seus cérebros estão à sua espera."}
+              ? `${brains.length} ${t("dashboard.brainsCount")}`
+              : t("dashboard.brainsWaiting")}
           </p>
         </div>
 
@@ -290,7 +288,7 @@ export default function Dashboard() {
           <div className="relative flex-1 group">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
             <Input
-              placeholder="Buscar mentes..."
+              placeholder={t("dashboard.searchPlaceholder")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-11 h-12 bg-card/60 border-border/50 focus:border-primary/50 transition-all rounded-2xl shadow-sm"
@@ -330,7 +328,7 @@ export default function Dashboard() {
             className="h-12 px-5 gap-2 rounded-2xl font-semibold shrink-0"
           >
             <MessagesSquare className="h-4 w-4" />
-            Chat Geral
+            {t("dashboard.generalChat")}
           </Button>
 
           <Button
@@ -339,7 +337,7 @@ export default function Dashboard() {
             className="h-12 px-5 gap-2 rounded-2xl font-semibold shrink-0"
           >
             <UserCog className="h-4 w-4" />
-            Perfil IA
+            {t("dashboard.aiProfile")}
           </Button>
 
           <Button
@@ -348,7 +346,7 @@ export default function Dashboard() {
             className="h-12 px-5 gap-2 rounded-2xl font-semibold shrink-0"
           >
             <GitCompareArrows className="h-4 w-4" />
-            Comparar
+            {t("dashboard.compare")}
           </Button>
 
           <Button
@@ -356,7 +354,7 @@ export default function Dashboard() {
             className="h-12 px-6 gap-2 rounded-2xl gradient-jewel hover:opacity-90 shadow-lg shadow-primary/25 hover:shadow-primary/40 active:scale-[0.98] transition-all text-white font-semibold shrink-0"
           >
             <Plus className="h-5 w-5" />
-            Criar Cérebro
+            {t("dashboard.createBrain")}
           </Button>
         </div>
 
@@ -367,7 +365,7 @@ export default function Dashboard() {
             className={`cursor-pointer shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${filterType === "all" ? "gradient-jewel border-transparent text-white shadow-md shadow-primary/20" : "hover:border-primary/50 hover:text-primary"}`}
             onClick={() => setFilterType("all")}
           >
-            Todos
+            {t("common.all")}
           </Badge>
           {(
             Object.entries(BRAIN_TYPE_CONFIG) as [
@@ -407,17 +405,16 @@ export default function Dashboard() {
               </div>
             </div>
             <p className="text-xl font-bold text-foreground">
-              Sua mente está calma demais...
+              {t("dashboard.emptyTitle")}
             </p>
             <p className="text-muted-foreground mt-2 mb-8 max-w-xs mx-auto">
-              Crie seu primeiro cérebro para começar a alimentar seu
-              conhecimento!
+              {t("dashboard.emptyDesc")}
             </p>
             <Button
               onClick={() => setShowCreate(true)}
               className="rounded-2xl px-8 py-5 gradient-jewel text-white shadow-lg shadow-primary/25 hover:opacity-90 transition-all"
             >
-              Começar Agora
+              {t("dashboard.startNow")}
             </Button>
           </div>
         ) : (
@@ -526,11 +523,11 @@ export default function Dashboard() {
                       <div className="flex items-center gap-3">
                         <span className="flex items-center gap-1">
                           <FileText className="h-3 w-3" />
-                          {textsCount} fonte{textsCount !== 1 ? "s" : ""}
+                          {textsCount} {textsCount !== 1 ? t("dashboard.sources") : t("dashboard.source")}
                         </span>
                         <span className="flex items-center gap-1">
                           <MessageSquare className="h-3 w-3" />
-                          {convsCount} conversa{convsCount !== 1 ? "s" : ""}
+                          {convsCount} {convsCount !== 1 ? t("dashboard.conversations") : t("dashboard.conversation")}
                         </span>
                       </div>
                       <span className="text-[10px] opacity-60">
@@ -557,14 +554,13 @@ export default function Dashboard() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir "{deleteTarget?.name}"?</AlertDialogTitle>
+            <AlertDialogTitle>{t("dashboard.deleteTitle")} "{deleteTarget?.name}"?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação não pode ser desfeita. O brain, todos os textos e
-              conversas serão removidos permanentemente.
+              {t("dashboard.deleteDesc")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting}>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteBrain}
               disabled={deleting}
@@ -575,7 +571,7 @@ export default function Dashboard() {
               ) : (
                 <Trash2 className="h-4 w-4" />
               )}
-              Excluir
+              {t("common.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

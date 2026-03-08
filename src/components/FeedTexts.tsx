@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useTranslation } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -36,6 +37,7 @@ interface Props {
 
 export default function FeedTexts({ brainId }: Props) {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
   const [text, setText] = useState("");
   const [textExpanded, setTextExpanded] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -121,7 +123,7 @@ export default function FeedTexts({ brainId }: Props) {
       if (error) throw error;
       setText("");
       queryClient.invalidateQueries({ queryKey: ["brain-texts", brainId] });
-      toast.success("Texto adicionado!");
+      toast.success(t("feed.textAdded"));
       // Trigger RAG processing in background
       if (data) triggerRagProcessing(data.id);
       // Trigger analysis update in background (fire-and-forget)
@@ -138,7 +140,7 @@ export default function FeedTexts({ brainId }: Props) {
     if (!file) return;
     const ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
     if (![".txt", ".pdf", ".docx"].includes(ext)) {
-      toast.error("Formatos suportados: .txt, .pdf, .docx");
+      toast.error(t("feed.formatsSupported"));
       return;
     }
     setUploading(true);
@@ -225,7 +227,7 @@ export default function FeedTexts({ brainId }: Props) {
         .eq("id", deleteTarget);
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ["brain-texts", brainId] });
-      toast.success("Texto removido");
+      toast.success(t("feed.textRemoved"));
     } catch (err: any) {
       toast.error(err.message);
     } finally {
@@ -245,9 +247,9 @@ export default function FeedTexts({ brainId }: Props) {
   });
 
   const sourceTypeLabel: Record<string, string> = {
-    paste: "Colado",
-    file_upload: "Arquivo",
-    url_import: "URL",
+    paste: t("feed.pasted"),
+    file_upload: t("feed.fileUpload"),
+    url_import: t("feed.urlImport"),
   };
 
   return (
@@ -258,7 +260,7 @@ export default function FeedTexts({ brainId }: Props) {
           <div className="relative">
             <textarea
               ref={textareaRef}
-              placeholder="Cole um texto aqui para alimentar o cérebro..."
+              placeholder={t("feed.pastePlaceholder")}
               value={text}
               onChange={(e) => setText(e.target.value)}
               style={{
@@ -336,7 +338,7 @@ export default function FeedTexts({ brainId }: Props) {
                 ) : (
                   <Plus className="h-4 w-4" />
                 )}
-                Adicionar Texto
+                {t("feed.addText")}
               </Button>
               <Button variant="outline" className="gap-2" asChild>
                 <label className="cursor-pointer">
@@ -345,7 +347,7 @@ export default function FeedTexts({ brainId }: Props) {
                   ) : (
                     <Upload className="h-4 w-4" />
                   )}
-                  Arquivo
+                   {t("feed.file")}
                   <input
                     type="file"
                     accept=".txt,.pdf,.docx"
@@ -360,7 +362,7 @@ export default function FeedTexts({ brainId }: Props) {
                 onClick={() => setShowUrlInput(!showUrlInput)}
               >
                 <Link className="h-4 w-4" />
-                Importar URL
+                {t("feed.importUrl")}
               </Button>
             </div>
             {text.length > 0 && (
@@ -376,7 +378,7 @@ export default function FeedTexts({ brainId }: Props) {
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-3">
           <h3 className="font-medium text-sm text-muted-foreground shrink-0">
-            {texts?.length || 0} texto(s) alimentado(s)
+            {texts?.length || 0} {t("feed.textsFed")}
           </h3>
           <div className="flex items-center gap-2">
             {(texts?.length || 0) > 0 &&
@@ -388,12 +390,12 @@ export default function FeedTexts({ brainId }: Props) {
                   disabled={processingRag}
                   onClick={async () => {
                     setProcessingRag(true);
-                    toast.info("Processando fontes com IA...");
+                    toast.info(t("feed.processingAi"));
                     await triggerRagProcessing();
                     queryClient.invalidateQueries({
                       queryKey: ["brain-texts", brainId],
                     });
-                    toast.success("Fontes processadas!");
+                    toast.success(t("feed.sourcesProcessed"));
                     setProcessingRag(false);
                   }}
                 >
@@ -402,14 +404,14 @@ export default function FeedTexts({ brainId }: Props) {
                   ) : (
                     <Sparkles className="h-3 w-3" />
                   )}
-                  Otimizar RAG
+                  {t("feed.optimizeRag")}
                 </Button>
               )}
             {(texts?.length || 0) > 0 && (
               <div className="relative max-w-xs flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                 <Input
-                  placeholder="Buscar nos textos..."
+                  placeholder={t("feed.searchTexts")}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-9 h-9 text-sm rounded-2xl"
@@ -421,11 +423,11 @@ export default function FeedTexts({ brainId }: Props) {
 
         {isLoading ? (
           <div className="text-center py-8 text-muted-foreground">
-            Carregando...
+            {t("common.loading")}
           </div>
         ) : filteredTexts?.length === 0 && searchQuery ? (
           <div className="text-center py-8 text-muted-foreground text-sm">
-            Nenhum texto encontrado para "{searchQuery}"
+            {t("feed.noResults")} "{searchQuery}"
           </div>
         ) : (
           filteredTexts?.map((t) => (
@@ -475,14 +477,13 @@ export default function FeedTexts({ brainId }: Props) {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remover texto?</AlertDialogTitle>
+            <AlertDialogTitle>{t("feed.removeTextTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação não pode ser desfeita. O texto será removido
-              permanentemente do cérebro.
+              {t("feed.removeTextDesc")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting}>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDelete}
               disabled={deleting}
@@ -493,7 +494,7 @@ export default function FeedTexts({ brainId }: Props) {
               ) : (
                 <Trash2 className="h-4 w-4" />
               )}
-              Remover
+              {t("common.remove")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

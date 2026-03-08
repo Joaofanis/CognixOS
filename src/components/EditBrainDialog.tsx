@@ -2,10 +2,7 @@ import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
+  Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import TagInput from "@/components/TagInput";
+import { useTranslation } from "@/lib/i18n";
 
 interface Props {
   brain: {
@@ -29,6 +27,7 @@ interface Props {
 
 export default function EditBrainDialog({ brain, open, onOpenChange }: Props) {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
   const [name, setName] = useState(brain.name);
   const [description, setDescription] = useState(brain.description || "");
   const [tags, setTags] = useState<string[]>(brain.tags || []);
@@ -43,7 +42,7 @@ export default function EditBrainDialog({ brain, open, onOpenChange }: Props) {
 
   const handleGenerateDescription = async () => {
     if (!name.trim()) {
-      toast.error("Digite um nome primeiro");
+      toast.error(t("createBrain.typeNameFirst"));
       return;
     }
     setGeneratingDesc(true);
@@ -55,9 +54,9 @@ export default function EditBrainDialog({ brain, open, onOpenChange }: Props) {
       });
       if (error || data?.error) throw new Error(data?.error || error?.message);
       setDescription(data.description);
-      toast.success("Descrição gerada!");
+      toast.success(t("editBrain.descGenerated"));
     } catch (err: any) {
-      toast.error(err.message || "Erro ao gerar descrição");
+      toast.error(err.message || t("common.error"));
     } finally {
       setGeneratingDesc(false);
     }
@@ -81,7 +80,7 @@ export default function EditBrainDialog({ brain, open, onOpenChange }: Props) {
 
       queryClient.invalidateQueries({ queryKey: ["brains"] });
       queryClient.invalidateQueries({ queryKey: ["brain", brain.id] });
-      toast.success("Cérebro atualizado!");
+      toast.success(t("editBrain.brainUpdated"));
       onOpenChange(false);
     } catch (err: any) {
       toast.error(err.message);
@@ -94,31 +93,28 @@ export default function EditBrainDialog({ brain, open, onOpenChange }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Editar Cérebro</DialogTitle>
+          <DialogTitle>{t("editBrain.title")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          {/* Name */}
           <div className="space-y-2">
-            <Label htmlFor="edit-name">Nome</Label>
+            <Label htmlFor="edit-name">{t("common.name")}</Label>
             <Input
               id="edit-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Ex: Einstein, Contabilidade..."
+              placeholder={t("editBrain.namePlaceholder")}
             />
           </div>
 
-          {/* Tags */}
           <div className="space-y-2">
-            <Label>Tags <span className="text-muted-foreground font-normal">(opcional)</span></Label>
-            <TagInput tags={tags} onChange={setTags} placeholder="Ex: filosofia, coaching... (Enter para adicionar)" />
+            <Label>{t("createBrain.tags")} <span className="text-muted-foreground font-normal">{t("common.optional")}</span></Label>
+            <TagInput tags={tags} onChange={setTags} placeholder={t("editBrain.tagsPlaceholder")} />
           </div>
 
-          {/* Description with AI button */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label htmlFor="edit-desc">
-                Descrição <span className="text-muted-foreground font-normal">(opcional)</span>
+                {t("common.description")} <span className="text-muted-foreground font-normal">{t("common.optional")}</span>
               </Label>
               <Button
                 type="button"
@@ -133,14 +129,14 @@ export default function EditBrainDialog({ brain, open, onOpenChange }: Props) {
                 ) : (
                   <Sparkles className="h-3 w-3" />
                 )}
-                Gerar com IA
+                {t("editBrain.generateWithAi")}
               </Button>
             </div>
             <Textarea
               id="edit-desc"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Descreva brevemente este cérebro, ou clique em 'Gerar com IA'..."
+              placeholder={t("editBrain.descPlaceholder")}
               rows={3}
             />
           </div>
@@ -151,7 +147,7 @@ export default function EditBrainDialog({ brain, open, onOpenChange }: Props) {
             className="w-full gradient-jewel text-white font-semibold rounded-xl"
           >
             {loading && <Loader2 className="animate-spin h-4 w-4 mr-2" />}
-            Salvar Alterações
+            {t("editBrain.saveChanges")}
           </Button>
         </div>
       </DialogContent>
