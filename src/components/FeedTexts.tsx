@@ -423,11 +423,11 @@ export default function FeedTexts({ brainId }: Props) {
 
         {isLoading ? (
           <div className="text-center py-8 text-muted-foreground">
-            Carregando...
+            {t("common.loading")}
           </div>
         ) : filteredTexts?.length === 0 && searchQuery ? (
           <div className="text-center py-8 text-muted-foreground text-sm">
-            Nenhum texto encontrado para "{searchQuery}"
+            {t("feed.noResults")} "{searchQuery}"
           </div>
         ) : (
           filteredTexts?.map((t) => (
