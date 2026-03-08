@@ -362,7 +362,7 @@ export default function FeedTexts({ brainId }: Props) {
                 onClick={() => setShowUrlInput(!showUrlInput)}
               >
                 <Link className="h-4 w-4" />
-                Importar URL
+                {t("feed.importUrl")}
               </Button>
             </div>
             {text.length > 0 && (
