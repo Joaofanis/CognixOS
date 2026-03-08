@@ -156,6 +156,7 @@ const translations = {
   "feed.pasted": { "pt-BR": "Colado", "en-US": "Pasted", "es-ES": "Pegado" },
   "feed.fileUpload": { "pt-BR": "Arquivo", "en-US": "File", "es-ES": "Archivo" },
   "feed.urlImport": { "pt-BR": "URL", "en-US": "URL", "es-ES": "URL" },
+  "feed.youtubeImport": { "pt-BR": "YouTube", "en-US": "YouTube", "es-ES": "YouTube" },
   "feed.expand": { "pt-BR": "Expandir", "en-US": "Expand", "es-ES": "Expandir" },
   "feed.collapse": { "pt-BR": "Recolher", "en-US": "Collapse", "es-ES": "Contraer" },
   "feed.imported": { "pt-BR": "importado!", "en-US": "imported!", "es-ES": "¡importado!" },

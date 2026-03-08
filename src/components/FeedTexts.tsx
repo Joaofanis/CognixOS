@@ -250,6 +250,7 @@ export default function FeedTexts({ brainId }: Props) {
     paste: t("feed.pasted"),
     file_upload: t("feed.fileUpload"),
     url_import: t("feed.urlImport"),
+    youtube: t("feed.youtubeImport"),
   };
 
   return (
