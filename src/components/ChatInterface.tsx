@@ -516,20 +516,6 @@ export default function ChatInterface({
               <Download className="h-3 w-3" />
               Exportar
             </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={toggleLang}
-              title={
-                spellLang === "pt-BR"
-                  ? "Corretor: Português — clique para mudar para Inglês"
-                  : "Spell checker: English — click to switch to Portuguese"
-              }
-              className="gap-1.5 h-7 px-3 text-xs rounded-xl text-muted-foreground hover:text-foreground"
-            >
-              <Languages className="h-3 w-3" />
-              {spellLang === "pt-BR" ? "🇧🇷 PT" : "🇺🇸 EN"}
-            </Button>
 
             {/* Summon clone button */}
             {onSummonClone && (
