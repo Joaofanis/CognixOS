@@ -395,7 +395,7 @@ export default function FeedTexts({ brainId }: Props) {
                     queryClient.invalidateQueries({
                       queryKey: ["brain-texts", brainId],
                     });
-                    toast.success("Fontes processadas!");
+                    toast.success(t("feed.sourcesProcessed"));
                     setProcessingRag(false);
                   }}
                 >
