@@ -42,6 +42,7 @@ import {
   Loader2,
   MessagesSquare,
   UserCog,
+  Settings,
 } from "lucide-react";
 import { toast } from "sonner";
 import CreateBrainDialog from "@/components/CreateBrainDialog";
