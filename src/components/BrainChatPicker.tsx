@@ -122,7 +122,7 @@ export default function BrainChatPicker({
 
           {/* Description */}
           {brain?.description && (
-            <p className="text-sm text-muted-foreground leading-relaxed mt-3 line-clamp-3">
+            <p className="text-sm text-muted-foreground leading-relaxed mt-3">
               {brain.description}
             </p>
           )}
