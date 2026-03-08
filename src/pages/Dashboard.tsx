@@ -554,10 +554,9 @@ export default function Dashboard() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir "{deleteTarget?.name}"?</AlertDialogTitle>
+            <AlertDialogTitle>{t("dashboard.deleteTitle")} "{deleteTarget?.name}"?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação não pode ser desfeita. O brain, todos os textos e
-              conversas serão removidos permanentemente.
+              {t("dashboard.deleteDesc")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
