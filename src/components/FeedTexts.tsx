@@ -411,7 +411,7 @@ export default function FeedTexts({ brainId }: Props) {
               <div className="relative max-w-xs flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                 <Input
-                  placeholder="Buscar nos textos..."
+                  placeholder={t("feed.searchTexts")}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-9 h-9 text-sm rounded-2xl"
