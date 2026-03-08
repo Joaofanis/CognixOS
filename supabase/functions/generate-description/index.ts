@@ -124,7 +124,7 @@ serve(async (req) => {
 
     // 5-model waterfall — same pattern as generate-prompt
     const models = [
-      "google/gemini-2.5-flash-preview-05-20",
+      "google/gemini-2.5-flash-preview",
       "google/gemma-3-27b-it:free",
       "meta-llama/llama-3.3-70b-instruct:free",
       "mistralai/mistral-small-3.1-24b-instruct:free",
