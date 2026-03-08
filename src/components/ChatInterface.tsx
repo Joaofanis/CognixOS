@@ -166,25 +166,25 @@ export default function ChatInterface({
   const suggestions = SUGGESTIONS[brainType as BrainType] || SUGGESTIONS.default;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-5.5rem)] bg-background">
+    <div className="flex flex-col h-[calc(100vh-3.5rem)] sm:h-[calc(100vh-5.5rem)] bg-background">
       <div ref={scrollRef} className="flex-1 overflow-y-auto scrollbar-thin">
         {messages.length === 0 && !isStreaming && (
-          <div className="flex flex-col items-center justify-center h-full text-center space-y-6 animate-in fade-in duration-700 px-4">
-            <div className="h-20 w-20 rounded-2xl bg-secondary flex items-center justify-center border border-border">
-              <Bot className="h-10 w-10 text-foreground" />
+          <div className="flex flex-col items-center justify-center h-full text-center space-y-4 sm:space-y-6 animate-in fade-in duration-700 px-4 py-6">
+            <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl bg-secondary flex items-center justify-center border border-border">
+              <Bot className="h-8 w-8 sm:h-10 sm:w-10 text-foreground" />
             </div>
-            <div className="space-y-2">
-              <p className="text-2xl font-bold text-foreground">{t("chat.talkTo")} {brainName}</p>
-              <p className="text-sm text-muted-foreground max-w-xs mx-auto">{t("chat.startOrSuggestion")}</p>
+            <div className="space-y-1.5">
+              <p className="text-xl sm:text-2xl font-bold text-foreground">{t("chat.talkTo")} {brainName}</p>
+              <p className="text-xs sm:text-sm text-muted-foreground max-w-xs mx-auto">{t("chat.startOrSuggestion")}</p>
             </div>
             <div className="flex flex-col gap-2 w-full max-w-md">
               {suggestions.map((q) => (
-                <button key={q} onClick={() => sendMessage(q)} className="text-left text-sm px-4 py-3 rounded-xl border border-border bg-card hover:border-primary/40 hover:bg-muted/60 transition-all text-foreground">
+                <button key={q} onClick={() => sendMessage(q)} className="text-left text-xs sm:text-sm px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-border bg-card hover:border-primary/40 hover:bg-muted/60 transition-all text-foreground">
                   {q}
                 </button>
               ))}
             </div>
-            <Button variant="outline" onClick={onNewChat} className="rounded-xl gap-2 transition-all px-6 py-5 font-semibold">
+            <Button variant="outline" onClick={onNewChat} className="rounded-xl gap-2 transition-all px-5 py-4 sm:px-6 sm:py-5 font-semibold text-sm">
               <PlusCircle className="h-4 w-4" />
               {t("chat.newConversation")}
             </Button>
