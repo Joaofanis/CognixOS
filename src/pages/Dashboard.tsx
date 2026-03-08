@@ -405,17 +405,16 @@ export default function Dashboard() {
               </div>
             </div>
             <p className="text-xl font-bold text-foreground">
-              Sua mente está calma demais...
+              {t("dashboard.emptyTitle")}
             </p>
             <p className="text-muted-foreground mt-2 mb-8 max-w-xs mx-auto">
-              Crie seu primeiro cérebro para começar a alimentar seu
-              conhecimento!
+              {t("dashboard.emptyDesc")}
             </p>
             <Button
               onClick={() => setShowCreate(true)}
               className="rounded-2xl px-8 py-5 gradient-jewel text-white shadow-lg shadow-primary/25 hover:opacity-90 transition-all"
             >
-              Começar Agora
+              {t("dashboard.startNow")}
             </Button>
           </div>
         ) : (
