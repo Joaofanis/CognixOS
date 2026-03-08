@@ -311,8 +311,8 @@ serve(async (req: Request) => {
           const errorBody = await response.text();
           console.error(`Model ${model} failed: ${response.status}`, errorBody);
           lastError = { status: response.status, error: `Model ${model}: ${response.status}` };
-          // Only break on 401 (invalid key); for 403/429/other try next model (free models may still work)
           if (response.status === 401) break;
+          await new Promise(r => setTimeout(r, 500));
           continue;
         }
 
@@ -332,10 +332,12 @@ serve(async (req: Request) => {
         } else {
           console.warn(`Model ${model} returned invalid structure:`, rawContent.slice(0, 300));
           lastError = { error: "Invalid JSON structure from model" };
+          await new Promise(r => setTimeout(r, 500));
         }
       } catch (e) {
         console.error(`Fetch error for model ${model}:`, e);
         lastError = { error: "Erro interno" };
+        await new Promise(r => setTimeout(r, 500));
       }
     }
 

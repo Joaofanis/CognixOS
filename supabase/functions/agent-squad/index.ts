@@ -22,6 +22,7 @@ const MAX_CONTEXT_CHARS = 120_000;
 const MODELS = [
   "google/gemini-2.0-flash-001",
   "meta-llama/llama-3.3-70b-instruct:free",
+  "arcee-ai/trinity-large-preview:free",
   "mistralai/mistral-small-3.1-24b-instruct:free",
 ];
 
@@ -33,6 +34,7 @@ async function callAI(
 ): Promise<string | ReadableStream> {
   for (const model of MODELS) {
     try {
+      console.log(`agent-squad: trying model ${model}`);
       const resp = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -50,13 +52,22 @@ async function callAI(
         }),
       });
 
-      if (!resp.ok) continue;
+      if (!resp.ok) {
+        const errBody = await resp.text().catch(() => "");
+        console.error(`Model ${model} failed: ${resp.status} - ${errBody}`);
+        if (resp.status === 401 || resp.status === 400 || resp.status === 403) break;
+        await new Promise(r => setTimeout(r, 500));
+        continue;
+      }
 
+      console.log(`agent-squad: success with model ${model}`);
       if (stream) return resp.body!;
 
       const data = await resp.json();
       return data.choices?.[0]?.message?.content || "";
-    } catch {
+    } catch (e) {
+      console.error(`Fetch error for model ${model}:`, e);
+      await new Promise(r => setTimeout(r, 500));
       continue;
     }
   }

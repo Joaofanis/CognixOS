@@ -5,9 +5,9 @@ import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 const MODELS = [
   "google/gemini-2.0-flash-001",
   "meta-llama/llama-3.3-70b-instruct:free",
+  "arcee-ai/trinity-large-preview:free",
   "qwen/qwen3-coder:free",
   "qwen/qwen3-vl-30b-a3b-thinking",
-  "arcee-ai/trinity-large-preview:free",
   "sourceful/riverflow-v2-pro",
   "mistralai/mistral-small-3.1-24b-instruct:free",
 ];
