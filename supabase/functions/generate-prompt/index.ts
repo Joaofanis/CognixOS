@@ -211,6 +211,7 @@ TEXTOS DO CLONE:\n${context}`;
           console.error(`generate-prompt: model ${model} failed with ${aiResponse.status}:`, errText);
           lastError = { status: aiResponse.status, text: errText };
           if (aiResponse.status === 401 || aiResponse.status === 403) break;
+          await new Promise(r => setTimeout(r, 500));
           continue;
         }
 
@@ -223,10 +224,12 @@ TEXTOS DO CLONE:\n${context}`;
         } else {
           console.warn(`generate-prompt: model ${model} returned empty/short content`);
           lastError = { text: "Empty response from model" };
+          await new Promise(r => setTimeout(r, 500));
         }
       } catch (e) {
         console.error(`generate-prompt: fetch error for model ${model}:`, e);
         lastError = { text: "Erro interno" };
+        await new Promise(r => setTimeout(r, 500));
       }
     }
 
