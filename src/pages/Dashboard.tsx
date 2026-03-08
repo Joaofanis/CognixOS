@@ -523,11 +523,11 @@ export default function Dashboard() {
                       <div className="flex items-center gap-3">
                         <span className="flex items-center gap-1">
                           <FileText className="h-3 w-3" />
-                          {textsCount} fonte{textsCount !== 1 ? "s" : ""}
+                          {textsCount} {textsCount !== 1 ? t("dashboard.sources") : t("dashboard.source")}
                         </span>
                         <span className="flex items-center gap-1">
                           <MessageSquare className="h-3 w-3" />
-                          {convsCount} conversa{convsCount !== 1 ? "s" : ""}
+                          {convsCount} {convsCount !== 1 ? t("dashboard.conversations") : t("dashboard.conversation")}
                         </span>
                       </div>
                       <span className="text-[10px] opacity-60">
