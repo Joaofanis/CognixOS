@@ -120,7 +120,7 @@ serve(async (req) => {
         if (t.rag_processed && t.rag_summary) {
           const keywords = t.rag_keywords ? `[Palavras-chave: ${(t.rag_keywords as string[]).join(", ")}]` : "";
           const cat = t.category ? `[Categoria: ${t.category}]` : "";
-          contextParts.push(`${cat} ${keywords}\nResumo: ${t.rag_summary}\n\nConteúdo Original:\n${t.content}`);
+          contextParts.push(`${cat} ${keywords}\nResumo: ${t.rag_summary}`);
         } else {
           contextParts.push(t.content);
         }
