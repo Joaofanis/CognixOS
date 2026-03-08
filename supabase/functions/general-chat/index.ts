@@ -12,7 +12,7 @@ const VALID_ROLES = ["user", "assistant", "system"];
 const MAX_MESSAGES = 1000;
 const MAX_MESSAGE_CONTENT_LENGTH = 4_000_000;
 const MAX_BODY_SIZE = 20 * 1024 * 1024;
-const MAX_CONTEXT_CHARS = 800_000;
+const MAX_CONTEXT_CHARS = 120_000;
 
 serve(async (req) => {
   if (req.method === "OPTIONS")
