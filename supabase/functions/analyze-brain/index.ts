@@ -339,10 +339,10 @@ serve(async (req) => {
 
     if (!analysisData) {
       const msg = lastError?.status === 429
-        ? "Limite de requisições excedido. Tente novamente em alguns segundos."
+        ? "Limite de requisições da API excedido. Tente novamente mais tarde ou verifique sua chave do OpenRouter."
         : "Nenhum modelo de IA conseguiu gerar uma análise estruturada. Tente novamente.";
       return new Response(JSON.stringify({ error: msg }), {
-        status: 500,
+        status: lastError?.status === 429 ? 429 : 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
