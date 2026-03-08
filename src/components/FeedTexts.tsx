@@ -404,7 +404,7 @@ export default function FeedTexts({ brainId }: Props) {
                   ) : (
                     <Sparkles className="h-3 w-3" />
                   )}
-                  Otimizar RAG
+                  {t("feed.optimizeRag")}
                 </Button>
               )}
             {(texts?.length || 0) > 0 && (
