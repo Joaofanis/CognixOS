@@ -48,27 +48,24 @@ import {
 import { toast } from "sonner";
 import CreateBrainDialog from "@/components/CreateBrainDialog";
 import { formatDistanceToNow } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { ptBR, enUS, es } from "date-fns/locale";
 import BrainChatPicker from "@/components/BrainChatPicker";
 
 type SortKey = "updated" | "name" | "sources";
-
-function relativeDate(dateStr: string) {
-  try {
-    return formatDistanceToNow(new Date(dateStr), {
-      addSuffix: true,
-      locale: ptBR,
-    });
-  } catch {
-    return "";
-  }
-}
 
 export default function Dashboard() {
   const { user, signOut } = useAuth();
   const { data: profile } = useProfile();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { t, language } = useTranslation();
+  const dateLocale = language === "en-US" ? enUS : language === "es-ES" ? es : ptBR;
+
+  function relativeDate(dateStr: string) {
+    try {
+      return formatDistanceToNow(new Date(dateStr), { addSuffix: true, locale: dateLocale });
+    } catch { return ""; }
+  }
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<BrainType | "all">("all");
   const [showCreate, setShowCreate] = useState(false);
