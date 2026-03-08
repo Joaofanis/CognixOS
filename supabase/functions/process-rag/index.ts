@@ -123,7 +123,7 @@ serve(async (req) => {
             "X-Title": "AI Second Brain - RAG Processor",
           },
           body: JSON.stringify({
-            model: "meta-llama/llama-3.3-70b-instruct:free",
+            model: "google/gemini-2.0-flash-001:free",
             messages: [
               {
                 role: "system",

@@ -289,15 +289,11 @@ serve(async (req) => {
     // Append mode instruction
     systemPrompt += thinkingInstruction;
 
-    // Models ordered by context size (largest first for 1M token support)
     const models = [
-      "google/gemini-2.0-flash-exp:free",        // 1M context window
-      "google/gemini-2.5-pro-exp-03-25:free",    // 1M context window
-      "meta-llama/llama-3.3-70b-instruct:free",  // 128k context
-      "nvidia/nemotron-3-nano-30b-a3b:free",
-      "arcee-ai/trinity-large-preview:free",
-      "stepfun/step-3.5-flash:free",
-      "z-ai/glm-4.5-air:free",
+      "google/gemini-2.0-flash-001:free",
+      "google/gemma-3-27b-it:free",
+      "meta-llama/llama-3.3-70b-instruct:free",
+      "mistralai/mistral-small-3.1-24b-instruct:free",
     ];
 
     let lastErrorInfo = null;
@@ -324,7 +320,7 @@ serve(async (req) => {
               ],
               stream: true,
               temperature: chatTemperature,
-              max_tokens: 128_000, // Maximum practical for most models
+              max_tokens: 16_000,
             }),
           },
         );

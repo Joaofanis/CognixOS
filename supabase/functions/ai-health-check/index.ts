@@ -4,11 +4,10 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { SmtpClient } from "https://deno.land/x/smtp@v0.7.0/mod.ts";
 
 const MODELS = [
-  "meta-llama/llama-3.3-70b-instruct:free",
+  "google/gemini-2.0-flash-001:free",
   "google/gemma-3-27b-it:free",
-  "mistralai/mistral-7b-instruct:free",
-  "deepseek/deepseek-r1-distill-llama-70b:free",
-  "microsoft/phi-3-mini-128k-instruct:free",
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "mistralai/mistral-small-3.1-24b-instruct:free",
 ];
 
 const NOTIFY_EMAIL = "joaovitorfanis1@gmail.com";
