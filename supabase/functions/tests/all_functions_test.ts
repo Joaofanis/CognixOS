@@ -1,8 +1,9 @@
 import { assertEquals, assertExists } from "https://deno.land/std@0.168.0/testing/asserts.ts";
 
-const BASE_URL = Deno.env.get("SUPABASE_URL") ?? "http://localhost:54321";
-const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
-const FUNCTIONS_URL = `${BASE_URL}/functions/v1`;
+// Use the deployed Supabase project URL
+const PROJECT_URL = "https://pnmxqvaafdecqmeradfc.supabase.co";
+const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBubXhxdmFhZmRlY3FtZXJhZGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEzMzMzMTMsImV4cCI6MjA4NjkwOTMxM30.MhgGsNHefvsR3h4J9TZXajgQsz2D9oHQD69YVyRjtiE";
+const FUNCTIONS_URL = `${PROJECT_URL}/functions/v1`;
 
 const FUNCTIONS_WITH_AUTH = [
   "brain-chat",
@@ -31,7 +32,7 @@ for (const fn of ALL_FUNCTIONS) {
       method: "OPTIONS",
       headers: { apikey: ANON_KEY },
     });
-    assertEquals(res.status, 200, `${fn} OPTIONS should return 200`);
+    assertEquals(res.status, 200, `${fn} OPTIONS should return 200, got ${res.status}`);
     const acah = res.headers.get("access-control-allow-headers") ?? "";
     assertEquals(acah.includes("authorization"), true, `${fn} should allow authorization header`);
     await res.body?.cancel();
@@ -88,14 +89,14 @@ for (const fn of ["brain-chat", "generate-prompt", "summon-clone", "analyze-brai
       method: "POST",
       headers: {
         apikey: ANON_KEY,
-        Authorization: "Bearer fake",
+        Authorization: "Bearer fake-jwt-token",
         "Content-Type": "application/json",
       },
       body: "not-json{{{",
     });
     // Should return 400 or 401 (auth check may come first)
     assertEquals(
-      res.status <= 401,
+      res.status >= 400 && res.status < 500,
       true,
       `${fn} should handle invalid JSON gracefully, got ${res.status}`,
     );
