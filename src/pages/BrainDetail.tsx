@@ -20,6 +20,7 @@ import {
   PanelLeftClose,
   PanelLeft,
   Menu,
+  Settings,
 } from "lucide-react";
 import FeedTexts from "@/components/FeedTexts";
 import ChatInterface from "@/components/ChatInterface";
@@ -61,8 +62,9 @@ export default function BrainDetail() {
 
   const userResetRef = useRef(false);
   const location = useLocation();
-  const locationConvId = (location.state as { conversationId?: string } | null)
-    ?.conversationId;
+  const locationState = location.state as { conversationId?: string; tab?: string } | null;
+  const locationConvId = locationState?.conversationId;
+  const isSettingsMode = locationState?.tab === "settings";
 
   const {
     messages,
@@ -232,7 +234,6 @@ export default function BrainDetail() {
 
   const sidebarContent = (
     <div className="flex flex-col h-full">
-      {/* Sidebar header */}
       <div className="p-3 border-b border-border/50">
         <Button
           variant="outline"
@@ -244,7 +245,6 @@ export default function BrainDetail() {
         </Button>
       </div>
 
-      {/* Conversation list */}
       <ScrollArea className="flex-1">
         <div className="p-2 space-y-3">
           {conversations?.length === 0 ? (
@@ -291,7 +291,6 @@ export default function BrainDetail() {
         </div>
       </ScrollArea>
 
-      {/* Sidebar footer - brain info */}
       <div className="p-3 border-t border-border/50">
         <div
           className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-muted/60 cursor-pointer transition-colors"
@@ -311,60 +310,64 @@ export default function BrainDetail() {
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
-      {/* Desktop Sidebar */}
-      {!isMobile && sidebarOpen && (
+      {/* Desktop Sidebar — only in chat mode */}
+      {!isSettingsMode && !isMobile && sidebarOpen && (
         <div className="w-64 border-r border-border/50 bg-sidebar-background flex flex-col shrink-0 animate-in slide-in-from-left duration-200">
           {sidebarContent}
         </div>
       )}
 
-      {/* Mobile Sidebar Sheet */}
-      <Sheet
-        open={mobileSidebarOpen && !!isMobile}
-        onOpenChange={setMobileSidebarOpen}
-      >
-        <SheetContent
-          side="left"
-          className="p-0 w-[280px] bg-sidebar-background"
+      {/* Mobile Sidebar Sheet — only in chat mode */}
+      {!isSettingsMode && (
+        <Sheet
+          open={mobileSidebarOpen && !!isMobile}
+          onOpenChange={setMobileSidebarOpen}
         >
-          {sidebarContent}
-        </SheetContent>
-      </Sheet>
+          <SheetContent
+            side="left"
+            className="p-0 w-[280px] bg-sidebar-background"
+          >
+            {sidebarContent}
+          </SheetContent>
+        </Sheet>
+      )}
 
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
         <header className="sticky top-0 z-20 border-b border-border/50 bg-background/80 backdrop-blur-xl">
           <div className="flex h-12 items-center gap-2 px-3">
-            {/* Sidebar toggle */}
-            {isMobile ? (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setMobileSidebarOpen(true)}
-                className="rounded-lg h-8 w-8"
-              >
-                <Menu className="h-4 w-4" />
-              </Button>
-            ) : (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="rounded-lg h-8 w-8"
-              >
-                {sidebarOpen ? (
-                  <PanelLeftClose className="h-4 w-4" />
-                ) : (
-                  <PanelLeft className="h-4 w-4" />
-                )}
-              </Button>
+            {/* Sidebar toggle — only in chat mode */}
+            {!isSettingsMode && (
+              isMobile ? (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setMobileSidebarOpen(true)}
+                  className="rounded-lg h-8 w-8"
+                >
+                  <Menu className="h-4 w-4" />
+                </Button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setSidebarOpen(!sidebarOpen)}
+                  className="rounded-lg h-8 w-8"
+                >
+                  {sidebarOpen ? (
+                    <PanelLeftClose className="h-4 w-4" />
+                  ) : (
+                    <PanelLeft className="h-4 w-4" />
+                  )}
+                </Button>
+              )
             )}
 
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => navigate("/")}
+              onClick={() => isSettingsMode ? navigate(`/brain/${id}`) : navigate("/")}
               className="rounded-lg h-8 w-8"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -372,7 +375,7 @@ export default function BrainDetail() {
 
             <div className="min-w-0 mr-auto">
               <h1 className="font-bold text-sm truncate leading-tight">
-                {brain.name}
+                {isSettingsMode ? `${brain.name} — Configurações` : brain.name}
               </h1>
             </div>
 
@@ -387,7 +390,23 @@ export default function BrainDetail() {
                     <MoreVertical className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-44 rounded-xl">
+                <DropdownMenuContent align="end" className="w-48 rounded-xl">
+                  {!isSettingsMode && (
+                    <DropdownMenuItem
+                      onClick={() => navigate(`/brain/${id}`, { state: { tab: "settings" } })}
+                      className="gap-2 cursor-pointer rounded-lg m-1"
+                    >
+                      <Settings className="h-4 w-4" /> Fontes & Configuração
+                    </DropdownMenuItem>
+                  )}
+                  {isSettingsMode && (
+                    <DropdownMenuItem
+                      onClick={() => navigate(`/brain/${id}`)}
+                      className="gap-2 cursor-pointer rounded-lg m-1"
+                    >
+                      <MessageSquare className="h-4 w-4" /> Ir para Chat
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem
                     onClick={() => setShowEdit(true)}
                     className="gap-2 cursor-pointer rounded-lg m-1"
@@ -406,38 +425,44 @@ export default function BrainDetail() {
           </div>
         </header>
 
-        {/* Tabs */}
-        <Tabs defaultValue="chat" className="flex-1 flex flex-col min-h-0">
-          <div className="border-b border-border/40 bg-card/40 backdrop-blur-xl">
-            <TabsList className="h-10 w-full justify-start bg-transparent p-0 gap-4 px-3">
-              <TabsTrigger
-                value="chat"
-                className="gap-1.5 px-1 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none font-semibold transition-all text-xs text-muted-foreground"
-              >
-                <MessageSquare className="h-3.5 w-3.5" /> Chat
-              </TabsTrigger>
-              <TabsTrigger
-                value="texts"
-                className="gap-1.5 px-1 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none font-semibold transition-all text-xs text-muted-foreground"
-              >
-                <FileText className="h-3.5 w-3.5" /> Fontes
-              </TabsTrigger>
-              <TabsTrigger
-                value="analysis"
-                className="gap-1.5 px-1 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none font-semibold transition-all text-xs text-muted-foreground"
-              >
-                <BarChart3 className="h-3.5 w-3.5" /> Análise
-              </TabsTrigger>
-              <TabsTrigger
-                value="prompt"
-                className="gap-1.5 px-1 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none font-semibold transition-all text-xs text-muted-foreground"
-              >
-                <Sparkles className="h-3.5 w-3.5" /> Prompt
-              </TabsTrigger>
-            </TabsList>
-          </div>
+        {/* Content: Chat mode vs Settings mode */}
+        {isSettingsMode ? (
+          <Tabs defaultValue="texts" className="flex-1 flex flex-col min-h-0">
+            <div className="border-b border-border/40 bg-card/40 backdrop-blur-xl">
+              <TabsList className="h-10 w-full justify-start bg-transparent p-0 gap-4 px-3">
+                <TabsTrigger
+                  value="texts"
+                  className="gap-1.5 px-1 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none font-semibold transition-all text-xs text-muted-foreground"
+                >
+                  <FileText className="h-3.5 w-3.5" /> Fontes
+                </TabsTrigger>
+                <TabsTrigger
+                  value="analysis"
+                  className="gap-1.5 px-1 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none font-semibold transition-all text-xs text-muted-foreground"
+                >
+                  <BarChart3 className="h-3.5 w-3.5" /> Análise
+                </TabsTrigger>
+                <TabsTrigger
+                  value="prompt"
+                  className="gap-1.5 px-1 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none font-semibold transition-all text-xs text-muted-foreground"
+                >
+                  <Sparkles className="h-3.5 w-3.5" /> Prompt
+                </TabsTrigger>
+              </TabsList>
+            </div>
 
-          <TabsContent value="chat" className="flex-1 m-0 min-h-0">
+            <TabsContent value="texts" className="m-0 bg-background/50 flex-1 overflow-y-auto">
+              <FeedTexts brainId={brain.id} />
+            </TabsContent>
+            <TabsContent value="analysis" className="m-0 bg-background/50 flex-1 overflow-y-auto">
+              <BrainAnalysis brainId={brain.id} brainType={brain.type as BrainType} />
+            </TabsContent>
+            <TabsContent value="prompt" className="m-0 bg-background/50 flex-1 overflow-y-auto">
+              <BrainPromptEditor brainId={brain.id} />
+            </TabsContent>
+          </Tabs>
+        ) : (
+          <div className="flex-1 min-h-0">
             <ChatInterface
               brainId={brain.id}
               brainType={brain.type as BrainType}
@@ -451,29 +476,8 @@ export default function BrainDetail() {
               onRetry={retry}
               onRegenerate={retry}
             />
-          </TabsContent>
-          <TabsContent
-            value="texts"
-            className="m-0 bg-background/50 flex-1 overflow-y-auto"
-          >
-            <FeedTexts brainId={brain.id} />
-          </TabsContent>
-          <TabsContent
-            value="analysis"
-            className="m-0 bg-background/50 flex-1 overflow-y-auto"
-          >
-            <BrainAnalysis
-              brainId={brain.id}
-              brainType={brain.type as BrainType}
-            />
-          </TabsContent>
-          <TabsContent
-            value="prompt"
-            className="m-0 bg-background/50 flex-1 overflow-y-auto"
-          >
-            <BrainPromptEditor brainId={brain.id} />
-          </TabsContent>
-        </Tabs>
+          </div>
+        )}
       </div>
 
       {/* Dialogs */}
