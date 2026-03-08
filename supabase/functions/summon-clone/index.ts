@@ -213,7 +213,8 @@ serve(async (req) => {
         } else {
           const errorText = await aiResponse.text();
           lastErrorInfo = { status: aiResponse.status, text: errorText };
-          if (aiResponse.status === 401 || aiResponse.status === 400 || aiResponse.status === 403) break;
+          if (aiResponse.status === 401) break;
+          await new Promise(r => setTimeout(r, 500));
         }
       } catch (e) {
         lastErrorInfo = { text: "Erro interno" };

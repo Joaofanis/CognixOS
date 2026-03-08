@@ -338,14 +338,11 @@ serve(async (req) => {
             errorText,
           );
 
-          // If it's a "fatal" error (auth, billing, etc.), don't bother with other models
-          if (
-            aiResponse.status === 401 ||
-            aiResponse.status === 400 ||
-            aiResponse.status === 403
-          ) {
+          // Only stop on truly fatal auth errors (invalid key)
+          if (aiResponse.status === 401) {
             break;
           }
+          await new Promise(r => setTimeout(r, 500));
         }
       } catch (e) {
         lastErrorInfo = { error: "Erro interno" };
