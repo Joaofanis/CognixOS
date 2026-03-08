@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -72,14 +73,20 @@ async function fetchYouTubeTranscript(videoId: string): Promise<{ title: string;
     throw new Error("Falha ao parsear dados do vídeo do YouTube");
   }
 
-  // Get title
+  // Get title and description
   const title = playerResponse?.videoDetails?.title || `YouTube ${videoId}`;
+  const description = playerResponse?.videoDetails?.shortDescription || "";
 
   // Get caption tracks
   const captionTracks =
     playerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+
   if (!captionTracks || !Array.isArray(captionTracks) || captionTracks.length === 0) {
-    throw new Error("Este vídeo não possui legendas disponíveis. Verifique se o vídeo tem legendas/CC ativadas.");
+    // Fallback to description if no captions exist
+    if (description.trim().length > 0) {
+      return { title: `${title} [Sem Legendas]`, transcript: `[Descrição do Vídeo]:\n${description}` };
+    }
+    throw new Error("Este vídeo não possui legendas disponíveis nem descrição legível.");
   }
 
   // Priority: pt → en → first available
@@ -162,7 +169,7 @@ serve(async (req) => {
 
       const { title, transcript } = await fetchYouTubeTranscript(videoId);
 
-      if (transcript.length < 50) throw new Error("Transcrição muito curta");
+      if (transcript.length < 10) throw new Error("Conteúdo extraído muito curto");
       if (transcript.length > 200000) throw new Error("Transcrição muito grande (max 200k chars)");
 
       const { error: insertErr } = await supabase.from("brain_texts").insert({

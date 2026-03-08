@@ -1,13 +1,18 @@
+// @ts-nocheck
 // @ts-expect-error: Deno edge runtime — runs on Supabase, not Node
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { SmtpClient } from "https://deno.land/x/smtp@v0.7.0/mod.ts";
 
 const MODELS = [
-  "google/gemini-2.0-flash-001",
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "mistralai/mistral-small-3.1-24b-instruct:free",
-];
+      "google/gemini-2.0-flash-001",
+      "google/gemini-2.0-pro-exp-02-05:free",
+      "google/gemini-2.0-flash-lite-preview-02-05:free",
+      "meta-llama/llama-3.3-70b-instruct:free",
+      "qwen/qwen-2.5-72b-instruct:free",
+      "mistralai/mistral-small-3.1-24b-instruct:free",
+      "cognitivecomputations/dolphin3.0-r1-mistral-24b:free"
+    ];
 
 const NOTIFY_EMAIL = "joaovitorfanis1@gmail.com";
 const PROBE_PROMPT = "Respond with only the word OK.";

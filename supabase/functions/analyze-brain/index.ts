@@ -1,3 +1,4 @@
+// @ts-nocheck
 // @ts-expect-error Deno import
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 // @ts-expect-error Deno import
@@ -277,7 +278,8 @@ serve(async (req: Request) => {
     const { systemPrompt, userPrompt, radarField } = getPrompts(brainType as string, allText);
 
     const models = [
-      "google/gemini-2.5-flash",
+      "google/gemini-2.0-flash-001",
+      "google/gemini-2.0-pro-exp-02-05:free",
       "google/gemini-2.0-flash-lite-preview-02-05:free",
       "meta-llama/llama-3.3-70b-instruct:free",
       "qwen/qwen-2.5-72b-instruct:free",

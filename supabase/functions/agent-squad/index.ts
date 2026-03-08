@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -11,10 +12,14 @@ const MAX_ITERATIONS = 5;
 const MAX_CONTEXT_CHARS = 120_000;
 
 const MODELS = [
-  "google/gemini-2.0-flash-001",
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "mistralai/mistral-small-3.1-24b-instruct:free",
-];
+      "google/gemini-2.0-flash-001",
+      "google/gemini-2.0-pro-exp-02-05:free",
+      "google/gemini-2.0-flash-lite-preview-02-05:free",
+      "meta-llama/llama-3.3-70b-instruct:free",
+      "qwen/qwen-2.5-72b-instruct:free",
+      "mistralai/mistral-small-3.1-24b-instruct:free",
+      "cognitivecomputations/dolphin3.0-r1-mistral-24b:free"
+    ];
 
 async function callAI(
   messages: { role: string; content: string }[],

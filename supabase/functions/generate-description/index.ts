@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -125,8 +126,12 @@ serve(async (req) => {
     // 5-model waterfall — same pattern as generate-prompt
     const models = [
       "google/gemini-2.0-flash-001",
+      "google/gemini-2.0-pro-exp-02-05:free",
+      "google/gemini-2.0-flash-lite-preview-02-05:free",
       "meta-llama/llama-3.3-70b-instruct:free",
+      "qwen/qwen-2.5-72b-instruct:free",
       "mistralai/mistral-small-3.1-24b-instruct:free",
+      "cognitivecomputations/dolphin3.0-r1-mistral-24b:free"
     ];
 
     let description = "";
