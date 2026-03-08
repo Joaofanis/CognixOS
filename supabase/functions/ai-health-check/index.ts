@@ -177,15 +177,23 @@ serve(async (req) => {
     await sendEmailAlert(failed);
   }
 
+  // Sanitize results before returning — hide raw provider error details
+  const sanitizedResults = results.map((r) => ({
+    model: r.model,
+    status: r.status,
+    latency_ms: r.latency_ms,
+    ...(r.status === "fail" ? { error_msg: "Model check failed" } : {}),
+  }));
+
   const summary = {
     checked_at: new Date().toISOString(),
     total: results.length,
     ok: results.filter((r) => r.status === "ok").length,
     failed: failed.length,
-    results,
+    results: sanitizedResults,
   };
 
-  console.log("[ai-health-check] Done:", JSON.stringify(summary));
+  console.log("[ai-health-check] Done:", JSON.stringify({ ...summary, results }));
   return new Response(JSON.stringify(summary), {
     status: 200,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
