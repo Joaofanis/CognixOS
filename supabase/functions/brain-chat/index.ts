@@ -7,13 +7,22 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+function getUserIdFromJwt(authHeader: string): string {
+  const token = authHeader.replace("Bearer ", "");
+  const parts = token.split(".");
+  if (parts.length !== 3) throw new Error("Token inválido");
+  const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
+  if (!payload.sub) throw new Error("Token sem identificação");
+  return payload.sub;
+}
+
 // Validation constants
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const VALID_ROLES = ["user", "assistant", "system"];
-const MAX_MESSAGES = 1000;                            // 1k messages
-const MAX_MESSAGE_CONTENT_LENGTH = 4_000_000;         // ~4M chars per message
-const MAX_BODY_SIZE = 20 * 1024 * 1024;              // 20MB total body size
+const MAX_MESSAGES = 1000;
+const MAX_MESSAGE_CONTENT_LENGTH = 4_000_000;
+const MAX_BODY_SIZE = 20 * 1024 * 1024;
 
 serve(async (req) => {
   if (req.method === "OPTIONS")
@@ -172,20 +181,7 @@ serve(async (req) => {
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Verify User JWT
-    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: { user }, error: authError } = await userClient.auth.getUser();
-
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const userId = user.id;
+    const userId = getUserIdFromJwt(authHeader);
 
     // Use service role for data operations
     const supabase = createClient(supabaseUrl, supabaseServiceKey);

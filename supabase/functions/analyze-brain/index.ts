@@ -13,6 +13,15 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+function getUserIdFromJwt(authHeader: string): string {
+  const token = authHeader.replace("Bearer ", "");
+  const parts = token.split(".");
+  if (parts.length !== 3) throw new Error("Token inválido");
+  const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
+  if (!payload.sub) throw new Error("Token sem identificação");
+  return payload.sub;
+}
+
 /** Try to extract a JSON object from a raw text that may contain markdown fences or think tags. */
 function extractJSON(text: string): Record<string, unknown> | null {
   if (!text) return null;
@@ -214,20 +223,7 @@ serve(async (req: Request) => {
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-
-    const { data: { user }, error: userErr } = await userClient.auth.getUser();
-    if (userErr || !user) {
-      console.error("analyze-brain auth error:", userErr?.message);
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const userId = user.id;
+    const userId = getUserIdFromJwt(authHeader);
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const { data: brain, error: brainErr } = await supabase

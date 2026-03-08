@@ -7,6 +7,15 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+function getUserIdFromJwt(authHeader: string): string {
+  const token = authHeader.replace("Bearer ", "");
+  const parts = token.split(".");
+  if (parts.length !== 3) throw new Error("Token inválido");
+  const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
+  if (!payload.sub) throw new Error("Token sem identificação");
+  return payload.sub;
+}
+
 const TYPE_LABELS: Record<string, string> = {
   person_clone: "Clone de Pessoa",
   knowledge_base: "Base de Conhecimento",
@@ -33,21 +42,9 @@ serve(async (req) => {
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    // Use getUser() — the correct way to verify JWT in Supabase edge functions
-    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: { user }, error: authError } = await userClient.auth.getUser();
-
-    if (authError || !user) {
-      console.error("Auth error:", authError?.message);
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    // Verify auth via JWT decode (no network call)
+    getUserIdFromJwt(authHeader);
 
     // Safe JSON parsing
     let body: Record<string, unknown>;
