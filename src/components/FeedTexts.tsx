@@ -494,7 +494,7 @@ export default function FeedTexts({ brainId }: Props) {
               ) : (
                 <Trash2 className="h-4 w-4" />
               )}
-              Remover
+              {t("common.remove")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
