@@ -227,7 +227,7 @@ export default function FeedTexts({ brainId }: Props) {
         .eq("id", deleteTarget);
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ["brain-texts", brainId] });
-      toast.success("Texto removido");
+      toast.success(t("feed.textRemoved"));
     } catch (err: any) {
       toast.error(err.message);
     } finally {
