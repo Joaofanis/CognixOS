@@ -41,6 +41,7 @@ function AuthRoute({ children }: { children: React.ReactNode }) {
 const App = () => (
   <ErrorBoundary>
     <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+      <SettingsProvider>
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <Toaster />
