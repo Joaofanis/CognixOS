@@ -7,6 +7,15 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+function getUserIdFromJwt(authHeader: string): string {
+  const token = authHeader.replace("Bearer ", "");
+  const parts = token.split(".");
+  if (parts.length !== 3) throw new Error("Token inválido");
+  const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
+  if (!payload.sub) throw new Error("Token sem identificação");
+  return payload.sub;
+}
+
 const TYPE_LABELS: Record<string, string> = {
   person_clone: "Clone de Pessoa",
   knowledge_base: "Base de Conhecimento",
