@@ -93,10 +93,15 @@ async function sendEmailAlert(failed: ModelResult[]): Promise<void> {
     `Acesse o painel do AI Second Brain para mais detalhes.`,
   ].join("\n");
 
-  const client = new SmtpClient();
+  const client = new SMTPClient({
+    connection: {
+      hostname: smtpHost,
+      port: smtpPort,
+      tls: true,
+      auth: { username: smtpUser, password: smtpPass },
+    },
+  });
   try {
-    await client.connectTLS({ hostname: smtpHost, port: smtpPort });
-    await client.login({ username: smtpUser, password: smtpPass });
     await client.send({
       from: smtpUser,
       to: NOTIFY_EMAIL,
@@ -107,7 +112,7 @@ async function sendEmailAlert(failed: ModelResult[]): Promise<void> {
   } catch (err: unknown) {
     console.error("SMTP send error:", err instanceof Error ? err.message : String(err));
   } finally {
-    await client.close().catch(() => {});
+    await client.close();
   }
 }
 
