@@ -112,7 +112,7 @@ serve(async (req) => {
             "X-Title": "AI Second Brain - Quote Extractor",
           },
           body: JSON.stringify({
-            model: "google/gemini-2.5-flash-preview-09-2025",
+            model: "google/gemini-2.0-flash-001",
             messages: [
               {
                 role: "system",
