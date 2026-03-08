@@ -218,13 +218,10 @@ serve(async (req) => {
     systemPrompt += thinkingInstruction;
 
     const models = [
-      "google/gemini-2.0-flash-exp:free",
-      "google/gemini-2.5-pro-exp-03-25:free",
+      "google/gemini-2.0-flash-001:free",
+      "google/gemma-3-27b-it:free",
       "meta-llama/llama-3.3-70b-instruct:free",
-      "nvidia/nemotron-3-nano-30b-a3b:free",
-      "arcee-ai/trinity-large-preview:free",
-      "stepfun/step-3.5-flash:free",
-      "z-ai/glm-4.5-air:free",
+      "mistralai/mistral-small-3.1-24b-instruct:free",
     ];
 
     let lastErrorInfo = null;

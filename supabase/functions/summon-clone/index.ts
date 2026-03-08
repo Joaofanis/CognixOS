@@ -201,7 +201,7 @@ serve(async (req) => {
             ],
             stream: true,
             temperature: chatTemperature,
-            max_tokens: 128_000,
+            max_tokens: 16_000,
           }),
         });
 
