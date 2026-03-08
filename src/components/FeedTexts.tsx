@@ -140,7 +140,7 @@ export default function FeedTexts({ brainId }: Props) {
     if (!file) return;
     const ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
     if (![".txt", ".pdf", ".docx"].includes(ext)) {
-      toast.error("Formatos suportados: .txt, .pdf, .docx");
+      toast.error(t("feed.formatsSupported"));
       return;
     }
     setUploading(true);
