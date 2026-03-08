@@ -268,7 +268,7 @@ export default function Dashboard() {
         {/* Hero greeting */}
         <div className="space-y-1 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
-            Olá,{" "}
+            {t("dashboard.greeting")}{" "}
             <span className="text-gradient">
               {profile?.display_name
                 ? profile.display_name.split(" ")[0]
@@ -278,8 +278,8 @@ export default function Dashboard() {
           </h1>
           <p className="text-muted-foreground">
             {brains?.length
-              ? `${brains.length} cérebro${brains.length !== 1 ? "s" : ""} no seu segundo cérebro.`
-              : "Seus cérebros estão à sua espera."}
+              ? `${brains.length} ${t("dashboard.brainsCount")}`
+              : t("dashboard.brainsWaiting")}
           </p>
         </div>
 
