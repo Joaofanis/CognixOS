@@ -633,7 +633,7 @@ export default function ChatInterface({
               disabled={isStreaming}
               rows={1}
               spellCheck
-              lang={spellLang}
+              lang={language}
               className="w-full resize-none bg-transparent text-sm px-4 py-3.5 pr-2 outline-none text-foreground placeholder:text-muted-foreground overflow-y-auto"
             />
           </div>

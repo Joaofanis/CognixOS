@@ -237,6 +237,15 @@ export default function Dashboard() {
             <Button
               variant="ghost"
               size="sm"
+              onClick={() => navigate("/settings")}
+              className="rounded-2xl h-9 w-9 hover:bg-primary/10"
+              title="Configurações"
+            >
+              <Settings className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => navigate("/profile")}
               className="rounded-2xl h-9 w-9 hover:bg-primary/10"
             >
