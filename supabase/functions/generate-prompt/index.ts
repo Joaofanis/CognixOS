@@ -12,11 +12,10 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 
 // Model waterfall — tries in order, skips on rate-limit/error
 const MODELS = [
-  "meta-llama/llama-3.3-70b-instruct:free",
+  "google/gemini-2.0-flash-001:free",
   "google/gemma-3-27b-it:free",
-  "nvidia/nemotron-3-nano-30b-a3b:free",
-  "mistralai/mistral-7b-instruct:free",
-  "stepfun/step-3.5-flash:free",
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "mistralai/mistral-small-3.1-24b-instruct:free",
 ];
 
 serve(async (req) => {
