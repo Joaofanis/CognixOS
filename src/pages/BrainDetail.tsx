@@ -5,11 +5,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { BRAIN_TYPE_CONFIG, BrainType } from "@/lib/brain-types";
 import { useTranslation } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ArrowLeft, MessageSquare, FileText, BarChart3, MoreVertical,
   Pencil, Trash2, PlusCircle, Brain as BrainIcon, Sparkles,
-  PanelLeftClose, PanelLeft, Menu, Settings,
+  PanelLeftClose, PanelLeft, Menu, Settings, Check, X,
 } from "lucide-react";
 import FeedTexts from "@/components/FeedTexts";
 import ChatInterface from "@/components/ChatInterface";
