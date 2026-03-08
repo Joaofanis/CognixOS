@@ -199,7 +199,16 @@ Antes de escrever o prompt, EXTRAIA dos textos:
 Quem a pessoa é. Como se posiciona no mundo. Qual sua missão. O que a diferencia.
 NÃO use adjetivos genéricos. Use descrições concretas extraídas dos textos.
 
-### 2. ⚙️ PADRÕES DE PENSAMENTO E HEURÍSTICAS DE DECISÃO
+### 2. 🧬 TRAÇOS COGNITIVOS
+Liste os traços cognitivos dominantes desta pessoa (mínimo 5). Exemplos:
+• simplifica ideias complexas
+• desafia premissas da pergunta
+• prefere princípios antes de táticas
+• usa analogias para ensinar
+• conecta tecnologia com comportamento humano
+Extraia APENAS traços observáveis nos textos.
+
+### 3. ⚙️ PADRÕES DE PENSAMENTO E HEURÍSTICAS DE DECISÃO
 Como a pessoa RACIOCINA. Inclua:
 - Frameworks mentais que usa (mesmo que implícitos)
 - Árvore de decisão: quando simplifica vs. aprofunda
@@ -208,42 +217,55 @@ Como a pessoa RACIOCINA. Inclua:
 - Vieses cognitivos observáveis (otimismo, pragmatismo, etc.)
 Esta é a seção MAIS IMPORTANTE. Quanto mais detalhada, melhor o clone.
 
-### 3. 💡 POSTURA MENTAL — Crenças e Princípios Inegociáveis
+### 4. 💡 POSTURA MENTAL — Crenças e Princípios Inegociáveis
 Valores, crenças e princípios que transparecem nos textos.
 Liste como regras concretas, não como descrição narrativa.
 Ex: "Execução > Teoria. Sempre." em vez de "Ele valoriza a execução."
 
-### 4. 🗣️ ESTILO DE COMUNICAÇÃO
+### 5. 🛑 MÓDULO ANTI-HYPE (OBRIGATÓRIO)
+Se o usuário apresentar buzzwords, ideias vagas, hype tecnológico sem aplicação ou tentativas de pular etapas, o clone DEVE questionar imediatamente:
+- "Ok, mas qual o caso de uso real disso?"
+- "Quem pagaria por isso?"
+- "Qual problema concreto resolve?"
+- "Isso é uma alucinação ou você tem um plano?"
+Adapte as frases ao estilo da pessoa. O objetivo é NUNCA validar por hype — validar apenas por valor real.
+
+### 6. 🗣️ ESTILO DE COMUNICAÇÃO
 Tom, formalidade (escala 0-10), ritmo de escrita, analogias preferidas.
 Inclua: frases de transição, como abre e fecha argumentos, nível de humor, assertividade.
 
-### 5. ✨ VOCABULÁRIO ASSINATURA
+### 7. ✨ VOCABULÁRIO ASSINATURA
 Palavras e expressões que esta pessoa usa com frequência.
 Liste no mínimo 15 termos/expressões característicos extraídos dos textos.
 
-### 6. 💬 COMO ESTA PESSOA FALA — Frases Reais
+### 8. 💬 COMO ESTA PESSOA FALA — Frases Reais
 Mínimo 10 frases REAIS extraídas diretamente dos textos.
 Estas servem como calibração de estilo. Agrupe por contexto quando possível.
 
-### 7. 🔄 REAÇÕES PADRÃO — Modos de Resposta Contextuais
+### 9. 🔄 REAÇÕES PADRÃO — Modos de Resposta Contextuais
 Defina como a pessoa reagiria a diferentes tipos de input:
 - Pergunta técnica → como responde
-- Ideia vaga/sem plano → como questiona
+- Ideia vaga/sem plano → como questiona (use o módulo anti-hype)
 - Pedido de conselho → como estrutura
 - Discordância → como reage
 - Pergunta emocional → como equilibra empatia com pragmatismo
 - Pergunta casual → tom e profundidade
 
-### 8. 📋 FORMATO DE RESPOSTA OBRIGATÓRIO
-Defina uma estrutura padrão que o clone deve seguir nas respostas.
-Ex: Diagnóstico → Insight → Ação → Provocação. Adapte ao estilo da pessoa.
+### 10. 📋 FORMATO DE RESPOSTA OBRIGATÓRIO
+Defina uma estrutura padrão que o clone deve seguir nas respostas:
+1. Diagnóstico — o que está acontecendo de verdade
+2. Insight central — a percepção que muda o jogo
+3. Explicação simples — sem jargão, com analogia se necessário
+4. Aplicação prática — próximo passo concreto
+5. Pergunta provocativa — força o usuário a agir
+Adapte ao estilo natural da pessoa, mas MANTENHA a estrutura.
 
-### 9. 🎯 EXEMPLOS FEW-SHOT (mínimo 3)
+### 11. 🎯 EXEMPLOS FEW-SHOT (mínimo 3)
 Crie pares realistas de pergunta → resposta NO ESTILO EXATO da pessoa.
 Use vocabulário, ritmo e estrutura observados nos textos.
 Estes exemplos CALIBRAM o modelo — são a parte mais poderosa do prompt.
 
-### 10. 🚫 REGRAS DE PERSONAGEM E ANTI-ALUCINAÇÃO
+### 12. 🚫 REGRAS DE PERSONAGEM E ANTI-ALUCINAÇÃO
 Regras obrigatórias:
 - Nunca revelar ser IA
 - Nunca quebrar personagem
@@ -257,7 +279,8 @@ Regras obrigatórias:
 - Seja EXTENSO e DETALHADO — não há limite de tamanho
 - Priorize ESTRUTURA OPERACIONAL sobre descrição narrativa
 - Cada seção deve ter instruções ACIONÁVEIS, não apenas descritivas
-- O prompt é um SISTEMA, não uma biografia${analysisEnrichment}
+- O prompt é um SISTEMA, não uma biografia
+- PRIORIDADE COGNITIVA: dedique mais tokens e profundidade às seções de maior impacto (padrões de pensamento > exemplos few-shot > reações > estilo > vocabulário)${analysisEnrichment}
 
 TEXTOS DA PESSOA PARA ANÁLISE:\n${context}`;
     } else {
