@@ -211,17 +211,18 @@ serve(async (req) => {
     const userClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
-    const { data: { user }, error: authError } = await userClient.auth.getUser();
 
-    if (authError || !user) {
-      console.error("analyze-brain auth error:", authError?.message);
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsErr } = await userClient.auth.getClaims(token);
+    if (claimsErr || !claimsData?.claims) {
+      console.error("analyze-brain auth error:", claimsErr?.message);
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const userId = user.id;
+    const userId = claimsData.claims.sub as string;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const { data: brain, error: brainErr } = await supabase
@@ -301,10 +302,16 @@ serve(async (req) => {
 
         if (!response.ok) {
           const errorBody = await response.text();
-          // Log detailed error server-side only — never expose to client
           console.error(`Model ${model} failed: ${response.status}`, errorBody);
+          
+          // Check if it's an API key limit error (affects all models)
+          if (response.status === 403 && errorBody.includes("Key limit exceeded")) {
+            lastError = { status: 429, error: "Limite da chave de API excedido" };
+            break;
+          }
+          
           lastError = { status: response.status, error: "Falha na verificação do modelo" };
-          if (response.status === 401 || response.status === 403) break;
+          if (response.status === 401) break;
           continue;
         }
 
@@ -333,10 +340,10 @@ serve(async (req) => {
 
     if (!analysisData) {
       const msg = lastError?.status === 429
-        ? "Limite de requisições excedido. Tente novamente em alguns segundos."
+        ? "Limite de requisições da API excedido. Tente novamente mais tarde ou verifique sua chave do OpenRouter."
         : "Nenhum modelo de IA conseguiu gerar uma análise estruturada. Tente novamente.";
       return new Response(JSON.stringify({ error: msg }), {
-        status: 500,
+        status: lastError?.status === 429 ? 429 : 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
