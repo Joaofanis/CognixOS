@@ -146,18 +146,12 @@ serve(async (req) => {
     const authHeader = req.headers.get("authorization");
     if (!authHeader?.startsWith("Bearer ")) throw new Error("Não autenticado");
 
+    const userId = getUserIdFromJwt(authHeader);
+
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { authorization: authHeader } } }
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
-
-    const { data: { user }, error: userErr } = await supabase.auth.getUser();
-    if (userErr || !user) {
-      console.error("import-url auth error:", userErr?.message);
-      throw new Error("Token inválido");
-    }
-    const userId = user.id;
 
     // Verify brain belongs to user
     const { data: brain, error: brainErr } = await supabase
