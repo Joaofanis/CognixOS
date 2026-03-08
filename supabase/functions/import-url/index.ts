@@ -142,13 +142,12 @@ serve(async (req) => {
       { global: { headers: { authorization: authHeader } } }
     );
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsErr } = await supabase.auth.getClaims(token);
-    if (claimsErr || !claimsData?.claims) {
-      console.error("import-url auth error:", claimsErr?.message);
+    const { data: { user }, error: userErr } = await supabase.auth.getUser();
+    if (userErr || !user) {
+      console.error("import-url auth error:", userErr?.message);
       throw new Error("Token inválido");
     }
-    const userId = claimsData.claims.sub as string;
+    const userId = user.id;
 
     // Verify brain belongs to user
     const { data: brain, error: brainErr } = await supabase
