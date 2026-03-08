@@ -136,15 +136,7 @@ export default function ChatInterface({
       b.id !== brainType,
   );
 
-  const toggleLang = () => {
-    const next = spellLang === "pt-BR" ? "en-US" : "pt-BR";
-    setSpellLang(next);
-    toast.success(
-      next === "pt-BR"
-        ? "🇧🇷 Corretor: Português (BR)"
-        : "🇺🇸 Spell checker: English (US)",
-    );
-  };
+  // Language now comes from global settings
 
   useEffect(() => {
     if (scrollRef.current) {
