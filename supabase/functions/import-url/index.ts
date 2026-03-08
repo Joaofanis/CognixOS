@@ -149,7 +149,7 @@ serve(async (req) => {
 
     // Verify brain belongs to user
     const { data: brain, error: brainErr } = await supabase
-      .from("brains").select("id").eq("id", brainId).eq("user_id", user.id).single();
+      .from("brains").select("id").eq("id", brainId).eq("user_id", userId).single();
     if (brainErr || !brain) throw new Error("Brain não encontrado");
 
     // === YouTube handling ===
