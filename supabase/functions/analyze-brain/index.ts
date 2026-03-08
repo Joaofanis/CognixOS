@@ -256,21 +256,12 @@ serve(async (req) => {
     const { systemPrompt, userPrompt, radarField } = getPrompts(brainType, allText);
 
     // For person_clone use more capable models first
-    const models = brainType === "person_clone"
-      ? [
-          "meta-llama/llama-3.3-70b-instruct:free",
-          "google/gemma-3-27b-it:free",
-          "nvidia/nemotron-3-nano-30b-a3b:free",
-          "stepfun/step-3.5-flash:free",
-          "mistralai/mistral-7b-instruct:free",
-        ]
-      : [
-          "meta-llama/llama-3.3-70b-instruct:free",
-          "nvidia/nemotron-3-nano-30b-a3b:free",
-          "stepfun/step-3.5-flash:free",
-          "google/gemma-3-27b-it:free",
-          "mistralai/mistral-7b-instruct:free",
-        ];
+    const models = [
+      "google/gemini-2.0-flash-001:free",
+      "google/gemma-3-27b-it:free",
+      "meta-llama/llama-3.3-70b-instruct:free",
+      "mistralai/mistral-small-3.1-24b-instruct:free",
+    ];
 
     let analysisData: Record<string, unknown> | null = null;
     let lastError: { status?: number; text?: string; error?: string } | null = null;
