@@ -37,6 +37,7 @@ interface Props {
 
 export default function FeedTexts({ brainId }: Props) {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
   const [text, setText] = useState("");
   const [textExpanded, setTextExpanded] = useState(false);
   const [adding, setAdding] = useState(false);
