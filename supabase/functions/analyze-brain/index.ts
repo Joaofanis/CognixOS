@@ -208,19 +208,21 @@ serve(async (req) => {
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
+    // Use getClaims() for faster local JWT validation (no network call)
     const userClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
-    const { data: { user }, error: authError } = await userClient.auth.getUser();
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
 
-    if (authError || !user) {
+    if (claimsError || !claimsData?.claims) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const userId = user.id;
+    const userId = claimsData.claims.sub as string;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const { data: brain, error: brainErr } = await supabase
@@ -299,9 +301,10 @@ serve(async (req) => {
         });
 
         if (!response.ok) {
-          const t = await response.text();
-          console.error(`Model ${model} failed: ${response.status}`, t);
-          lastError = { status: response.status, text: t };
+          const errorBody = await response.text();
+          // Log detailed error server-side only — never expose to client
+          console.error(`Model ${model} failed: ${response.status}`, errorBody);
+          lastError = { status: response.status, error: "Falha na verificação do modelo" };
           if (response.status === 401 || response.status === 403) break;
           continue;
         }
