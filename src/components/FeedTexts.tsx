@@ -123,7 +123,7 @@ export default function FeedTexts({ brainId }: Props) {
       if (error) throw error;
       setText("");
       queryClient.invalidateQueries({ queryKey: ["brain-texts", brainId] });
-      toast.success("Texto adicionado!");
+      toast.success(t("feed.textAdded"));
       // Trigger RAG processing in background
       if (data) triggerRagProcessing(data.id);
       // Trigger analysis update in background (fire-and-forget)
