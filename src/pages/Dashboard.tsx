@@ -177,7 +177,7 @@ export default function Dashboard() {
         .eq("id", brainId);
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ["brains", user?.id] });
-      toast.success(pinned ? "Brain desafixado" : "Brain fixado no topo!");
+      toast.success(pinned ? t("dashboard.unpinned") : t("dashboard.pinned"));
     } catch (err: any) {
       toast.error(err.message);
     } finally {
