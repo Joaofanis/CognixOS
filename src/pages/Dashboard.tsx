@@ -365,7 +365,7 @@ export default function Dashboard() {
             className={`cursor-pointer shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${filterType === "all" ? "gradient-jewel border-transparent text-white shadow-md shadow-primary/20" : "hover:border-primary/50 hover:text-primary"}`}
             onClick={() => setFilterType("all")}
           >
-            Todos
+            {t("common.all")}
           </Badge>
           {(
             Object.entries(BRAIN_TYPE_CONFIG) as [
