@@ -12,7 +12,9 @@ import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import GeneralChat from "./pages/GeneralChat";
 import UserProfileAI from "./pages/UserProfileAI";
+import Settings from "./pages/Settings";
 import { ThemeProvider } from "./components/ThemeProvider";
+import { SettingsProvider } from "./hooks/useSettings";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 
 const queryClient = new QueryClient();
