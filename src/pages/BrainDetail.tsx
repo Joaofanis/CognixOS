@@ -131,6 +131,20 @@ export default function BrainDetail() {
     }
   };
 
+  const handleRenameConversation = async (convId: string) => {
+    const trimmed = editingConvTitle.trim();
+    if (!trimmed) { setEditingConvId(null); return; }
+    try {
+      const { error } = await supabase.from("conversations").update({ title: trimmed }).eq("id", convId);
+      if (error) throw error;
+      toast.success(t("picker.conversationRenamed"));
+      queryClient.invalidateQueries({ queryKey: ["conversations", id] });
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+    setEditingConvId(null);
+  };
+
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
