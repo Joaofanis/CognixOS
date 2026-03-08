@@ -234,9 +234,11 @@ TEXTOS DO CLONE:\n${context}`;
 
     if (!generatedPrompt) {
       const isRateLimit = lastError?.status === 429;
+      // Log raw error server-side only — never expose provider details to client
+      console.error("generate-prompt: all models failed. Last error:", JSON.stringify(lastError));
       const errorMsg = isRateLimit
         ? "Limite de requisições excedido pelos modelos de IA. Aguarde alguns segundos e tente novamente."
-        : `Falha em todos os modelos de IA. Último erro: ${lastError?.text || "desconhecido"}`;
+        : "Falha ao gerar o prompt. Todos os modelos de IA estão indisponíveis no momento. Tente novamente em alguns instantes.";
       return new Response(JSON.stringify({ error: errorMsg }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
