@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useTranslation } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +15,7 @@ export default function Profile() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
   const [displayName, setDisplayName] = useState("");
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -46,7 +48,7 @@ export default function Profile() {
         .eq("id", user.id);
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ["profile", user.id] });
-      toast.success("Perfil atualizado!");
+      toast.success(t("profile.updated"));
     } catch (err: any) {
       toast.error(err.message);
     } finally {
@@ -60,11 +62,11 @@ export default function Profile() {
 
     const ext = file.name.split(".").pop()?.toLowerCase();
     if (!["jpg", "jpeg", "png", "webp", "gif"].includes(ext || "")) {
-      toast.error("Formatos suportados: JPG, PNG, WEBP, GIF");
+      toast.error(t("profile.avatarFormats"));
       return;
     }
     if (file.size > 2 * 1024 * 1024) {
-      toast.error("Arquivo muito grande. Máximo: 2MB");
+      toast.error(t("profile.avatarTooLarge"));
       return;
     }
 
@@ -89,9 +91,9 @@ export default function Profile() {
       if (updateErr) throw updateErr;
 
       queryClient.invalidateQueries({ queryKey: ["profile", user.id] });
-      toast.success("Avatar atualizado!");
+      toast.success(t("profile.avatarUpdated"));
     } catch (err: any) {
-      toast.error(err.message || "Erro ao fazer upload do avatar");
+      toast.error(err.message || t("common.error"));
     } finally {
       setUploadingAvatar(false);
       e.target.value = "";
@@ -106,7 +108,6 @@ export default function Profile() {
 
   return (
     <div className="min-h-screen bg-mesh bg-background">
-      {/* Ambient orbs */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-40 -left-40 w-80 h-80 bg-primary/8 rounded-full blur-3xl" />
         <div className="absolute top-10 right-10 w-60 h-60 bg-accent/6 rounded-full blur-3xl" />
@@ -114,15 +115,10 @@ export default function Profile() {
 
       <header className="sticky top-0 z-20 glass border-b border-border/50">
         <div className="container flex h-16 items-center gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate("/")}
-            className="rounded-2xl h-9 w-9"
-          >
+          <Button variant="ghost" size="icon" onClick={() => navigate("/")} className="rounded-2xl h-9 w-9">
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <h1 className="font-extrabold text-lg text-gradient">Meu Perfil</h1>
+          <h1 className="font-extrabold text-lg text-gradient">{t("profile.title")}</h1>
         </div>
       </header>
 
@@ -131,27 +127,19 @@ export default function Profile() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <User className="h-5 w-5 text-primary" />
-              Informações do Perfil
+              {t("profile.info")}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Avatar */}
             <div className="flex flex-col items-center gap-3">
               <div className="relative group">
                 <div className="h-24 w-24 rounded-3xl overflow-hidden bg-gradient-to-br from-primary/20 to-accent/10 border-2 border-primary/20 flex items-center justify-center shadow-xl shadow-primary/10">
                   {avatarUrl ? (
-                    <img
-                      src={avatarUrl}
-                      alt="Avatar"
-                      className="h-full w-full object-cover"
-                    />
+                    <img src={avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
                   ) : (
-                    <span className="text-2xl font-extrabold text-primary/80">
-                      {initials}
-                    </span>
+                    <span className="text-2xl font-extrabold text-primary/80">{initials}</span>
                   )}
                 </div>
-                {/* Upload overlay */}
                 <label className="absolute inset-0 rounded-3xl bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
                   {uploadingAvatar ? (
                     <Loader2 className="h-6 w-6 text-white animate-spin" />
@@ -167,25 +155,19 @@ export default function Profile() {
                   />
                 </label>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Passe o mouse para trocar o avatar
-              </p>
+              <p className="text-xs text-muted-foreground">{t("profile.hoverAvatar")}</p>
             </div>
 
             <div className="space-y-2">
-              <Label>Email</Label>
-              <Input
-                value={user?.email || ""}
-                disabled
-                className="rounded-2xl"
-              />
+              <Label>{t("auth.email")}</Label>
+              <Input value={user?.email || ""} disabled className="rounded-2xl" />
             </div>
             <div className="space-y-2">
-              <Label>Nome de exibição</Label>
+              <Label>{t("profile.displayName")}</Label>
               <Input
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="Seu nome"
+                placeholder={t("profile.namePlaceholder")}
                 className="rounded-2xl"
                 disabled={isLoading}
                 onKeyDown={(e) => e.key === "Enter" && handleSave()}
@@ -196,12 +178,8 @@ export default function Profile() {
               disabled={saving || isLoading}
               className="w-full gap-2 rounded-2xl gradient-jewel text-white font-semibold"
             >
-              {saving ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4" />
-              )}
-              Salvar
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              {t("common.save")}
             </Button>
           </CardContent>
         </Card>

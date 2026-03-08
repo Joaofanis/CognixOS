@@ -1,20 +1,20 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Brain, Home, ArrowLeft, Sparkles } from "lucide-react";
+import { useTranslation } from "@/lib/i18n";
 
 export default function NotFound() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   return (
     <div className="min-h-screen bg-mesh bg-background relative flex items-center justify-center p-4 overflow-hidden">
-      {/* Ambient orbs */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute -top-60 -left-40 w-[400px] h-[400px] bg-primary/10 rounded-full blur-3xl" />
         <div className="absolute -bottom-40 right-0 w-[350px] h-[350px] bg-accent/8 rounded-full blur-3xl" />
       </div>
 
       <div className="text-center space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700 relative max-w-md">
-        {/* Glowing 404 */}
         <div className="relative inline-block">
           <div className="text-[120px] font-black leading-none tracking-tighter text-gradient opacity-20 select-none">
             404
@@ -33,10 +33,10 @@ export default function NotFound() {
 
         <div className="space-y-3">
           <h1 className="text-3xl font-extrabold tracking-tight">
-            Página não encontrada
+            {t("notFound.title")}
           </h1>
           <p className="text-muted-foreground max-w-xs mx-auto leading-relaxed">
-            Este caminho não existe no seu segundo cérebro. Que tal voltar para o início?
+            {t("notFound.desc")}
           </p>
         </div>
 
@@ -47,14 +47,14 @@ export default function NotFound() {
             className="gap-2 rounded-2xl border-border/60 hover:border-primary/40 hover:bg-primary/5 font-semibold"
           >
             <ArrowLeft className="h-4 w-4" />
-            Voltar
+            {t("common.back")}
           </Button>
           <Button
             onClick={() => navigate("/")}
             className="gap-2 rounded-2xl gradient-jewel text-white font-bold shadow-lg shadow-primary/25 hover:opacity-90 active:scale-[0.98] transition-all"
           >
             <Home className="h-4 w-4" />
-            Ir para o início
+            {t("notFound.goHome")}
           </Button>
         </div>
       </div>

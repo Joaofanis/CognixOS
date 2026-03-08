@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSettings, FontSize, Language } from "@/hooks/useSettings";
+import { useTranslation } from "@/lib/i18n";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -18,16 +19,10 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  ArrowLeft, Eye, Languages, Lock, Trash2, Database, Info,
+  ArrowLeft, Languages, Lock, Trash2, Database, Info,
   Type, Contrast, MonitorCog, Accessibility,
 } from "lucide-react";
 import { toast } from "sonner";
-
-const FONT_OPTIONS: { value: FontSize; label: string; desc: string }[] = [
-  { value: "normal", label: "Normal", desc: "16px — padrão" },
-  { value: "large", label: "Grande", desc: "18px — leitura confortável" },
-  { value: "xlarge", label: "Extra Grande", desc: "20px — alta visibilidade" },
-];
 
 const LANG_OPTIONS: { value: Language; label: string; flag: string }[] = [
   { value: "pt-BR", label: "Português (BR)", flag: "🇧🇷" },
@@ -38,49 +33,54 @@ const LANG_OPTIONS: { value: Language; label: string; flag: string }[] = [
 export default function Settings() {
   const navigate = useNavigate();
   const { fontSize, setFontSize, highContrast, setHighContrast, reducedMotion, setReducedMotion, language, setLanguage } = useSettings();
+  const { t } = useTranslation();
   const { signOut } = useAuth();
   const queryClient = useQueryClient();
 
-  // Password change
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
-
-  // Delete account
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteText, setDeleteText] = useState("");
   const [deletingAccount, setDeletingAccount] = useState(false);
 
+  const FONT_OPTIONS: { value: FontSize; label: string; desc: string }[] = [
+    { value: "normal", label: t("settings.fontNormal"), desc: t("settings.fontNormalDesc") },
+    { value: "large", label: t("settings.fontLarge"), desc: t("settings.fontLargeDesc") },
+    { value: "xlarge", label: t("settings.fontXlarge"), desc: t("settings.fontXlargeDesc") },
+  ];
+
+  const deleteConfirmWord = t("settings.deleteConfirmWord");
+
   const handleChangePassword = async () => {
     if (newPassword.length < 6) {
-      toast.error("A senha deve ter pelo menos 6 caracteres");
+      toast.error(t("settings.passwordMinLength"));
       return;
     }
     if (newPassword !== confirmPassword) {
-      toast.error("As senhas não coincidem");
+      toast.error(t("settings.passwordMismatch"));
       return;
     }
     setChangingPassword(true);
     try {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
-      toast.success("Senha alterada com sucesso!");
+      toast.success(t("settings.passwordChanged"));
       setShowPasswordDialog(false);
       setNewPassword("");
       setConfirmPassword("");
     } catch (err: any) {
-      toast.error(err.message || "Erro ao alterar senha");
+      toast.error(err.message || t("common.error"));
     } finally {
       setChangingPassword(false);
     }
   };
 
   const handleDeleteAccount = async () => {
-    if (deleteText !== "EXCLUIR") return;
+    if (deleteText !== deleteConfirmWord) return;
     setDeletingAccount(true);
     try {
-      // Delete user data (brains cascade handles texts, quotes, etc.)
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         await supabase.from("brains").delete().eq("user_id", user.id);
@@ -88,10 +88,10 @@ export default function Settings() {
         await supabase.from("user_ai_profiles").delete().eq("user_id", user.id);
       }
       await signOut();
-      toast.success("Conta excluída. Seus dados foram removidos.");
+      toast.success(t("settings.accountDeleted"));
       navigate("/auth");
     } catch (err: any) {
-      toast.error(err.message || "Erro ao excluir conta");
+      toast.error(err.message || t("common.error"));
     } finally {
       setDeletingAccount(false);
       setShowDeleteConfirm(false);
@@ -111,7 +111,7 @@ export default function Settings() {
     localStorage.clear();
     Object.entries(preserved).forEach(([k, v]) => localStorage.setItem(k, v));
     queryClient.clear();
-    toast.success("Cache limpo com sucesso!");
+    toast.success(t("settings.cacheCleared"));
   };
 
   return (
@@ -121,7 +121,7 @@ export default function Settings() {
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="rounded-2xl h-9 w-9">
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <h1 className="font-bold text-lg">Configurações</h1>
+          <h1 className="font-bold text-lg">{t("settings.title")}</h1>
         </div>
       </header>
 
@@ -131,16 +131,15 @@ export default function Settings() {
           <CardHeader className="pb-4">
             <div className="flex items-center gap-2">
               <Accessibility className="h-5 w-5 text-primary" />
-              <CardTitle className="text-lg">Acessibilidade</CardTitle>
+              <CardTitle className="text-lg">{t("settings.accessibility")}</CardTitle>
             </div>
-            <CardDescription>Ajuste a interface para suas necessidades</CardDescription>
+            <CardDescription>{t("settings.accessibilityDesc")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Font Size */}
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <Type className="h-4 w-4 text-muted-foreground" />
-                <Label className="font-semibold">Tamanho da Fonte</Label>
+                <Label className="font-semibold">{t("settings.fontSize")}</Label>
               </div>
               <div className="grid grid-cols-3 gap-2">
                 {FONT_OPTIONS.map((opt) => (
@@ -160,25 +159,23 @@ export default function Settings() {
               </div>
             </div>
 
-            {/* High Contrast */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Contrast className="h-4 w-4 text-muted-foreground" />
                 <div>
-                  <Label className="font-semibold">Alto Contraste</Label>
-                  <p className="text-xs text-muted-foreground">Aumenta contraste de cores para melhor legibilidade</p>
+                  <Label className="font-semibold">{t("settings.highContrast")}</Label>
+                  <p className="text-xs text-muted-foreground">{t("settings.highContrastDesc")}</p>
                 </div>
               </div>
               <Switch checked={highContrast} onCheckedChange={setHighContrast} />
             </div>
 
-            {/* Reduced Motion */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <MonitorCog className="h-4 w-4 text-muted-foreground" />
                 <div>
-                  <Label className="font-semibold">Reduzir Animações</Label>
-                  <p className="text-xs text-muted-foreground">Desativa animações para reduzir estímulos visuais</p>
+                  <Label className="font-semibold">{t("settings.reducedMotion")}</Label>
+                  <p className="text-xs text-muted-foreground">{t("settings.reducedMotionDesc")}</p>
                 </div>
               </div>
               <Switch checked={reducedMotion} onCheckedChange={setReducedMotion} />
@@ -191,9 +188,9 @@ export default function Settings() {
           <CardHeader className="pb-4">
             <div className="flex items-center gap-2">
               <Languages className="h-5 w-5 text-primary" />
-              <CardTitle className="text-lg">Idioma</CardTitle>
+              <CardTitle className="text-lg">{t("settings.language")}</CardTitle>
             </div>
-            <CardDescription>Defina o idioma do corretor ortográfico e da interface</CardDescription>
+            <CardDescription>{t("settings.languageDesc")}</CardDescription>
           </CardHeader>
           <CardContent>
             <Select value={language} onValueChange={(v) => setLanguage(v as Language)}>
@@ -211,9 +208,7 @@ export default function Settings() {
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-xs text-muted-foreground mt-2">
-              O corretor ortográfico do chat usará o idioma selecionado.
-            </p>
+            <p className="text-xs text-muted-foreground mt-2">{t("settings.languageHint")}</p>
           </CardContent>
         </Card>
 
@@ -222,18 +217,18 @@ export default function Settings() {
           <CardHeader className="pb-4">
             <div className="flex items-center gap-2">
               <Lock className="h-5 w-5 text-primary" />
-              <CardTitle className="text-lg">Segurança</CardTitle>
+              <CardTitle className="text-lg">{t("settings.security")}</CardTitle>
             </div>
-            <CardDescription>Gerencie sua senha e conta</CardDescription>
+            <CardDescription>{t("settings.securityDesc")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <Button variant="outline" className="w-full justify-start gap-2 rounded-xl" onClick={() => setShowPasswordDialog(true)}>
               <Lock className="h-4 w-4" />
-              Alterar Senha
+              {t("settings.changePassword")}
             </Button>
             <Button variant="outline" className="w-full justify-start gap-2 rounded-xl text-destructive hover:text-destructive hover:bg-destructive/10 hover:border-destructive/40" onClick={() => setShowDeleteConfirm(true)}>
               <Trash2 className="h-4 w-4" />
-              Excluir Conta
+              {t("settings.deleteAccount")}
             </Button>
           </CardContent>
         </Card>
@@ -243,18 +238,16 @@ export default function Settings() {
           <CardHeader className="pb-4">
             <div className="flex items-center gap-2">
               <Database className="h-5 w-5 text-primary" />
-              <CardTitle className="text-lg">Dados</CardTitle>
+              <CardTitle className="text-lg">{t("settings.data")}</CardTitle>
             </div>
-            <CardDescription>Gerencie seus dados locais</CardDescription>
+            <CardDescription>{t("settings.dataDesc")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <Button variant="outline" className="w-full justify-start gap-2 rounded-xl" onClick={handleClearCache}>
               <Trash2 className="h-4 w-4" />
-              Limpar Cache Local
+              {t("settings.clearCache")}
             </Button>
-            <p className="text-xs text-muted-foreground">
-              Remove dados armazenados no navegador sem desconectar sua conta.
-            </p>
+            <p className="text-xs text-muted-foreground">{t("settings.clearCacheDesc")}</p>
           </CardContent>
         </Card>
 
@@ -263,13 +256,13 @@ export default function Settings() {
           <CardHeader className="pb-4">
             <div className="flex items-center gap-2">
               <Info className="h-5 w-5 text-primary" />
-              <CardTitle className="text-lg">Sobre</CardTitle>
+              <CardTitle className="text-lg">{t("settings.about")}</CardTitle>
             </div>
           </CardHeader>
           <CardContent className="space-y-1">
-            <p className="text-sm text-foreground font-medium">Segundo Cérebro</p>
-            <p className="text-xs text-muted-foreground">Versão 1.0.0</p>
-            <p className="text-xs text-muted-foreground">Plataforma de clones de IA e base de conhecimento</p>
+            <p className="text-sm text-foreground font-medium">{t("auth.title")}</p>
+            <p className="text-xs text-muted-foreground">{t("settings.version")}</p>
+            <p className="text-xs text-muted-foreground">{t("settings.appDesc")}</p>
           </CardContent>
         </Card>
       </main>
@@ -278,23 +271,23 @@ export default function Settings() {
       <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
         <DialogContent className="sm:rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Alterar Senha</DialogTitle>
-            <DialogDescription>Digite sua nova senha abaixo.</DialogDescription>
+            <DialogTitle>{t("settings.changePasswordDialogTitle")}</DialogTitle>
+            <DialogDescription>{t("settings.changePasswordDialogDesc")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label>Nova Senha</Label>
-              <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Mínimo 6 caracteres" className="rounded-xl" />
+              <Label>{t("settings.newPasswordLabel")}</Label>
+              <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder={t("settings.newPasswordPlaceholder")} className="rounded-xl" />
             </div>
             <div className="space-y-2">
-              <Label>Confirmar Senha</Label>
-              <Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Repita a nova senha" className="rounded-xl" />
+              <Label>{t("settings.confirmPassword")}</Label>
+              <Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder={t("settings.confirmPasswordPlaceholder")} className="rounded-xl" />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowPasswordDialog(false)} className="rounded-xl">Cancelar</Button>
+            <Button variant="outline" onClick={() => setShowPasswordDialog(false)} className="rounded-xl">{t("common.cancel")}</Button>
             <Button onClick={handleChangePassword} disabled={changingPassword} className="rounded-xl">
-              {changingPassword ? "Alterando..." : "Alterar Senha"}
+              {changingPassword ? t("settings.changingPassword") : t("settings.changePassword")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -304,22 +297,27 @@ export default function Settings() {
       <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <AlertDialogContent className="sm:rounded-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir Conta</AlertDialogTitle>
+            <AlertDialogTitle>{t("settings.deleteAccountTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação é irreversível. Todos os seus cérebros, textos, conversas e perfil serão permanentemente excluídos.
+              {t("settings.deleteAccountDesc")}
               <br /><br />
-              Digite <strong>EXCLUIR</strong> para confirmar.
+              {language === "en-US" 
+                ? <>Type <strong>DELETE</strong> to confirm.</>
+                : language === "es-ES"
+                ? <>Escribe <strong>ELIMINAR</strong> para confirmar.</>
+                : <>Digite <strong>EXCLUIR</strong> para confirmar.</>
+              }
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <Input value={deleteText} onChange={(e) => setDeleteText(e.target.value)} placeholder="Digite EXCLUIR" className="rounded-xl" />
+          <Input value={deleteText} onChange={(e) => setDeleteText(e.target.value)} placeholder={t("settings.deleteConfirmPlaceholder")} className="rounded-xl" />
           <AlertDialogFooter>
-            <AlertDialogCancel className="rounded-xl">Cancelar</AlertDialogCancel>
+            <AlertDialogCancel className="rounded-xl">{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteAccount}
-              disabled={deleteText !== "EXCLUIR" || deletingAccount}
+              disabled={deleteText !== deleteConfirmWord || deletingAccount}
               className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deletingAccount ? "Excluindo..." : "Excluir Conta"}
+              {deletingAccount ? t("settings.deletingAccount") : t("settings.deleteAccount")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
