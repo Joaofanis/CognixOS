@@ -13,6 +13,15 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+function getUserIdFromJwt(authHeader: string): string {
+  const token = authHeader.replace("Bearer ", "");
+  const parts = token.split(".");
+  if (parts.length !== 3) throw new Error("Token inválido");
+  const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
+  if (!payload.sub) throw new Error("Token sem identificação");
+  return payload.sub;
+}
+
 /** Try to extract a JSON object from a raw text that may contain markdown fences or think tags. */
 function extractJSON(text: string): Record<string, unknown> | null {
   if (!text) return null;
