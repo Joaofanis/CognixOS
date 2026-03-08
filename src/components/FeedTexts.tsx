@@ -390,7 +390,7 @@ export default function FeedTexts({ brainId }: Props) {
                   disabled={processingRag}
                   onClick={async () => {
                     setProcessingRag(true);
-                    toast.info("Processando fontes com IA...");
+                    toast.info(t("feed.processingAi"));
                     await triggerRagProcessing();
                     queryClient.invalidateQueries({
                       queryKey: ["brain-texts", brainId],
