@@ -4,39 +4,19 @@ import type { ChatMode, Message } from "./useBrainChat";
 
 const GENERAL_CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/general-chat`;
 
-interface UseGeneralChatProps {
-  onConversationCreated?: (convId: string) => void;
-}
-
 export type { ChatMode, Message };
 
-export function useGeneralChat({ onConversationCreated }: UseGeneralChatProps = {}) {
+export function useGeneralChat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
-  const [conversationId, setConversationId] = useState<string | null>(null);
   const [activeBrainId, setActiveBrainId] = useState<string | null>(null);
-  const [activeBrainName, setActiveBrainName] = useState<string>("Assistente");
+  const [activeBrainName, setActiveBrainName] = useState<string>("Assistente Geral");
 
   const abortControllerRef = useRef<AbortController | null>(null);
-  const lastUserInputRef = useRef<string>("");
-  const conversationIdRef = useRef<string | null>(null);
-  conversationIdRef.current = conversationId;
-
-  const loadHistory = async (convId: string) => {
-    setMessages([]);
-    setConversationId(convId);
-    const { data: msgs } = await supabase
-      .from("messages")
-      .select("role, content")
-      .eq("conversation_id", convId)
-      .order("created_at", { ascending: true });
-    if (msgs) setMessages(msgs as Message[]);
-  };
 
   const resetChat = () => {
     abortControllerRef.current?.abort();
     setMessages([]);
-    setConversationId(null);
     setIsStreaming(false);
   };
 
@@ -48,16 +28,7 @@ export function useGeneralChat({ onConversationCreated }: UseGeneralChatProps = 
   const sendMessage = useCallback(
     async (input: string, mode: ChatMode = "default") => {
       if (!input.trim() || isStreaming) return;
-      if (!activeBrainId) {
-        setMessages((prev) => [
-          ...prev,
-          { role: "user", content: input },
-          { role: "assistant", content: "⚠️ Erro: Selecione um clone na sidebar antes de enviar uma mensagem." },
-        ]);
-        return;
-      }
 
-      lastUserInputRef.current = input.trim();
       const userMsg: Message = { role: "user", content: input.trim() };
       setMessages((prev) => [...prev, userMsg]);
       setIsStreaming(true);
@@ -66,29 +37,6 @@ export function useGeneralChat({ onConversationCreated }: UseGeneralChatProps = 
       abortControllerRef.current = controller;
 
       try {
-        let convId = conversationIdRef.current;
-        if (!convId) {
-          const { data, error: insertErr } = await supabase
-            .from("conversations")
-            .insert({ brain_id: activeBrainId, title: userMsg.content.slice(0, 50) })
-            .select("id")
-            .single();
-          if (insertErr) throw new Error(`Falha ao criar conversa: ${insertErr.message}`);
-          if (data) {
-            convId = data.id;
-            setConversationId(data.id);
-            onConversationCreated?.(data.id);
-          }
-        }
-
-        if (convId) {
-          await supabase.from("messages").insert({
-            conversation_id: convId,
-            role: "user",
-            content: userMsg.content,
-          });
-        }
-
         const { data: { session } } = await supabase.auth.getSession();
 
         const resp = await fetch(GENERAL_CHAT_URL, {
@@ -99,7 +47,8 @@ export function useGeneralChat({ onConversationCreated }: UseGeneralChatProps = 
             Authorization: `Bearer ${session?.access_token}`,
           },
           body: JSON.stringify({
-            activeBrainId,
+            // activeBrainId is optional — null means general assistant
+            activeBrainId: activeBrainId || undefined,
             mode,
             messages: [...messages, userMsg].map((m) => ({
               role: m.role,
@@ -149,14 +98,6 @@ export function useGeneralChat({ onConversationCreated }: UseGeneralChatProps = 
             } catch {/* ignore */}
           }
         }
-
-        if (convId && assistantSoFar) {
-          await supabase.from("messages").insert({
-            conversation_id: convId,
-            role: "assistant",
-            content: assistantSoFar,
-          });
-        }
       } catch (err: any) {
         if (err?.name === "AbortError") return;
         setMessages((prev) => [
@@ -168,20 +109,28 @@ export function useGeneralChat({ onConversationCreated }: UseGeneralChatProps = 
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [activeBrainId, isStreaming, messages, onConversationCreated],
+    [activeBrainId, isStreaming, messages],
   );
+
+  /** Add a summoned clone response inline into the messages array */
+  const addSummonedResponse = useCallback((cloneName: string, content: string) => {
+    setMessages((prev) => [
+      ...prev,
+      { role: "assistant", content: `**🔮 ${cloneName} (Convocado):**\n\n${content}` },
+    ]);
+  }, []);
 
   return {
     messages,
+    setMessages,
     isStreaming,
-    conversationId,
     activeBrainId,
     activeBrainName,
     setActiveBrainId,
     setActiveBrainName,
     sendMessage,
     stopStreaming,
-    loadHistory,
     resetChat,
+    addSummonedResponse,
   };
 }

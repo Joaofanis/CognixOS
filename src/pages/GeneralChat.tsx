@@ -1,9 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { BRAIN_TYPE_CONFIG, BrainType } from "@/lib/brain-types";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
@@ -15,11 +14,9 @@ import { useCloneSummon } from "@/hooks/useCloneSummon";
 import {
   ArrowLeft,
   Bot,
-  Brain,
   MessageSquare,
   PlusCircle,
   Users,
-  ChevronRight,
   Menu,
   PanelLeftClose,
   PanelLeft,
@@ -39,19 +36,15 @@ export default function GeneralChat() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [agentMode, setAgentMode] = useState(false);
   const [agentInput, setAgentInput] = useState("");
-  const [activeBrainType, setActiveBrainType] =
-    useState<BrainType>("knowledge_base");
 
   const {
     messages,
+    setMessages,
     isStreaming,
-    activeBrainId,
-    activeBrainName,
-    setActiveBrainId,
-    setActiveBrainName,
     sendMessage,
     stopStreaming,
     resetChat,
+    addSummonedResponse,
   } = useGeneralChat();
 
   const {
@@ -72,7 +65,7 @@ export default function GeneralChat() {
     updateProfile,
   } = useCloneSummon();
 
-  const { data: brains, isLoading } = useQuery({
+  const { data: brains } = useQuery({
     queryKey: ["brains", user?.id],
     enabled: !!user,
     queryFn: async () => {
@@ -86,44 +79,29 @@ export default function GeneralChat() {
     },
   });
 
-  // Also sync activeBrainType on first auto-select
+  // When a summoned clone finishes streaming, add its response inline to messages
   useEffect(() => {
-    if (brains && brains.length > 0 && !activeBrainId) {
-      setActiveBrainId(brains[0].id);
-      setActiveBrainName(brains[0].name);
-      setActiveBrainType(brains[0].type as BrainType);
+    if (summonedMessages.length > 0 && !isSummoning) {
+      const lastSummoned = summonedMessages[summonedMessages.length - 1];
+      if (lastSummoned.content && lastSummoned.content.trim()) {
+        addSummonedResponse(lastSummoned.cloneName, lastSummoned.content);
+        resetSummoned();
+      }
     }
-  }, [brains, activeBrainId, setActiveBrainId, setActiveBrainName]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSummoning, summonedMessages.length]);
 
-  const handleSelectBrain = (brain: {
-    id: string;
-    name: string;
-    type: string;
-  }) => {
-    setActiveBrainId(brain.id);
-    setActiveBrainName(brain.name);
-    setActiveBrainType(brain.type as BrainType);
-    resetChat();
-    resetSummoned();
-    if (isMobile) setMobileSidebarOpen(false);
-    toast.success(`Clone "${brain.name}" selecionado`);
-  };
-
-  const handleSummonClone = (targetBrainId: string, reason: string) => {
-    executeSummon({ targetBrainId, reason }, messages);
-  };
-
-  // Auto-update user profile after each assistant response (non-blocking)
+  // Auto-update user profile after each assistant response
   useEffect(() => {
-    if (
-      messages.length > 0 &&
-      messages.at(-1)?.role === "assistant" &&
-      !isStreaming
-    ) {
+    if (messages.length > 0 && messages.at(-1)?.role === "assistant" && !isStreaming) {
       updateProfile(messages);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages.length, isStreaming]);
+
+  const handleSummonClone = useCallback((targetBrainId: string, reason: string) => {
+    executeSummon({ targetBrainId, reason }, messages);
+  }, [executeSummon, messages]);
 
   const handleAgentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -135,61 +113,6 @@ export default function GeneralChat() {
 
   const sidebarContent = (
     <div className="flex flex-col h-full">
-      {/* Sidebar header */}
-      <div className="p-3 border-b border-border/50">
-        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 px-1 mb-2">
-          Clones Disponíveis
-        </p>
-        {isLoading ? (
-          <div className="space-y-2 px-1">
-            {[1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className="h-10 rounded-xl bg-muted/50 animate-pulse"
-              />
-            ))}
-          </div>
-        ) : (
-          <ScrollArea className="max-h-[35vh]">
-            <div className="space-y-0.5 pr-1">
-              {brains?.map((brain) => {
-                const config = BRAIN_TYPE_CONFIG[brain.type as BrainType];
-                const Icon = config?.icon || Brain;
-                const isActive = activeBrainId === brain.id;
-                return (
-                  <button
-                    key={brain.id}
-                    onClick={() => handleSelectBrain(brain)}
-                    className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-left transition-all text-sm ${
-                      isActive
-                        ? "bg-primary/10 text-primary font-semibold border border-primary/20"
-                        : "text-foreground/80 hover:bg-muted/60"
-                    }`}
-                  >
-                    <div
-                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${
-                        isActive ? "bg-primary/20" : "bg-muted"
-                      }`}
-                    >
-                      <Icon className="h-3.5 w-3.5" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-semibold">
-                        {brain.name}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground opacity-70 truncate">
-                        {config?.label || brain.type}
-                      </p>
-                    </div>
-                    {isActive && <ChevronRight className="h-3 w-3 shrink-0" />}
-                  </button>
-                );
-              })}
-            </div>
-          </ScrollArea>
-        )}
-      </div>
-
       {/* Mode section */}
       <div className="p-3 border-b border-border/50">
         <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 px-1 mb-2">
@@ -205,7 +128,7 @@ export default function GeneralChat() {
             }`}
           >
             <MessageSquare className="h-3.5 w-3.5" />
-            Chat com Clone
+            Chat Geral
           </button>
           <button
             onClick={() => setAgentMode(true)}
@@ -235,11 +158,24 @@ export default function GeneralChat() {
           onClick={() => {
             resetChat();
             resetSquad();
+            resetSummoned();
           }}
         >
           <PlusCircle className="h-3.5 w-3.5" />
           Nova Conversa
         </Button>
+      </div>
+
+      {/* Info */}
+      <div className="px-3 mt-auto pb-3">
+        <div className="rounded-xl bg-muted/40 border border-border/40 p-3 space-y-1.5">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">
+            Dica
+          </p>
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            Use <span className="font-mono bg-muted px-1 rounded text-primary">@nome</span> no chat para convocar um clone. Os clones respondem na mesma conversa.
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -312,9 +248,7 @@ export default function GeneralChat() {
                   <Bot className="h-4 w-4 text-primary" />
                 )}
                 <h1 className="font-bold text-sm truncate leading-tight">
-                  {agentMode
-                    ? "Modo Agente — Squad"
-                    : `Chat com ${activeBrainName}`}
+                  {agentMode ? "Modo Agente — Squad" : "Chat Geral"}
                 </h1>
                 {agentMode && (
                   <Badge
@@ -333,7 +267,6 @@ export default function GeneralChat() {
         {agentMode ? (
           <div className="flex flex-col flex-1 min-h-0">
             {squadEvents.length === 0 && !squadRunning ? (
-              /* Empty state for squad */
               <div className="flex flex-col items-center justify-center flex-1 text-center px-4 space-y-6 animate-in fade-in duration-700">
                 <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/10 flex items-center justify-center border border-primary/20">
                   <Users className="h-10 w-10 text-primary" />
@@ -381,9 +314,7 @@ export default function GeneralChat() {
                     <textarea
                       value={agentInput}
                       onChange={(e) => setAgentInput(e.target.value)}
-                      onKeyDown={(
-                        e: React.KeyboardEvent<HTMLTextAreaElement>,
-                      ) => {
+                      onKeyDown={(e: React.KeyboardEvent<HTMLTextAreaElement>) => {
                         if (e.key === "Enter" && !e.shiftKey) {
                           e.preventDefault();
                           if (!agentInput.trim() || squadRunning) return;
@@ -413,7 +344,6 @@ export default function GeneralChat() {
               </div>
             )}
 
-            {/* Squad running - show stop button in input area */}
             {squadRunning && (
               <div className="border-t border-border/40 bg-card/60 backdrop-blur-xl px-3 sm:px-4 py-3">
                 <div className="max-w-3xl mx-auto flex justify-center">
@@ -430,33 +360,23 @@ export default function GeneralChat() {
               </div>
             )}
           </div>
-        ) : /* Normal chat interface */
-        activeBrainId ? (
+        ) : (
+          /* Normal chat — no brain required */
           <ChatInterface
-            brainId={activeBrainId}
-            brainType={activeBrainType}
-            brainName={activeBrainName}
+            brainId=""
+            brainType="knowledge_base"
+            brainName="Assistente Geral"
             messages={messages}
             isStreaming={isStreaming}
             sendMessage={sendMessage}
             stopStreaming={stopStreaming}
-            onNewChat={resetChat}
+            onNewChat={() => { resetChat(); resetSummoned(); }}
             conversationId={null}
             showModeToggle={true}
             summonedMessages={summonedMessages}
             isSummoning={isSummoning}
             onSummonClone={handleSummonClone}
           />
-        ) : (
-          <div className="flex flex-col items-center justify-center flex-1 text-center px-4 space-y-4">
-            <div className="h-16 w-16 rounded-2xl bg-muted flex items-center justify-center">
-              <Bot className="h-8 w-8 text-muted-foreground" />
-            </div>
-            <p className="text-lg font-bold">Selecione um Clone</p>
-            <p className="text-sm text-muted-foreground">
-              Escolha um clone na sidebar para começar a conversar.
-            </p>
-          </div>
         )}
       </div>
     </div>
