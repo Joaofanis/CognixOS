@@ -10,7 +10,7 @@ const corsHeaders = {
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const VALID_ROLES = ["user", "assistant", "system"];
 const MAX_MESSAGES = 100;
-const MAX_CONTEXT_CHARS = 800_000;
+const MAX_CONTEXT_CHARS = 120_000;
 
 serve(async (req) => {
   if (req.method === "OPTIONS")
