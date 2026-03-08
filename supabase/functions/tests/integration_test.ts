@@ -61,8 +61,8 @@ async function authedFetch(fnName: string, body: Record<string, unknown>, timeou
 Deno.test({
   name: "[setup] Sign in with test user",
   fn: async () => {
-    if (!TEST_EMAIL || !TEST_PASSWORD) {
-      console.warn("⚠️  TEST_USER_EMAIL / TEST_USER_PASSWORD not set. Skipping authenticated tests.");
+    if (!TEST_EMAIL || !TEST_PASSWORD || TEST_PASSWORD === "REPLACE_WITH_YOUR_PASSWORD") {
+      console.warn("⚠️  TEST_USER_EMAIL / TEST_USER_PASSWORD not set or placeholder. Skipping authenticated tests.");
       return;
     }
     const supabase = createClient(SUPABASE_URL, ANON_KEY);
