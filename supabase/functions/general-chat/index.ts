@@ -256,7 +256,7 @@ serve(async (req) => {
           lastErrorInfo = { status: aiResponse.status, text: errorText, model };
           console.error(`Model ${model} failed with ${aiResponse.status}:`, errorText);
           if (aiResponse.status === 401) break;
-          await new Promise(r => setTimeout(r, 500));
+          await new Promise(r => setTimeout(r, 1000));
         }
       } catch (e) {
         lastErrorInfo = { text: "Erro interno" };

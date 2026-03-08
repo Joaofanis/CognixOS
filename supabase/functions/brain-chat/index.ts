@@ -342,7 +342,7 @@ serve(async (req) => {
           if (aiResponse.status === 401) {
             break;
           }
-          await new Promise(r => setTimeout(r, 500));
+          await new Promise(r => setTimeout(r, 1000));
         }
       } catch (e) {
         lastErrorInfo = { error: "Erro interno" };

@@ -102,20 +102,34 @@ serve(async (req) => {
       try {
         const contentSlice = text.content.slice(0, 6000);
 
-        const aiResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${OPENROUTER_API_KEY2}`,
-            "Content-Type": "application/json",
-            "HTTP-Referer": "https://ai-second-brain.app",
-            "X-Title": "AI Second Brain - Quote Extractor",
-          },
-          body: JSON.stringify({
-            model: "google/gemini-2.0-flash-001",
-            messages: [
-              {
-                role: "system",
-                content: `Você é um especialista em análise linguística. Extraia do texto fornecido as frases, falas e expressões mais características e marcantes do autor — frases que revelam sua personalidade, forma de pensar, humor e estilo.
+        const MODELS = [
+          "google/gemini-2.5-flash-lite",
+          "google/gemini-2.0-flash-001",
+          "meta-llama/llama-3.3-70b-instruct:free",
+          "arcee-ai/trinity-large-preview:free",
+          "mistralai/mistral-small-3.1-24b-instruct:free",
+        ];
+
+        let rawContent = "";
+        let aiSuccess = false;
+
+        for (const model of MODELS) {
+          try {
+            console.log(`extract-quotes: trying model ${model} for text ${text.id}`);
+            const aiResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://ai-second-brain.app",
+                "X-Title": "AI Second Brain - Quote Extractor",
+              },
+              body: JSON.stringify({
+                model,
+                messages: [
+                  {
+                    role: "system",
+                    content: `Você é um especialista em análise linguística. Extraia do texto fornecido as frases, falas e expressões mais características e marcantes do autor — frases que revelam sua personalidade, forma de pensar, humor e estilo.
 
 Retorne APENAS um JSON válido com esta estrutura:
 {
@@ -131,24 +145,39 @@ Regras:
 - Evite frases genéricas
 - Mantenha o texto original, sem parafrasear
 - context deve ser curto: "liderança", "filosofia", "humor", "criatividade", etc.`
-              },
-              {
-                role: "user",
-                content: contentSlice,
-              },
-            ],
-            temperature: 0.3,
-            max_tokens: 1500,
-          }),
-        });
+                  },
+                  {
+                    role: "user",
+                    content: contentSlice,
+                  },
+                ],
+                temperature: 0.3,
+                max_tokens: 1500,
+              }),
+            });
 
-        if (!aiResponse.ok) {
-          console.error(`extract-quotes: AI error for text ${text.id}:`, await aiResponse.text());
-          continue;
+            if (aiResponse.ok) {
+              const aiData = await aiResponse.json();
+              rawContent = aiData.choices?.[0]?.message?.content || "";
+              aiSuccess = true;
+              console.log(`extract-quotes: success with model ${model}`);
+              break;
+            } else {
+              const errText = await aiResponse.text();
+              console.error(`extract-quotes: model ${model} failed (${aiResponse.status}):`, errText);
+              if (aiResponse.status === 401) break;
+              await new Promise(r => setTimeout(r, 1000));
+            }
+          } catch (fetchErr) {
+            console.error(`extract-quotes: fetch error for model ${model}:`, fetchErr);
+            await new Promise(r => setTimeout(r, 1000));
+          }
         }
 
-        const aiData = await aiResponse.json();
-        const rawContent = aiData.choices?.[0]?.message?.content || "";
+        if (!aiSuccess) {
+          console.error(`extract-quotes: all models failed for text ${text.id}`);
+          continue;
+        }
 
         let parsed: { quotes?: Array<{ quote: string; context: string }> };
         try {
