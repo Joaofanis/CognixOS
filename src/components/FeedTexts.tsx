@@ -338,7 +338,7 @@ export default function FeedTexts({ brainId }: Props) {
                 ) : (
                   <Plus className="h-4 w-4" />
                 )}
-                Adicionar Texto
+                {t("feed.addText")}
               </Button>
               <Button variant="outline" className="gap-2" asChild>
                 <label className="cursor-pointer">
