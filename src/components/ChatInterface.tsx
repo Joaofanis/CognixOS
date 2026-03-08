@@ -94,7 +94,7 @@ export default function ChatInterface({
 }: Props) {
   const [input, setInput] = useState("");
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
-  const [spellLang, setSpellLang] = useState<"pt-BR" | "en-US">("pt-BR");
+  const { language } = useSettings();
   const [chatMode, setChatMode] = useState<ChatMode>(() => {
     return (localStorage.getItem("chatMode") as ChatMode) || "default";
   });
