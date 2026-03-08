@@ -195,7 +195,7 @@ export default function Dashboard() {
         .eq("id", deleteTarget.id);
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ["brains", user?.id] });
-      toast.success(`"${deleteTarget.name}" removido`);
+      toast.success(`"${deleteTarget.name}" ${t("dashboard.removed")}`);
     } catch (err: any) {
       toast.error(err.message);
     } finally {
