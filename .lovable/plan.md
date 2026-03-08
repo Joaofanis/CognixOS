@@ -1,151 +1,138 @@
-- Plano: Melhorar o Meta-Prompt de Geração de System Prompts (person_clone)
 
-### Problema
 
-O meta-prompt atual em `generate-prompt/index.ts` gera prompts no estilo do **Prompt 2** (persona narrativa/descritiva), mas falta a **estrutura operacional** do Prompt 1 (árvores de decisão, frameworks, formato de resposta obrigatório, módulo anti-BS). O ideal é um **híbrido** das 5 camadas de clonagem descritas na análise.
+# Plano de Melhorias -- Segundo Cerebro
 
-### O que muda
+## Resumo
 
-Reescrever o `metaPrompt` para `person_clone` em `generate-prompt/index.ts` (linhas 173-185) com instruções que forcem a IA a gerar prompts com as **5 camadas de clonagem**:
+Apos analise completa do sistema, identifiquei melhorias organizadas em 3 categorias: **Funcionalidades Novas**, **Melhorias de UX** e **Melhorias Tecnicas/Resiliencia**.
 
-1. **Identidade Central** — quem a pessoa é, como se posiciona (já existe, manter)
-2. **Padrões de Pensamento** — como a pessoa raciocina, sua árvore de decisão, frameworks mentais (NOVO - inspirado no Prompt 1)
-3. **Estilo de Comunicação** — tom, vocabulário, ritmo, expressões recorrentes (já existe, refinar)
-4. **Vocabulário Assinatura** — palavras e frases únicas extraídas dos textos (já existe, enfatizar)
-5. **Reações Padrão** — como reagiria a diferentes situações (NOVO - modos de resposta contextuais)
+---
 
-Adicionalmente, instruir a IA geradora a incluir:
+## 1. Suporte a Upload de PDF e DOCX
 
-- **Formato de resposta obrigatório** — estrutura padrão que o clone deve seguir
-- **Exemplos few-shot reais** — extraídos dos textos, mostrando pergunta → resposta no estilo
-- **Regras de não-quebra de personagem** — nunca revelar ser IA
-- **Módulo de detecção de ruído** — quando aplicável, questionar inputs vagos
+**Problema atual:** Apenas arquivos `.txt` sao aceitos. O plano original preve `.pdf` e `.docx`.
 
-### Arquivo afetado
+**Solucao:** Criar uma Edge Function `parse-file` que recebe o arquivo via FormData, extrai o texto usando bibliotecas Deno, e retorna o conteudo para ser salvo em `brain_texts`.
 
-- `supabase/functions/generate-prompt/index.ts` — reescrever o bloco `metaPrompt` para person_clone (linhas 173-185) com as 5 camadas + instruções estruturais
+**Arquivos afetados:**
+- Novo: `supabase/functions/parse-file/index.ts`
+- Editar: `src/components/FeedTexts.tsx` (aceitar .pdf/.docx, enviar para a edge function)
 
-### Detalhes técnicos
+---
 
-O meta-prompt será reestruturado para instruir a IA geradora a produzir um prompt com seções obrigatórias numeradas:
+## 2. Truncamento de Contexto no Chat (brain-chat)
 
+**Problema atual:** O `brain-chat` envia todos os textos sem limite de caracteres (apenas `limit(50)` por registros). Textos grandes podem exceder o contexto do modelo e causar erro 400.
+
+**Solucao:** Aplicar o mesmo truncamento de 30.000 caracteres ja usado no `analyze-brain`.
+
+**Arquivos afetados:**
+- Editar: `supabase/functions/brain-chat/index.ts` (truncar `contextTexts` a 30k chars)
+
+---
+
+## 3. Analise de Personalidade para Todos os Tipos de Cerebro
+
+**Problema atual:** A aba "Analise" so aparece para `person_clone`. Cerebros de conhecimento, filosofia e guia pratico nao tem nenhuma visualizacao analitica.
+
+**Solucao:** Mostrar a aba "Analise" para todos os tipos, adaptando o prompt da Edge Function:
+- **person_clone**: Tracos de personalidade + temas (atual)
+- **knowledge_base**: Areas de conhecimento + temas principais
+- **philosophy**: Principios filosoficos + temas
+- **practical_guide**: Competencias praticas + temas
+
+**Arquivos afetados:**
+- Editar: `src/pages/BrainDetail.tsx` (remover condicao `isPersonClone` da aba Analise)
+- Editar: `supabase/functions/analyze-brain/index.ts` (receber tipo do cerebro, adaptar prompt)
+- Editar: `src/components/BrainAnalysis.tsx` (adaptar labels dos graficos por tipo)
+
+---
+
+## 4. Pagina de Perfil do Usuario
+
+**Problema atual:** Nao existe pagina de perfil. O `display_name` e coletado no cadastro mas nunca exibido ou editavel.
+
+**Solucao:** Criar uma pagina `/profile` com edicao de nome e avatar, usando a tabela `profiles` ja existente.
+
+**Arquivos afetados:**
+- Novo: `src/pages/Profile.tsx`
+- Editar: `src/App.tsx` (adicionar rota)
+- Editar: `src/pages/Dashboard.tsx` (link para perfil no header)
+
+---
+
+## 5. Busca por Conteudo nos Textos do Cerebro
+
+**Problema atual:** Na aba "Fontes" nao ha como buscar dentro dos textos ja adicionados.
+
+**Solucao:** Adicionar um campo de busca no topo da lista de textos em `FeedTexts.tsx` que filtra localmente pelo conteudo.
+
+**Arquivos afetados:**
+- Editar: `src/components/FeedTexts.tsx`
+
+---
+
+## 6. Contagem de Textos e Conversas no Card do Dashboard
+
+**Problema atual:** Os cards do Dashboard mostram apenas nome, tipo e descricao. Nao ha indicacao de quanto conteudo o cerebro tem.
+
+**Solucao:** Fazer um join ou query agregada para mostrar o numero de textos e conversas em cada card.
+
+**Arquivos afetados:**
+- Editar: `src/pages/Dashboard.tsx` (query com count, exibir badges)
+
+---
+
+## 7. Feedback Visual de Erro Mais Claro no Chat
+
+**Problema atual:** Erros no chat aparecem como mensagens do assistente com emoji de aviso, sem botao de retry.
+
+**Solucao:** Adicionar um botao "Tentar novamente" nas mensagens de erro, e estilizar visualmente diferente.
+
+**Arquivos afetados:**
+- Editar: `src/components/ChatInterface.tsx` (detectar mensagens de erro, renderizar botao retry)
+- Editar: `src/hooks/useBrainChat.ts` (expor funcao de retry)
+
+---
+
+## 8. Link para Comparacao no Dashboard
+
+**Problema atual:** A pagina `/compare` existe mas nao ha nenhum link na interface para acessa-la.
+
+**Solucao:** Adicionar um botao "Comparar" no header do Dashboard que navega para `/compare`.
+
+**Arquivos afetados:**
+- Editar: `src/pages/Dashboard.tsx`
+
+---
+
+## Secao Tecnica -- Detalhes de Implementacao
+
+### Parse de PDF (item 1)
+A Edge Function usara `pdf-parse` (via esm.sh) para PDFs. Para DOCX, usara `mammoth` via esm.sh. O frontend enviara o arquivo via `FormData` e a funcao retornara `{ content: string }`.
+
+### Truncamento no brain-chat (item 2)
+```text
+const MAX_CHARS = 30000;
+let contextTexts = texts?.map(t => t.content).join("\n\n---\n\n") || "";
+if (contextTexts.length > MAX_CHARS) {
+  contextTexts = contextTexts.slice(0, MAX_CHARS) + "\n\n[...truncado]";
+}
 ```
-O System Prompt gerado DEVE conter TODAS estas seções, nesta ordem:
 
-1. IDENTIDADE CENTRAL — quem a pessoa é, como se posiciona no mundo
-2. PADRÕES DE PENSAMENTO — como a pessoa raciocina (frameworks mentais, árvore de decisão)
-3. POSTURA MENTAL — crenças, princípios, valores inegociáveis
-4. ESTILO DE COMUNICAÇÃO — tom, formalidade, ritmo, analogias preferidas
-5. VOCABULÁRIO ASSINATURA — palavras e expressões únicas desta pessoa
-6. COMO ESTA PESSOA FALA — mínimo 10 frases reais extraídas dos textos
-7. REAÇÕES PADRÃO — como reagiria a diferentes tipos de pergunta
-8. FORMATO DE RESPOSTA — estrutura obrigatória que o clone deve seguir
-9. EXEMPLOS FEW-SHOT — mínimo 3 pares pergunta/resposta no estilo da pessoa
-10. REGRAS DE PERSONAGEM — nunca quebrar persona, nunca revelar ser IA
-```
+### Analise adaptativa por tipo (item 3)
+O `analyze-brain` recebera o `brain.type` e ajustara o JSON schema solicitado:
+- `person_clone`: `personality_traits` (radar) + `frequent_themes` (barras)
+- `knowledge_base`: `knowledge_areas` (radar) + `frequent_themes` (barras)
+- Outros tipos: `key_concepts` (radar) + `frequent_themes` (barras)
 
-O system message da IA geradora também será refinado para enfatizar que o prompt deve ter **estrutura operacional** (tipo System Architecture Prompt), não apenas descrição narrativa.
+### Ordem de implementacao sugerida
+1. Item 2 (truncamento -- correcao critica, rapida)
+2. Item 8 (link comparacao -- rapido)
+3. Item 5 (busca textos -- rapido)
+4. Item 6 (contagens no dashboard)
+5. Item 7 (retry no chat)
+6. Item 3 (analise para todos os tipos)
+7. Item 4 (pagina perfil)
+8. Item 1 (upload PDF/DOCX -- mais complexo)
 
-1️⃣ Falta uma camada crítica: “HEURÍSTICAS DE DECISÃO”
-
-Você colocou padrões de pensamento, mas falta algo mais concreto:
-
-heurísticas que a pessoa usa para decidir coisas.
-
-Exemplo:
-
-Copiar código
-
-&nbsp;
-
-HEURÍSTICAS
-
-&nbsp;
-
-Quando analisar negócios:
-
-&nbsp;
-
-1 procure distribuição antes de produto
-
-2 simplifique antes de escalar
-
-3 valide mercado antes de tecnologia
-
-Isso faz o clone parecer muito mais inteligente.
-
-2️⃣ Falta “anti-alucinação de estilo”
-
-Um problema grande de clones:
-
-O modelo começa a inventar frases que a pessoa nunca diria.
-
-A solução é adicionar regra tipo:
-
-Copiar código
-
-&nbsp;
-
-RESTRIÇÃO DE ESTILO
-
-&nbsp;
-
-Evite inventar bordões novos.
-
-&nbsp;
-
-Prefira reutilizar padrões linguísticos
-
-observados nos textos originais.
-
-Isso melhora muito a fidelidade.
-
-3️⃣ Falta “peso de prioridade”
-
-Nem todas as seções têm o mesmo impacto.
-
-O meta-prompt deveria dizer algo como:
-
-Copiar código
-
-&nbsp;
-
-Prioridade das seções:
-
-&nbsp;
-
-1 Padrões de pensamento
-
-2 Exemplos few-shot
-
-3 Reações padrão
-
-4 Estilo de comunicação
-
-5 Vocabulário
-
-Isso evita que o modelo foque demais em:
-
-adjetivos
-
-descrição narrativa
-
-4️⃣ Falta um mecanismo de “extração de padrões”
-
-Se o clone é baseado em textos da pessoa, o meta-prompt deveria pedir:
-
-Copiar código
-
-&nbsp;
-
-Extraia padrões recorrentes de:
-
-&nbsp;
-
-• argumentos
-
-• metáforas
-
-• estrutura de explicação
-
-• perguntas retóricas
