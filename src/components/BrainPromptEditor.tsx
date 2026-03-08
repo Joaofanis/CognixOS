@@ -4,12 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Sparkles, Save, Loader2, Wand2, Copy, Trash2 } from "lucide-react";
+import { useTranslation } from "@/lib/i18n";
 
 interface Props {
   brainId: string;
 }
 
 export default function BrainPromptEditor({ brainId }: Props) {
+  const { t } = useTranslation();
   const [prompt, setPrompt] = useState("");
   const [savedPrompt, setSavedPrompt] = useState("");
   const [saving, setSaving] = useState(false);
@@ -46,9 +48,9 @@ export default function BrainPromptEditor({ brainId }: Props) {
       
       if (error) throw error;
       setSavedPrompt(prompt);
-      toast.success("Prompt salvo com sucesso!");
+      toast.success(t("promptEditor.saved"));
     } catch (err: any) {
-      toast.error(err.message || "Erro ao salvar prompt");
+      toast.error(err.message || t("common.error"));
     } finally {
       setSaving(false);
     }
@@ -74,13 +76,13 @@ export default function BrainPromptEditor({ brainId }: Props) {
       const result = await resp.json();
       
       if (!resp.ok) {
-        throw new Error(result.error || "Erro ao gerar prompt");
+        throw new Error(result.error || t("common.error"));
       }
 
       setPrompt(result.prompt);
-      toast.success("Prompt gerado! Revise e salve.");
+      toast.success(t("promptEditor.generated"));
     } catch (err: any) {
-      toast.error(err.message || "Erro ao gerar prompt");
+      toast.error(err.message || t("common.error"));
     } finally {
       setGenerating(false);
     }
@@ -88,7 +90,7 @@ export default function BrainPromptEditor({ brainId }: Props) {
 
   const handleCopy = () => {
     navigator.clipboard.writeText(prompt);
-    toast.success("Prompt copiado!");
+    toast.success(t("promptEditor.promptCopied"));
   };
 
   const hasChanges = prompt !== savedPrompt;
@@ -103,19 +105,16 @@ export default function BrainPromptEditor({ brainId }: Props) {
 
   return (
     <div className="container max-w-4xl py-8 px-4 space-y-6 animate-in fade-in duration-500">
-      {/* Header */}
       <div className="space-y-2">
         <div className="flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-primary" />
-          <h2 className="text-xl font-bold text-gradient">System Prompt</h2>
+          <h2 className="text-xl font-bold text-gradient">{t("promptEditor.title")}</h2>
         </div>
         <p className="text-sm text-muted-foreground max-w-2xl">
-          Defina como a IA deve se comportar, falar e pensar. O prompt personalizado substitui o prompt padrão do sistema.
-          Você pode escrever manualmente ou gerar automaticamente com base nos textos do cérebro.
+          {t("promptEditor.desc")}
         </p>
       </div>
 
-      {/* Actions */}
       <div className="flex flex-wrap gap-2">
         <Button
           variant="outline"
@@ -123,24 +122,15 @@ export default function BrainPromptEditor({ brainId }: Props) {
           disabled={generating}
           className="gap-2 rounded-2xl border-primary/30 hover:bg-primary/10 hover:border-primary/60 text-primary font-semibold"
         >
-          {generating ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Wand2 className="h-4 w-4" />
-          )}
-          {generating ? "Gerando..." : "Gerar com IA"}
+          {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+          {generating ? t("promptEditor.generating") : t("promptEditor.generateWithAi")}
         </Button>
 
         {prompt && (
           <>
-            <Button
-              variant="outline"
-              onClick={handleCopy}
-              className="gap-2 rounded-2xl"
-              size="sm"
-            >
+            <Button variant="outline" onClick={handleCopy} className="gap-2 rounded-2xl" size="sm">
               <Copy className="h-3.5 w-3.5" />
-              Copiar
+              {t("common.copy")}
             </Button>
             <Button
               variant="outline"
@@ -149,13 +139,12 @@ export default function BrainPromptEditor({ brainId }: Props) {
               size="sm"
             >
               <Trash2 className="h-3.5 w-3.5" />
-              Limpar
+              {t("common.clear")}
             </Button>
           </>
         )}
       </div>
 
-      {/* Editor */}
       <div className="relative">
         <Textarea
           value={prompt}
@@ -166,28 +155,23 @@ export default function BrainPromptEditor({ brainId }: Props) {
         {hasChanges && (
           <div className="absolute top-3 right-3">
             <span className="text-[10px] bg-primary/15 text-primary px-2 py-1 rounded-full font-semibold">
-              Não salvo
+              {t("promptEditor.unsaved")}
             </span>
           </div>
         )}
       </div>
 
-      {/* Save */}
       <div className="flex items-center justify-between">
         <p className="text-xs text-muted-foreground">
-          {prompt.length > 0 ? `${prompt.length.toLocaleString()} caracteres` : "Nenhum prompt definido — o sistema usará o prompt padrão"}
+          {prompt.length > 0 ? `${prompt.length.toLocaleString()} ${t("promptEditor.chars")}` : t("promptEditor.noPrompt")}
         </p>
         <Button
           onClick={handleSave}
           disabled={saving || !hasChanges}
           className="gap-2 rounded-2xl bg-gradient-to-br from-primary to-violet-600 hover:from-primary/90 hover:to-violet-600/90 shadow-lg shadow-primary/20 font-semibold px-6"
         >
-          {saving ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Save className="h-4 w-4" />
-          )}
-          {saving ? "Salvando..." : "Salvar Prompt"}
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+          {saving ? t("promptEditor.saving") : t("promptEditor.savePrompt")}
         </Button>
       </div>
     </div>

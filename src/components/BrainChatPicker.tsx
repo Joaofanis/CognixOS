@@ -2,27 +2,18 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { BRAIN_TYPE_CONFIG, BrainType } from "@/lib/brain-types";
+import { useTranslation } from "@/lib/i18n";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
+  Sheet, SheetContent, SheetHeader, SheetTitle,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
-  MessageSquare,
-  PlusCircle,
-  Clock,
-  ChevronRight,
-  Settings,
-  FileText,
-  Brain,
-  Sparkles,
+  MessageSquare, PlusCircle, Clock, ChevronRight, Settings, FileText, Brain, Sparkles,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { ptBR, enUS, es } from "date-fns/locale";
 
 interface Props {
   brainId: string;
@@ -31,23 +22,16 @@ interface Props {
   onClose: () => void;
 }
 
-export default function BrainChatPicker({
-  brainId,
-  brainName,
-  open,
-  onClose,
-}: Props) {
+export default function BrainChatPicker({ brainId, brainName, open, onClose }: Props) {
   const navigate = useNavigate();
+  const { t, language } = useTranslation();
+  const dateLocale = language === "en-US" ? enUS : language === "es-ES" ? es : ptBR;
 
   const { data: brain } = useQuery({
     queryKey: ["brain-detail-picker", brainId],
     enabled: open && !!brainId,
     queryFn: async () => {
-      const { data } = await supabase
-        .from("brains")
-        .select("*")
-        .eq("id", brainId)
-        .single();
+      const { data } = await supabase.from("brains").select("*").eq("id", brainId).single();
       return data;
     },
   });
@@ -95,11 +79,7 @@ export default function BrainChatPicker({
 
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
-      <SheetContent
-        side="right"
-        className="w-full sm:max-w-md p-0 flex flex-col bg-background"
-      >
-        {/* Header — Brain Identity */}
+      <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col bg-background">
         <SheetHeader className="px-6 pt-6 pb-0 space-y-0">
           <div className="flex items-start gap-4">
             <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/15 to-accent/10 border border-primary/10 shadow-sm">
@@ -110,43 +90,37 @@ export default function BrainChatPicker({
                 {brainName}
               </SheetTitle>
               {config && (
-                <Badge
-                  variant="secondary"
-                  className="text-[10px] uppercase tracking-widest font-bold bg-primary/8 text-primary/70 border-0 mt-1.5"
-                >
+                <Badge variant="secondary" className="text-[10px] uppercase tracking-widest font-bold bg-primary/8 text-primary/70 border-0 mt-1.5">
                   {config.label}
                 </Badge>
               )}
             </div>
           </div>
 
-          {/* Description */}
           {brain?.description && (
             <p className="text-sm text-muted-foreground leading-relaxed mt-3">
               {brain.description}
             </p>
           )}
 
-          {/* Stats */}
           <div className="flex items-center gap-4 mt-4 text-xs text-muted-foreground">
             <span className="flex items-center gap-1.5">
               <FileText className="h-3.5 w-3.5" />
-              {textsCount ?? 0} fonte{(textsCount ?? 0) !== 1 ? "s" : ""}
+              {textsCount ?? 0} {(textsCount ?? 0) !== 1 ? t("dashboard.sources") : t("dashboard.source")}
             </span>
             <span className="flex items-center gap-1.5">
               <MessageSquare className="h-3.5 w-3.5" />
-              {conversations?.length ?? 0} conversa{(conversations?.length ?? 0) !== 1 ? "s" : ""}
+              {conversations?.length ?? 0} {(conversations?.length ?? 0) !== 1 ? t("dashboard.conversations") : t("dashboard.conversation")}
             </span>
             {brain?.updated_at && (
               <span className="flex items-center gap-1.5 ml-auto">
                 <Clock className="h-3.5 w-3.5" />
-                {formatDistanceToNow(new Date(brain.updated_at), { addSuffix: true, locale: ptBR })}
+                {formatDistanceToNow(new Date(brain.updated_at), { addSuffix: true, locale: dateLocale })}
               </span>
             )}
           </div>
         </SheetHeader>
 
-        {/* Quick Actions */}
         <div className="px-6 pt-5 pb-2">
           <div className="grid grid-cols-2 gap-2">
             <Button
@@ -154,26 +128,21 @@ export default function BrainChatPicker({
               className="h-12 gap-2 rounded-2xl gradient-jewel text-white font-semibold shadow-md hover:opacity-90 transition-all"
             >
               <PlusCircle className="h-4 w-4" />
-              Nova Conversa
+              {t("picker.newConversation")}
             </Button>
-            <Button
-              variant="outline"
-              onClick={goToSettings}
-              className="h-12 gap-2 rounded-2xl font-semibold"
-            >
+            <Button variant="outline" onClick={goToSettings} className="h-12 gap-2 rounded-2xl font-semibold">
               <Settings className="h-4 w-4" />
-              Configurar
+              {t("picker.configure")}
             </Button>
           </div>
         </div>
 
         <Separator className="mx-6 mt-2" />
 
-        {/* Conversations List */}
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 px-2 pb-2 flex items-center gap-1.5">
             <Clock className="h-3 w-3" />
-            Histórico de Conversas
+            {t("picker.conversationHistory")}
           </p>
 
           {isLoading ? (
@@ -194,12 +163,12 @@ export default function BrainChatPicker({
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium truncate text-foreground group-hover:text-primary transition-colors">
-                    {conv.title ?? "Conversa sem título"}
+                    {conv.title ?? t("picker.untitled")}
                   </p>
                   <p className="text-[11px] text-muted-foreground/60 mt-0.5">
                     {formatDistanceToNow(
                       new Date(conv.updated_at ?? conv.created_at),
-                      { addSuffix: true, locale: ptBR },
+                      { addSuffix: true, locale: dateLocale },
                     )}
                   </p>
                 </div>
@@ -211,9 +180,9 @@ export default function BrainChatPicker({
               <div className="h-16 w-16 rounded-3xl bg-muted/50 flex items-center justify-center">
                 <Sparkles className="h-7 w-7 text-muted-foreground/30" />
               </div>
-              <p className="font-semibold text-sm text-foreground">Nenhuma conversa ainda</p>
+              <p className="font-semibold text-sm text-foreground">{t("picker.noConversations")}</p>
               <p className="text-xs text-muted-foreground max-w-[200px]">
-                Inicie uma nova conversa para explorar {brainName}
+                {t("picker.startConversation")} {brainName}
               </p>
             </div>
           )}
