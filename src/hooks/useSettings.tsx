@@ -65,6 +65,17 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
 export function useSettings() {
   const ctx = useContext(SettingsContext);
-  if (!ctx) throw new Error("useSettings must be used within SettingsProvider");
+  if (!ctx) {
+    return {
+      fontSize: "normal" as FontSize,
+      setFontSize: () => {},
+      highContrast: false,
+      setHighContrast: () => {},
+      reducedMotion: false,
+      setReducedMotion: () => {},
+      language: "pt-BR" as Language,
+      setLanguage: () => {},
+    };
+  }
   return ctx;
 }
