@@ -205,9 +205,9 @@ export default function Dashboard() {
   };
 
   const SORT_LABELS: Record<SortKey, string> = {
-    updated: "Atualização",
-    name: "Nome (A-Z)",
-    sources: "Mais fontes",
+    updated: t("dashboard.sortUpdate"),
+    name: t("dashboard.sortName"),
+    sources: t("dashboard.sortSources"),
   };
 
   return (
