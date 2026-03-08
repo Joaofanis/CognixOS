@@ -47,8 +47,7 @@ export function useGeneralChat() {
             Authorization: `Bearer ${session?.access_token}`,
           },
           body: JSON.stringify({
-            // activeBrainId is optional — null means general assistant
-            activeBrainId: activeBrainId || undefined,
+            // Never send activeBrainId — general chat is always without a brain
             mode,
             messages: [...messages, userMsg].map((m) => ({
               role: m.role,
