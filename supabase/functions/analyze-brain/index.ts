@@ -314,7 +314,7 @@ serve(async (req: Request) => {
           const errorBody = await response.text();
           console.error(`Model ${model} failed: ${response.status}`, errorBody);
           lastError = { status: response.status, error: `Model ${model}: ${response.status}` };
-          if ([401, 400, 403].includes(response.status)) break;
+          if (response.status === 401) break;
           await new Promise(r => setTimeout(r, 500));
           continue;
         }

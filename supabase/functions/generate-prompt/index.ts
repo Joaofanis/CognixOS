@@ -214,7 +214,8 @@ TEXTOS DO CLONE:\n${context}`;
           const errText = await aiResponse.text();
           console.error(`generate-prompt: model ${model} failed with ${aiResponse.status}:`, errText);
           lastError = { status: aiResponse.status, text: errText };
-          if (aiResponse.status === 401 || aiResponse.status === 403) break;
+          if (aiResponse.status === 401) break;
+          await new Promise(r => setTimeout(r, 500));
           continue;
         }
 
