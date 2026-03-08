@@ -215,7 +215,7 @@ serve(async (req) => {
     systemPrompt += thinkingInstruction;
 
     const models = [
-      "google/gemini-2.5-flash-preview",
+      "google/gemini-2.5-flash-preview-09-2025",
       "google/gemma-3-27b-it:free",
       "meta-llama/llama-3.3-70b-instruct:free",
       "mistralai/mistral-small-3.1-24b-instruct:free",
