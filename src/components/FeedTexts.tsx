@@ -247,9 +247,9 @@ export default function FeedTexts({ brainId }: Props) {
   });
 
   const sourceTypeLabel: Record<string, string> = {
-    paste: "Colado",
-    file_upload: "Arquivo",
-    url_import: "URL",
+    paste: t("feed.pasted"),
+    file_upload: t("feed.fileUpload"),
+    url_import: t("feed.urlImport"),
   };
 
   return (
