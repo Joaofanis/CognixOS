@@ -1,7 +1,6 @@
-// @ts-expect-error: Deno edge runtime — runs on Supabase, not Node
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SmtpClient } from "https://deno.land/x/smtp@v0.7.0/mod.ts";
+import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
 const MODELS = [
   "google/gemini-2.0-flash-001",
@@ -94,10 +93,15 @@ async function sendEmailAlert(failed: ModelResult[]): Promise<void> {
     `Acesse o painel do AI Second Brain para mais detalhes.`,
   ].join("\n");
 
-  const client = new SmtpClient();
+  const client = new SMTPClient({
+    connection: {
+      hostname: smtpHost,
+      port: smtpPort,
+      tls: true,
+      auth: { username: smtpUser, password: smtpPass },
+    },
+  });
   try {
-    await client.connectTLS({ hostname: smtpHost, port: smtpPort });
-    await client.login({ username: smtpUser, password: smtpPass });
     await client.send({
       from: smtpUser,
       to: NOTIFY_EMAIL,
@@ -108,7 +112,7 @@ async function sendEmailAlert(failed: ModelResult[]): Promise<void> {
   } catch (err: unknown) {
     console.error("SMTP send error:", err instanceof Error ? err.message : String(err));
   } finally {
-    await client.close().catch(() => {});
+    await client.close();
   }
 }
 
