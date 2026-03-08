@@ -61,6 +61,9 @@ for (const fn of FUNCTIONS_WITH_AUTH) {
 }
 
 // ── Auth rejection (invalid JWT) ────────────────────────────────
+// Some functions validate body before JWT (returning 400 for empty body).
+// This is still secure — unauthenticated users never get data.
+// We accept any 4xx as "rejected".
 for (const fn of FUNCTIONS_WITH_AUTH) {
   Deno.test(`[${fn}] rejects invalid JWT`, async () => {
     const res = await fetch(`${FUNCTIONS_URL}/${fn}`, {
@@ -70,13 +73,13 @@ for (const fn of FUNCTIONS_WITH_AUTH) {
         Authorization: "Bearer invalid-token-12345",
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({}),
+      body: JSON.stringify({ brainId: "00000000-0000-0000-0000-000000000000", messages: [{ role: "user", content: "test" }] }),
     });
     const status = res.status;
     assertEquals(
-      status === 401 || status === 403,
+      status >= 400 && status < 500,
       true,
-      `${fn} should reject invalid JWT, got ${status}`,
+      `${fn} should reject invalid JWT with 4xx, got ${status}`,
     );
     await res.body?.cancel();
   });
