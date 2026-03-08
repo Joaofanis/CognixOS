@@ -1,5 +1,13 @@
+// @ts-expect-error Deno import
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+// @ts-expect-error Deno import
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+declare const Deno: {
+  env: {
+    get(key: string): string | undefined;
+  };
+};
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -7,42 +15,41 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-/** Try to extract a JSON object from a raw text that may contain markdown fences. */
+/** Try to extract a JSON object from a raw text that may contain markdown fences or think tags. */
 function extractJSON(text: string): Record<string, unknown> | null {
   if (!text) return null;
-  const cleaned = text.replace(/```(?:json)?\s*([\s\S]*?)```/g, "$1").trim();
-  const candidates = [cleaned, text];
+  // Remove <think>...</think> blocks if present
+  const content = text.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+  
+  // Try to find markdown JSON codeblocks
+  const jsonBlockRegex = /```(?:json)?\s*([\s\S]*?)```/i;
+  const match = content.match(jsonBlockRegex);
+  
+  const candidates = match ? [match[1].trim(), content] : [content];
   for (const candidate of candidates) {
     const start = candidate.indexOf("{");
     const end = candidate.lastIndexOf("}");
     if (start !== -1 && end !== -1 && end > start) {
       try {
         return JSON.parse(candidate.slice(start, end + 1));
-      } catch {
-        // ignore
+      } catch (e) {
+        console.error("JSON parse error:", e);
       }
     }
   }
   return null;
 }
 
-const SKILLS_INSTRUCTION = `  "skills": {
-    Avalie habilidades ESPECÍFICAS e GRANULARES encontradas nos textos.
-    NÃO use categorias genéricas como "comunicação", "liderança", "gestão".
-    Use nomes PRECISOS e DETALHADOS como:
-    - "persuasão emocional" (não "comunicação")
-    - "fechamento de objeções" (não "vendas")
-    - "storytelling de produto" (não "narrativa")
-    - "negociação de preço" (não "negociação")
-    - "rapport com cliente" (não "relacionamento")
-    - "análise de dados financeiros" (não "análise")
-    Dê nota 0-10 baseada em EVIDÊNCIAS REAIS dos textos.
-    Justifique internamente cada nota antes de atribuí-la.
-    "<habilidade específica e granular 1>": <número 0-10>,
-    "<habilidade específica e granular 2>": <número 0-10>,
-    ...até 12 habilidades específicas identificadas nos textos
+const SKILLS_INSTRUCTION_TEXT = `Instruções importantes para a seção "skills":
+- Avalie habilidades ESPECÍFICAS e GRANULARES.
+- NÃO use categorias genéricas como "comunicação", "liderança". Use nomes PRECISOS (ex: "persuasão emocional", "fechamento de objeções", "storytelling de produto").
+- Dê nota 0-10 baseada em EVIDÊNCIAS REAIS dos textos.`;
+
+const SKILLS_JSON_STRUCTURE = `  "skills": {
+    "<habilidade_especifica_1>": <numero_0_a_10>,
+    "<habilidade_especifica_2>": <numero_0_a_10>
   },
-  "skills_evaluation": "<parágrafo detalhado (200-400 palavras) avaliando qualitativamente os pontos fortes, fracos e diferenciais desta pessoa/conteúdo. Explique POR QUE cada habilidade recebeu a nota que recebeu, citando evidências dos textos. Compare as habilidades entre si: quais são dominantes, quais precisam de desenvolvimento, e qual o perfil geral de competências.>"`;
+  "skills_evaluation": "<paragrafo detalhado justificando as notas das skills>"`;
 
 // Build prompts based on brain type
 function getPrompts(brainType: string, allText: string) {
@@ -52,14 +59,16 @@ function getPrompts(brainType: string, allText: string) {
   switch (brainType) {
     case "knowledge_base":
       radarField = "knowledge_areas";
-      systemPrompt = `Você é um analista de conteúdo especialista. Analise os textos fornecidos e retorne APENAS um objeto JSON válido, sem nenhum texto adicional, sem markdown, sem explicações. O JSON deve ter exatamente esta estrutura:
+      systemPrompt = `Você é um analista de conteúdo especialista. Analise os textos fornecidos.
+${SKILLS_INSTRUCTION_TEXT}
+
+Retorne APENAS um objeto JSON válido, sem nenhum texto adicional. O JSON deve ter exatamente esta estrutura:
 {
   "knowledge_areas": {
-    "<área de conhecimento 1>": <número 0-10 representando profundidade>,
-    "<área de conhecimento 2>": <número 0-10>,
-    ...até 8 áreas
+    "<área de conhecimento 1>": <número 0-10>,
+    "<área de conhecimento 2>": <número 0-10>
   },
-${SKILLS_INSTRUCTION},
+${SKILLS_JSON_STRUCTURE},
   "frequent_themes": [
     {"name": "<tema>", "count": <número inteiro>}
   ]
@@ -67,14 +76,16 @@ ${SKILLS_INSTRUCTION},
       break;
     case "philosophy":
       radarField = "knowledge_areas";
-      systemPrompt = `Você é um analista filosófico especialista. Analise os textos fornecidos e retorne APENAS um objeto JSON válido, sem nenhum texto adicional, sem markdown, sem explicações. O JSON deve ter exatamente esta estrutura:
+      systemPrompt = `Você é um analista filosófico especialista. Analise os textos fornecidos.
+${SKILLS_INSTRUCTION_TEXT}
+
+Retorne APENAS um objeto JSON válido, sem nenhum texto adicional. O JSON deve ter exatamente esta estrutura:
 {
   "knowledge_areas": {
-    "<princípio filosófico 1>": <número 0-10 representando relevância>,
-    "<princípio filosófico 2>": <número 0-10>,
-    ...até 8 princípios
+    "<princípio filosófico 1>": <número 0-10>,
+    "<princípio filosófico 2>": <número 0-10>
   },
-${SKILLS_INSTRUCTION},
+${SKILLS_JSON_STRUCTURE},
   "frequent_themes": [
     {"name": "<tema>", "count": <número inteiro>}
   ]
@@ -82,14 +93,16 @@ ${SKILLS_INSTRUCTION},
       break;
     case "practical_guide":
       radarField = "knowledge_areas";
-      systemPrompt = `Você é um analista de competências práticas especialista. Analise os textos fornecidos e retorne APENAS um objeto JSON válido, sem nenhum texto adicional, sem markdown, sem explicações. O JSON deve ter exatamente esta estrutura:
+      systemPrompt = `Você é um analista de competências práticas especialista. Analise os textos fornecidos.
+${SKILLS_INSTRUCTION_TEXT}
+
+Retorne APENAS um objeto JSON válido, sem nenhum texto adicional. O JSON deve ter exatamente esta estrutura:
 {
   "knowledge_areas": {
-    "<competência prática 1>": <número 0-10 representando domínio>,
-    "<competência prática 2>": <número 0-10>,
-    ...até 8 competências
+    "<competência prática 1>": <número 0-10>,
+    "<competência prática 2>": <número 0-10>
   },
-${SKILLS_INSTRUCTION},
+${SKILLS_JSON_STRUCTURE},
   "frequent_themes": [
     {"name": "<tema>", "count": <número inteiro>}
   ]
@@ -97,9 +110,10 @@ ${SKILLS_INSTRUCTION},
       break;
     default: // person_clone
       radarField = "personality_traits";
-      systemPrompt = `Você é um psicólogo comportamental e linguista especialista em perfis humanos. Sua missão é analisar profundamente os textos fornecidos para criar um perfil completo e detalhado desta pessoa, capturando sua essência para cloná-la com perfeição máxima.
+      systemPrompt = `Você é um psicólogo comportamental e linguista especialista em perfis humanos. Analise profundamente os textos fornecidos para criar um perfil completo e detalhado desta pessoa.
+${SKILLS_INSTRUCTION_TEXT}
 
-Analise os textos e retorne APENAS um objeto JSON válido, sem nenhum texto adicional, sem markdown, sem explicações. O JSON deve ter exatamente esta estrutura:
+Retorne APENAS um objeto JSON válido, sem nenhum texto adicional. O JSON deve ter exatamente esta estrutura:
 {
   "personality_traits": {
     "extroversão": <número 0-10>,
@@ -111,7 +125,7 @@ Analise os textos e retorne APENAS um objeto JSON válido, sem nenhum texto adic
     "disciplina": <número 0-10>,
     "otimismo": <número 0-10>
   },
-${SKILLS_INSTRUCTION},
+${SKILLS_JSON_STRUCTURE},
   "communication_style": {
     "formalidade": <0=super informal, 10=extremamente formal>,
     "humor": <0=sério, 10=muito bem-humorado>,
@@ -121,21 +135,15 @@ ${SKILLS_INSTRUCTION},
     "linguagem_tecnica": <0=cotidiana, 10=muito técnica/especializada>
   },
   "voice_patterns": {
-    "aberturas_tipicas": ["<como costuma começar textos/argumentos — 3 exemplos reais ou padrões>"],
-    "palavras_de_transicao": ["<conectivos e marcadores discursivos que usa frequentemente>"],
-    "expressoes_recorrentes": ["<expressões, jargões ou frases feitas que repete — baseadas nos textos>"],
-    "estrutura_preferida": "<descreva o padrão: ex 'começa com pergunta retórica, desenvolve com exemplos, conclui com insight'>",
-    "tom_predominante": "<ex: reflexivo e analítico, entusiasmado e inspiracional, cético e questionador>"
+    "aberturas_tipicas": ["<mínimo 2 aberturas comuns reais>"],
+    "palavras_de_transicao": ["<mínimo 3 conectivos frequentemente usados>"],
+    "expressoes_recorrentes": ["<exemplo 1>", "<exemplo 2>"],
+    "estrutura_preferida": "<descreva o padrão textual de forma resumida>",
+    "tom_predominante": "<ex: reflexivo e analítico, entusiasmado>"
   },
   "signature_phrases": [
-    "<frase ou expressão marcante RETIRADA DIRETAMENTE dos textos 1>",
-    "<frase ou expressão marcante RETIRADA DIRETAMENTE dos textos 2>",
-    "<frase ou expressão marcante RETIRADA DIRETAMENTE dos textos 3>",
-    "<frase ou expressão marcante RETIRADA DIRETAMENTE dos textos 4>",
-    "<frase ou expressão marcante RETIRADA DIRETAMENTE dos textos 5>",
-    "<frase ou expressão marcante RETIRADA DIRETAMENTE dos textos 6>",
-    "<frase ou expressão marcante RETIRADA DIRETAMENTE dos textos 7>",
-    "<frase ou expressão marcante RETIRADA DIRETAMENTE dos textos 8>"
+    "<frase retirada diretamente dos textos 1>",
+    "<frase retirada diretamente dos textos 2>"
   ],
   "frequent_themes": [
     {"name": "<tema>", "count": <número inteiro>}
@@ -153,7 +161,7 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 const VALID_BRAIN_TYPES = ["person_clone", "knowledge_base", "philosophy", "practical_guide"];
 const MAX_BODY_SIZE = 1024 * 1024;
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
@@ -260,7 +268,7 @@ serve(async (req) => {
     }
 
     const MAX_CHARS = brainType === "person_clone" ? 60000 : 30000;
-    let allText = texts.map((t) => t.content).join("\n\n---\n\n");
+    let allText = texts.map((t: { content: string }) => t.content).join("\n\n---\n\n");
     if (allText.length > MAX_CHARS) {
       allText = allText.slice(0, MAX_CHARS) + "\n\n[...texto truncado por limite de contexto]";
       console.log(`analyze-brain: truncated text to ${MAX_CHARS} chars`);
@@ -269,11 +277,12 @@ serve(async (req) => {
     const { systemPrompt, userPrompt, radarField } = getPrompts(brainType as string, allText);
 
     const models = [
-      "google/gemini-2.0-flash-001",
+      "google/gemini-2.5-flash",
+      "google/gemini-2.0-flash-lite-preview-02-05:free",
       "meta-llama/llama-3.3-70b-instruct:free",
+      "qwen/qwen-2.5-72b-instruct:free",
       "mistralai/mistral-small-3.1-24b-instruct:free",
-      "qwen/qwen3-14b:free",
-      "deepseek/deepseek-chat-v3-0324:free",
+      "cognitivecomputations/dolphin3.0-r1-mistral-24b:free",
     ];
 
     let analysisData: Record<string, unknown> | null = null;
