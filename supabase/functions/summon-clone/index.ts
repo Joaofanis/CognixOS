@@ -186,7 +186,7 @@ serve(async (req) => {
 
     for (const model of models) {
       try {
-        console.log(`summon-clone: trying model ${model}`);
+        console.log(`summon-clone: trying model ${model} (mode: ${chatMode})`);
         const aiResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
           method: "POST",
           headers: {
