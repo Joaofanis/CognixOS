@@ -337,7 +337,7 @@ export default function Dashboard() {
             className="h-12 px-5 gap-2 rounded-2xl font-semibold shrink-0"
           >
             <UserCog className="h-4 w-4" />
-            Perfil IA
+            {t("dashboard.aiProfile")}
           </Button>
 
           <Button
