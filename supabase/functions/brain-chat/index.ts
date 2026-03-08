@@ -288,6 +288,7 @@ serve(async (req) => {
     const models = [
       "google/gemini-2.0-flash-001",
       "meta-llama/llama-3.3-70b-instruct:free",
+      "arcee-ai/trinity-large-preview:free",
       "mistralai/mistral-small-3.1-24b-instruct:free",
     ];
 
@@ -296,7 +297,7 @@ serve(async (req) => {
 
     for (const model of models) {
       try {
-        console.log(`Attempting with model: ${model} (mode: ${chatMode})`);
+        console.log(`brain-chat: trying model ${model} (mode: ${chatMode})`);
         const aiResponse = await fetch(
           "https://openrouter.ai/api/v1/chat/completions",
           {
@@ -321,28 +322,20 @@ serve(async (req) => {
         );
 
         if (aiResponse.ok) {
+          console.log(`brain-chat: success with model ${model}`);
           response = aiResponse;
           break;
         } else {
           const errorText = await aiResponse.text();
           lastErrorInfo = { status: aiResponse.status, text: errorText, model };
-          console.error(
-            `Model ${model} failed with ${aiResponse.status}:`,
-            errorText,
-          );
-
-          // If it's a "fatal" error (auth, billing, etc.), don't bother with other models
-          if (
-            aiResponse.status === 401 ||
-            aiResponse.status === 400 ||
-            aiResponse.status === 403
-          ) {
-            break;
-          }
+          console.error(`Model ${model} failed with ${aiResponse.status}:`, errorText);
+          if (aiResponse.status === 401 || aiResponse.status === 400 || aiResponse.status === 403) break;
+          await new Promise(r => setTimeout(r, 500));
         }
       } catch (e) {
         lastErrorInfo = { error: "Erro interno" };
         console.error(`Fetch error for model ${model}:`, e);
+        await new Promise(r => setTimeout(r, 500));
       }
     }
 

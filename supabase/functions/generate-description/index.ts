@@ -123,6 +123,7 @@ serve(async (req) => {
     const models = [
       "google/gemini-2.0-flash-001",
       "meta-llama/llama-3.3-70b-instruct:free",
+      "arcee-ai/trinity-large-preview:free",
       "mistralai/mistral-small-3.1-24b-instruct:free",
     ];
 
@@ -130,6 +131,7 @@ serve(async (req) => {
 
     for (const model of models) {
       try {
+        console.log(`generate-description: trying model ${model}`);
         const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
           method: "POST",
           headers: {
@@ -149,6 +151,8 @@ serve(async (req) => {
         if (!response.ok) {
           const errBody = await response.text().catch(() => "");
           console.error(`Model ${model} failed: ${response.status} - ${errBody}`);
+          if (response.status === 401 || response.status === 400 || response.status === 403) break;
+          await new Promise(r => setTimeout(r, 500));
           continue;
         }
 
@@ -160,8 +164,10 @@ serve(async (req) => {
           break;
         }
         console.warn(`Model ${model} returned empty content`);
+        await new Promise(r => setTimeout(r, 500));
       } catch (e) {
         console.error(`generate-description: error with ${model}:`, e);
+        await new Promise(r => setTimeout(r, 500));
       }
     }
 
