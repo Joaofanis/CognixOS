@@ -1,6 +1,4 @@
-// @ts-expect-error Deno import
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-// @ts-expect-error Deno import
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 declare const Deno: {
