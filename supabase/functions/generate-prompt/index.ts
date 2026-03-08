@@ -23,6 +23,7 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 const MODELS = [
   "google/gemini-2.0-flash-001",
   "meta-llama/llama-3.3-70b-instruct:free",
+  "arcee-ai/trinity-large-preview:free",
   "mistralai/mistral-small-3.1-24b-instruct:free",
 ];
 
