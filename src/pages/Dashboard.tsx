@@ -288,7 +288,7 @@ export default function Dashboard() {
           <div className="relative flex-1 group">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
             <Input
-              placeholder="Buscar mentes..."
+              placeholder={t("dashboard.searchPlaceholder")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-11 h-12 bg-card/60 border-border/50 focus:border-primary/50 transition-all rounded-2xl shadow-sm"
