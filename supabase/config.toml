@@ -38,3 +38,6 @@ verify_jwt = false
 
 [functions.ai-health-check]
 verify_jwt = false
+
+[functions.auto-clone]
+verify_jwt = false
