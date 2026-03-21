@@ -384,20 +384,27 @@ serve(async (req) => {
 
           send({ step: "found_urls", message: `${targetUrls.length} fontes encontradas`, urls: targetUrls });
 
-          // Step 2: Extract content from each URL
-          const extractedTexts: { title: string; content: string }[] = [];
-          for (let i = 0; i < targetUrls.length; i++) {
-            send({ step: "extracting", message: `Extraindo ${i + 1}/${targetUrls.length}...`, url: targetUrls[i] });
-            const result = await extractTextFromUrl(targetUrls[i]);
-            if (result) {
-              extractedTexts.push(result);
-              send({ step: "extracted", message: `✓ ${result.title}`, chars: result.content.length });
-            } else {
-              send({ step: "skip", message: `✗ Não foi possível extrair: ${targetUrls[i]}` });
+          // Step 2: Extract content from each URL (em paralelo)
+          send({ step: "extracting", message: `Extraindo dados de ${targetUrls.length} fontes simultaneamente...` });
+
+          const extractPromises = targetUrls.map(async (url) => {
+            try {
+              const res = await extractTextFromUrl(url);
+              if (res) {
+                 send({ step: "extracted", message: `✓ ${res.title.substring(0, 60)}...`, chars: res.content.length });
+                 return res;
+              } else {
+                 send({ step: "skip", message: `✗ Ignorado (sem conteúdo útil)` });
+                 return null;
+              }
+            } catch (e) {
+              send({ step: "skip", message: `✗ Erro na extração` });
+              return null;
             }
-            // Small delay between requests
-            await new Promise(r => setTimeout(r, 300));
-          }
+          });
+
+          const results = await Promise.all(extractPromises);
+          const extractedTexts = results.filter((r): r is {title: string; content: string} => r !== null);
 
           if (extractedTexts.length === 0) {
             send({ step: "error", message: "Nenhum conteúdo pôde ser extraído das URLs encontradas." });
