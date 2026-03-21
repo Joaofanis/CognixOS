@@ -8,13 +8,15 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-function getUserIdFromJwt(authHeader: string): string {
-  const token = authHeader.replace("Bearer ", "");
-  const parts = token.split(".");
-  if (parts.length !== 3) throw new Error("Token inválido");
-  const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
-  if (!payload.sub) throw new Error("Token sem identificação");
-  return payload.sub;
+async function getUserIdFromJwtAndVerify(authHeader: string): Promise<string> {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+  const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: authHeader } },
+  });
+  const { data: { user }, error } = await userClient.auth.getUser();
+  if (error || !user) throw new Error("Token inválido ou expirado");
+  return user.id;
 }
 
 serve(async (req) => {
@@ -29,7 +31,7 @@ serve(async (req) => {
       });
     }
 
-    const userId = getUserIdFromJwt(authHeader);
+    const userId = await getUserIdFromJwtAndVerify(authHeader);
 
     // Parse FormData
     const formData = await req.formData();

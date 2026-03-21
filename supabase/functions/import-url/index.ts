@@ -8,13 +8,15 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-function getUserIdFromJwt(authHeader: string): string {
-  const token = authHeader.replace("Bearer ", "");
-  const parts = token.split(".");
-  if (parts.length !== 3) throw new Error("Token inválido");
-  const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
-  if (!payload.sub) throw new Error("Token sem identificação");
-  return payload.sub;
+async function getUserIdFromJwtAndVerify(authHeader: string): Promise<string> {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+  const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: authHeader } },
+  });
+  const { data: { user }, error } = await userClient.auth.getUser();
+  if (error || !user) throw new Error("Token inválido ou expirado");
+  return user.id;
 }
 
 function isYouTubeUrl(url: string): boolean {
@@ -164,7 +166,7 @@ serve(async (req) => {
     const authHeader = req.headers.get("authorization");
     if (!authHeader?.startsWith("Bearer ")) throw new Error("Não autenticado");
 
-    const userId = getUserIdFromJwt(authHeader);
+    const userId = await getUserIdFromJwtAndVerify(authHeader);
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -192,7 +194,10 @@ serve(async (req) => {
         source_type: "youtube",
         file_name: title,
       });
-      if (insertErr) throw new Error(`Falha ao salvar: ${insertErr.message}`);
+      if (insertErr) {
+        console.error("DB Insert Error:", insertErr);
+        throw new Error("Falha ao salvar a fonte de dados");
+      }
 
       return new Response(JSON.stringify({ success: true, title, chars: transcript.length }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -267,7 +272,10 @@ serve(async (req) => {
       source_type: "url_import",
       file_name: title,
     });
-    if (insertErr) throw new Error(`Falha ao salvar: ${insertErr.message}`);
+    if (insertErr) {
+      console.error("DB Insert Error:", insertErr);
+      throw new Error("Falha ao salvar o conteúdo no banco");
+    }
 
     return new Response(JSON.stringify({ success: true, title, chars: text.length }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
