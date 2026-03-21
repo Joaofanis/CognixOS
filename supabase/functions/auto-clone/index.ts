@@ -22,62 +22,98 @@ function decodeHtmlEntities(text: string): string {
     .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
     .replace(/&quot;/g, "'").replace(/&#39;/g, "'").replace(/&apos;/g, "'")
     .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
-    .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(parseInt(dec, 10)))
     .replace(/&nbsp;/g, " ");
 }
 
-// ── Web Search via Google scraping ──────────────────────────────────────────
-async function searchGoogle(query: string): Promise<string[]> {
-  const url = `https://www.google.com/search?q=${encodeURIComponent(query)}&num=12&hl=pt-BR`;
+// ── Web Search via Wikipedia API ───────────────────────────────────────────
+async function searchWikipedia(query: string): Promise<string[]> {
+  const url = `https://pt.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&utf8=&format=json&srlimit=1`;
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (data.query?.search?.length > 0) {
+      const title = data.query.search[0].title;
+      return [`https://pt.wikipedia.org/wiki/${encodeURIComponent(title)}`];
+    }
+  } catch (e) {
+    console.error("Wiki search error:", e);
+  }
+  return [];
+}
+
+// ── Web Search via YouTube ──────────────────────────────────────────────────
+async function searchYouTubeLinks(query: string): Promise<string[]> {
+  const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
+  try {
+    const res = await fetch(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+        "Accept-Language": "pt-BR,pt;q=0.9",
+      },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return [];
+    const html = await res.text();
+    const urls: string[] = [];
+    const re = /"url":"\/watch\?v=([^"]+)"/g;
+    let match;
+    while ((match = re.exec(html)) !== null) {
+      if (urls.length >= 3) break;
+      const vidUrl = `https://www.youtube.com/watch?v=${match[1]}`;
+      if (!urls.includes(vidUrl)) urls.push(vidUrl);
+    }
+    return urls;
+  } catch (e) {
+    console.error("YouTube search error:", e);
+    return [];
+  }
+}
+
+// ── Web Search via DuckDuckGo HTML scraping ─────────────────────────────────
+async function searchDuckDuckGo(query: string): Promise<string[]> {
+  const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
   try {
     const resp = await fetch(url, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
-        "Accept": "text/html,application/xhtml+xml",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
       },
       signal: AbortSignal.timeout(10000),
     });
-    if (!resp.ok) return [];
+    if (!resp.ok) {
+      console.warn("DuckDuckGo search failed with status:", resp.status);
+      return [];
+    }
     const html = await resp.text();
 
-    // Extract URLs from Google results
     const urls: string[] = [];
-    const urlRegex = /href="\/url\?q=([^&"]+)/g;
+    const urlRegex = /<a class="result__url" href="([^"]+)"/g;
     let match;
     while ((match = urlRegex.exec(html)) !== null) {
       try {
-        const decoded = decodeURIComponent(match[1]);
-        const u = new URL(decoded);
-        // Filter: only keep useful domains
-        const dominated = [
-          "youtube.com", "youtu.be", "linkedin.com", "medium.com",
-          "twitter.com", "x.com", "wikipedia.org", "github.com",
-          "instagram.com", "facebook.com", "tiktok.com",
-        ];
-        const dominated2 = ["google.com", "google.com.br", "gstatic.com", "googleapis.com", "accounts.google.com"];
+        let href = match[1];
+        if (href.startsWith("//duckduckgo.com/l/?uddg=")) {
+          const ud = new URL("https:" + href);
+          const actualUrl = ud.searchParams.get("uddg");
+          if (actualUrl) href = decodeURIComponent(actualUrl);
+        }
+        const u = new URL(href);
+        // Filter: skip DuckDuckGo internal or useless links
+        const dominated2 = ["duckduckgo.com", "google.com"];
         if (dominated2.some(d => u.hostname.includes(d))) continue;
         if (["http:", "https:"].includes(u.protocol)) {
-          urls.push(decoded);
+          urls.push(href);
         }
       } catch { /* skip invalid URLs */ }
-    }
-
-    // Also try extracting from href="/url?q=" or direct links in results
-    const directRegex = /href="(https?:\/\/[^"]+)"/g;
-    while ((match = directRegex.exec(html)) !== null) {
-      try {
-        const u = new URL(match[1]);
-        if (u.hostname.includes("google.com") || u.hostname.includes("gstatic.com")) continue;
-        if (!urls.includes(match[1])) urls.push(match[1]);
-      } catch { /* skip */ }
     }
 
     // Deduplicate and limit
     const unique = [...new Set(urls)].slice(0, 8);
     return unique;
   } catch (e) {
-    console.error("Google search error:", e);
+    console.error("DuckDuckGo search error:", e);
     return [];
   }
 }
@@ -317,17 +353,27 @@ serve(async (req) => {
           let targetUrls: string[] = Array.isArray(urls) ? urls.filter((u: unknown) => typeof u === "string") : [];
 
           if (targetUrls.length === 0) {
-            // Search Google for the person
+            send({ step: "searching", message: `Buscando Wikipédia, YouTube e DuckDuckGo sobre ${name}...` });
+
+            // 1. Wikipedia (most accurate bio)
+            const wiki = await searchWikipedia(name);
+            targetUrls.push(...wiki);
+
+            // 2. YouTube (for voice/communication style)
+            const yt = await searchYouTubeLinks(`${name} entrevista podcast`);
+            targetUrls.push(...yt);
+
+            // 3. DuckDuckGo (for general articles/blogs)
             const queries = [
-              `"${name}" entrevista OR artigo OR palestra`,
-              `"${name}" linkedin OR youtube OR blog`,
+              `"${name}" entrevista OR artigo OR pensamentos`,
+              `"${name}" blog OR linkedin OR site oficial`,
             ];
             for (const q of queries) {
-              const found = await searchGoogle(q);
+              const found = await searchDuckDuckGo(q);
               targetUrls.push(...found);
               if (targetUrls.length >= 8) break;
             }
-            targetUrls = [...new Set(targetUrls)].slice(0, 8);
+            targetUrls = [...new Set(targetUrls)].slice(0, 10);
           }
 
           if (targetUrls.length === 0) {
