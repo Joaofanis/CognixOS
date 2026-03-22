@@ -319,11 +319,12 @@ serve(async (req: Request) => {
           continue;
         }
 
+        const data = await response.json();
         const rawContent = (data.choices?.[0]?.message?.content ?? "").trim();
         const parsed = extractJSON(rawContent);
         if (parsed && typeof parsed === "object" && Object.keys(parsed).length > 0) {
-          result = parsed;
-          usedModel = model;
+          analysisData = parsed;
+          console.log(`analyze-brain: success with model ${model}`);
           break;
         } else {
           console.warn(`Model ${model} returned invalid structure:`, rawContent.slice(0, 300));
