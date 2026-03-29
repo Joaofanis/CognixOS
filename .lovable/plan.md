@@ -1,102 +1,114 @@
-
-
-## Plano: Sistema de Auto-Criação de Clones (Self-Building Clone)
+## Plano: Squad de Agentes para Clonagem Digital Avançada
 
 ### Conceito
 
-Criar um fluxo onde o usuário fornece apenas o **nome da pessoa** (e opcionalmente URLs) e o sistema automaticamente:
-1. Busca informações na internet
-2. Extrai e processa o conteúdo
-3. Gera o system prompt com as 12 camadas
-4. Cria o clone pronto para conversar
+Reescrever a Edge Function `auto-clone` para usar uma **arquitetura de multi-agentes** (squad) onde cada agente tem um papel especializado no processo de clonagem digital, seguindo o manual avançado de "DNA Cognitivo". O processo será mais profundo, fazendo buscas exaustivas e análises em múltiplas camadas.
 
-Tudo usando **modelos gratuitos do OpenRouter** (que já estão configurados) + scraping básico sem APIs pagas.
-
-### Arquitetura
+### Arquitetura do Squad de Agentes
 
 ```text
 Usuário digita "Alan Nicolas"
          ↓
-[Edge Function: auto-clone]
+[AGENTE CONTROLADOR] — orquestra tudo, valida qualidade
          ↓
-    1. Busca web gratuita (Google via scraping HTML)
+[AGENTE PESQUISADOR] — busca exaustiva (DuckDuckGo, Wikipedia, YouTube, múltiplas queries)
          ↓
-    2. Extrai conteúdo das top URLs encontradas
+[AGENTE ANALISTA] — gera relatório de DNA Cognitivo (DISC, Eneagrama, Soft Skills, padrões)
          ↓
-    3. Salva textos no brain_texts
+[AGENTE VERIFICADOR] — avalia completude e qualidade do relatório
          ↓
-    4. Chama generate-prompt (já existente)
+[AGENTE PROMPTER] — gera o System Prompt final com as 12 camadas
          ↓
-    5. Retorna brain pronto com prompt gerado
+Clone pronto com prompt de alta qualidade
 ```
 
-### Custo: ZERO em APIs extras
+### Os 4+ Agentes
 
-- **Busca web**: Scraping do Google Search via fetch HTML (sem API paga)
-- **Extração de conteúdo**: Já existe na função `import-url` (scraping HTML básico)
-- **Geração de prompt**: Usa modelos `:free` do OpenRouter (já configurado)
-- **YouTube**: Já suportado no `import-url` existente
 
-### O que será criado
+| Agente          | Papel                           | Detalhes                                                                                                                                                                                                                         |
+| --------------- | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Pesquisador** | Busca exaustiva na web          | Múltiplas queries (nome+entrevista, nome+podcast, nome+filosofia, nome+frases, nome+opinião). Busca em DuckDuckGo, Wikipedia (pt+en), YouTube. Extrai conteúdo de todas URLs encontradas. Meta: 10-15 fontes.                    |
+| **Analista**    | Gera relatório de DNA Cognitivo | Recebe todo o conteúdo extraído e produz: perfil DISC, Eneagrama, 10 Soft Skills, traços cognitivos, padrões de argumentação, filosofia, frases marcantes, vocabulário assinatura, heurísticas de decisão, metáforas preferidas. |
+| **Verificador** | Avalia qualidade e completude   | Verifica se o relatório do Analista cobre todas as dimensões necessárias. Se faltar algo, solicita ao Pesquisador buscar mais ou ao Analista aprofundar. Pode iterar até 2x.                                                     |
+| **Prompter**    | Gera o System Prompt final      | Usa o relatório validado + conteúdo bruto para gerar o prompt de 12 camadas com foco em Imprinting Cognitivo. Segue o manual completo (anti-hype, few-shot, traços cognitivos, formato 5 passos).                                |
 
-#### 1. Nova Edge Function: `auto-clone/index.ts`
 
-Recebe `{ name, urls?: string[], brainName?: string }` e orquestra todo o fluxo:
+### Diferenças vs Sistema Atual
 
-- Se `urls` fornecidas → usa diretamente
-- Se apenas `name` → faz scraping do Google para encontrar URLs relevantes (perfis, artigos, vídeos)
-- Para cada URL encontrada, extrai conteúdo (reutiliza lógica do `import-url`)
-- Cria o brain no banco
-- Salva os textos extraídos como `brain_texts`
-- Chama `generate-prompt` internamente para gerar o system prompt
-- Retorna o brain_id criado
 
-Resposta via SSE (streaming) para mostrar progresso em tempo real:
+| Aspecto   | Atual                                      | Novo                                                                      |
+| --------- | ------------------------------------------ | ------------------------------------------------------------------------- |
+| Busca     | 2 queries DuckDuckGo + Wikipedia + YouTube | 6-8 queries especializadas, Wikipedia pt+en, YouTube com múltiplos termos |
+| Análise   | Nenhuma (pula direto para prompt)          | Agente dedicado gera relatório DISC/Eneagrama/Soft Skills                 |
+| Validação | Nenhuma                                    | Agente verificador com loop de iteração                                   |
+| Prompt    | 1 chamada AI direta                        | Usa relatório estruturado como input, prompt mais rico                    |
+| Tempo     | ~30-60s                                    | ~2-5 min (aceitável, mostra progresso detalhado)                          |
+
+
+Os agentes continua em rodando ate atingir um perfeição se nessesario pode rodar 30 minutos ate chegar a 100% de mapeamento da pessoa 
+
+&nbsp;
+
+### Busca Avançada (Agente Pesquisador)
+
+Queries que serão executadas automaticamente:
+
+1. `"Nome" entrevista OR podcast`
+2. `"Nome" filosofia OR visão OR pensamento`
+3. `"Nome" frases OR citações OR quotes`
+4. `"Nome" opinião OR análise OR artigo`
+5. `"Nome" biografia OR história OR trajetória`
+6. `"Nome" site:linkedin.com OR site:medium.com`
+7. Wikipedia PT + Wikipedia EN
+8. YouTube: `"Nome" entrevista`, `"Nome" palestra`
+
+### Relatório de DNA Cognitivo (Output do Analista)
+
+O Analista gera um JSON estruturado:
+
 ```json
-{"step": "searching", "message": "Buscando informações sobre Alan Nicolas..."}
-{"step": "found_urls", "urls": ["url1", "url2"]}
-{"step": "extracting", "url": "url1", "progress": "1/5"}
-{"step": "generating_prompt", "message": "Gerando personalidade..."}
-{"step": "done", "brainId": "uuid"}
+{
+  "identity": "...",
+  "disc_profile": { "D": 8, "I": 7, "S": 3, "C": 5 },
+  "enneagram": "7w8",
+  "cognitive_traits": ["simplifica complexidade", "desafia premissas", ...],
+  "decision_heuristics": ["sempre validar com caso de uso real", ...],
+  "philosophy": "...",
+  "signature_vocabulary": ["...", ...],
+  "real_phrases": ["...", ...],
+  "communication_style": { "formality": 4, "humor": 7, ... },
+  "soft_skills": { "criatividade": 9, "comunicação": 8, ... },
+  "argumentation_patterns": "...",
+  "preferred_metaphors": ["...", ...],
+  "anti_hype_triggers": ["...", ...]
+}
 ```
 
-#### 2. Frontend: Botão "Auto-Criar Clone" no `CreateBrainDialog`
+### Progresso SSE (UI)
 
-No Step 1 (Identidade), adicionar um botão "Criar Automaticamente" que:
-- Pede apenas o nome da pessoa
-- Opcionalmente aceita URLs adicionais
-- Mostra progresso em tempo real (steps do SSE)
-- Ao terminar, navega direto para o brain criado
+O frontend mostrará etapas mais detalhadas:
 
-#### 3. Busca Web Gratuita (dentro do auto-clone)
+- "Agente Pesquisador buscando fontes..." (com contagem)
+- "Extraindo conteúdo de 12 fontes..."
+- "Agente Analista mapeando DNA Cognitivo..."
+- "Agente Verificador validando completude..."
+- "Agente Prompter gerando Sistema Operacional Cognitivo..."
+- "Clone criado com sucesso!"
 
-Scraping do Google Search sem API:
-- `fetch("https://www.google.com/search?q=nome+pessoa")` com User-Agent de browser
-- Extrai links dos resultados HTML via regex
-- Filtra por domínios confiáveis (linkedin, twitter/x, youtube, medium, wikipedia, blogs)
-- Limita a 5-8 URLs para não sobrecarregar
+### Arquivos Afetados
 
-### Limitações honestas
 
-- Scraping do Google pode ser bloqueado por rate limit (funciona para uso moderado)
-- Sites com JavaScript pesado (SPAs) não serão extraídos completamente
-- Twitter/X tem proteção anti-scraping forte, pode falhar
-- Qualidade do clone depende da quantidade/qualidade do conteúdo público disponível
+| Arquivo                                  | Ação                                                          |
+| ---------------------------------------- | ------------------------------------------------------------- |
+| `supabase/functions/auto-clone/index.ts` | **Reescrever** — adicionar squad de agentes                   |
+| `src/components/CreateBrainDialog.tsx`   | **Editar** — atualizar UI de progresso com etapas dos agentes |
 
-### Arquivos afetados
 
-| Arquivo | Ação |
-|---------|------|
-| `supabase/functions/auto-clone/index.ts` | **Novo** — orquestrador principal |
-| `src/components/CreateBrainDialog.tsx` | **Editar** — adicionar botão "Auto-Criar" e UI de progresso |
-| `supabase/config.toml` | **Editar** — registrar nova função |
+### Detalhes Técnicos
 
-### Detalhes técnicos
-
-A função `auto-clone` será self-contained (~300 linhas):
-- Busca Google via fetch HTML + regex para extrair URLs
-- Para cada URL, faz fetch + extração de texto (similar ao import-url mas simplificado)
-- Usa o Supabase service role para criar brain + brain_texts
-- Chama OpenRouter (modelos :free) para gerar o system prompt inline
-- Streaming SSE para feedback em tempo real
-
+- Usa os mesmos modelos `:free` do OpenRouter (custo zero)
+- Cada agente é uma chamada AI com system prompt especializado
+- O Verificador pode iterar até 2x (loop controlado)
+- Busca expandida: ~8 queries em paralelo onde possível
+- Tempo estimado: 2-5 minutos (progresso SSE mantém usuário informado)
+- Contexto limitado a 120k chars para compatibilidade com modelos gratuitos
