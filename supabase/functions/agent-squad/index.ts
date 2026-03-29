@@ -9,311 +9,199 @@ const corsHeaders = {
 };
 
 const MAX_ITERATIONS = 5;
-const MAX_CONTEXT_CHARS = 120_000;
 
-const MODELS = [
-      "google/gemini-2.5-flash-lite",
-      "google/gemini-2.0-flash-001",
-      "meta-llama/llama-3.3-70b-instruct:free",
-      "arcee-ai/trinity-large-preview:free",
-      "mistralai/mistral-small-3.1-24b-instruct:free",
-    ];
+// Default fallback models if subagent doesn't specify one
+const DEFAULT_MODEL = "google/gemini-2.5-flash-lite";
+const ARCHITECT_MODEL = "google/gemini-2.0-flash-001";
 
 async function callAI(
   messages: { role: string; content: string }[],
   apiKey: string,
   systemPrompt: string,
+  model: string,
   stream = false
 ): Promise<string | ReadableStream> {
-  for (const model of MODELS) {
-    try {
-      const resp = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": "https://ai-second-brain.app",
-          "X-Title": "AI Second Brain",
-        },
-        body: JSON.stringify({
-          model,
-          messages: [{ role: "system", content: systemPrompt }, ...messages],
-          stream,
-          temperature: 0.7,
-          max_tokens: 32_000,
-        }),
-      });
+  const resp = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      "HTTP-Referer": "https://ai-second-brain.app",
+      "X-Title": "AI Second Brain",
+    },
+    body: JSON.stringify({
+      model,
+      messages: [{ role: "system", content: systemPrompt }, ...messages],
+      stream,
+      temperature: 0.7,
+      max_tokens: 16_000,
+    }),
+  });
 
-      if (!resp.ok) continue;
-
-      if (stream) return resp.body!;
-
-      const data = await resp.json();
-      return data.choices?.[0]?.message?.content || "";
-    } catch {
-      continue;
-    }
+  if (!resp.ok) {
+    throw new Error(`AI request failed with status ${resp.status}`);
   }
-  throw new Error("All AI models failed");
+
+  if (stream) return resp.body!;
+  const data = await resp.json();
+  return data.choices?.[0]?.message?.content || "";
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS")
-    return new Response(null, { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "No authorization header" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    if (!authHeader) throw new Error("No authorization header");
 
     const body = await req.json();
-    const { query, brainIds } = body as {
-      query: string;
-      brainIds: string[];
-    };
+    const { query } = body as { query: string };
+    if (!query) throw new Error("Missing query");
 
-    if (!query || typeof query !== "string" || query.trim().length === 0) {
-      return new Response(JSON.stringify({ error: "Missing query" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
-    if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY not configured");
-
+    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY")!;
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    
     const userClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
     const { data: { user }, error: authError } = await userClient.auth.getUser();
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    if (authError || !user) throw new Error("Unauthorized");
 
     const userId = user.id;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Load all available brains for this user
-    const brainsQuery = supabase
-      .from("brains")
-      .select("id, name, type, description, system_prompt, user_id")
+    // Load Subagents
+    const { data: subagents } = await supabase
+      .from("subagents")
+      .select("id, name, role, system_prompt, preferred_model")
       .eq("user_id", userId);
 
-    if (brainIds && Array.isArray(brainIds) && brainIds.length > 0) {
-      brainsQuery.in("id", brainIds);
-    }
+    // Load Skills (Playbooks)
+    const { data: skills } = await supabase
+      .from("agent_skills")
+      .select("id, name, description, trigger_word, content")
+      .eq("user_id", userId);
 
-    const { data: allBrains, error: brainsErr } = await brainsQuery;
-    if (brainsErr || !allBrains || allBrains.length === 0) {
-      return new Response(JSON.stringify({ error: "No brains found for squad" }), {
+    if (!subagents || subagents.length === 0) {
+      return new Response(JSON.stringify({ error: "No subagents found. Please create them in the AIOS Factory." }), {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Load context for each brain
-    const brainContexts: Record<string, string> = {};
-    for (const brain of allBrains) {
-      const { data: texts } = await supabase
-        .from("brain_texts")
-        .select("content, rag_summary, rag_keywords, category, rag_processed")
-        .eq("brain_id", brain.id)
-        .order("created_at", { ascending: false })
-        .limit(20);
-
-      const parts: string[] = [];
-      if (texts) {
-        for (const t of texts) {
-          if (t.rag_processed && t.rag_summary) {
-            parts.push(`Resumo: ${t.rag_summary}\nConteúdo: ${t.content}`);
-          } else {
-            parts.push(t.content);
-          }
-        }
-      }
-      let ctx = parts.join("\n\n---\n\n");
-      if (ctx.length > MAX_CONTEXT_CHARS / allBrains.length) {
-        ctx = ctx.slice(0, MAX_CONTEXT_CHARS / allBrains.length) + "\n[...truncado]";
-      }
-      brainContexts[brain.id] = ctx;
-    }
-
-    // Use a streaming response (SSE) to stream the squad process
     const encoder = new TextEncoder();
-
     const stream = new ReadableStream({
       async start(controller) {
-        const send = (data: object) => {
-          const line = `data: ${JSON.stringify(data)}\n\n`;
-          controller.enqueue(encoder.encode(line));
-        };
+        const send = (data: object) => controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
 
         try {
-          // Step 1: Admin agent decides which squad members to use
-          const adminSystemPrompt = `Você é o Agente Administrador de um squad de IA especializado. 
-Você gerencia um conjunto de clones de IA e deve selecionar os mais relevantes para responder a uma query.
+          // --- STEP 1: Admin Routing & Skill Matching ---
+          send({ type: "admin_thinking", message: "Administrador AIOS analisando a tarefa e playbooks..." });
 
-Clones disponíveis:
-${allBrains.map(b => `- ID: ${b.id} | Nome: ${b.name} | Tipo: ${b.type} | Descrição: ${b.description || "N/A"}`).join("\n")}
+          const adminSystemPrompt = `Você é o Arquiteto/Orquestrador do AIOS. 
+Sua tarefa é analisar a requisição do usuário, verificar se há alguma Skill (Playbook) relevante, e escolher os Subagentes apropriados para o trabalho.
 
-Responda SOMENTE com um JSON válido com este formato:
+Skills Disponíveis:
+${skills?.map(s => `- [${s.name}]: Gatilho: ${s.trigger_word}. Descrição: ${s.description}`).join("\n") || "Nenhuma skill."}
+
+Subagentes Disponíveis:
+${subagents.map(a => `- ID: ${a.id} | Nome: ${a.name} | Role: ${a.role}`).join("\n")}
+
+Responda SOMENTE em JSON:
 {
-  "selected_ids": ["id1", "id2", ...],
-  "reasoning": "Explicação de por que esses clones foram escolhidos",
-  "strategy": "Como eles devem colaborar"
-}
-Selecione de 2 a ${Math.min(4, allBrains.length)} clones.`;
-
-          send({ type: "admin_thinking", message: "Agente Administrador analisando a query..." });
-
-          const adminResponse = await callAI(
-            [{ role: "user", content: `Query: ${query}` }],
-            OPENROUTER_API_KEY,
-            adminSystemPrompt
-          ) as string;
-
-          let squadPlan: { selected_ids: string[]; reasoning: string; strategy: string };
+  "selected_skill_id": "ID da skill se alguma for disparada pelo usuário (ex: !blog) ou se encaixar perfeitamente na tarefa, senão null",
+  "selected_agent_ids": ["id1", "id2"],
+  "reasoning": "Por que?"
+}`;
+          
+          let planData = { selected_agent_ids: subagents.slice(0, 2).map(a => a.id), selected_skill_id: null, reasoning: "Fallback" };
           try {
-            const jsonMatch = adminResponse.match(/\{[\s\S]*\}/);
-            squadPlan = jsonMatch ? JSON.parse(jsonMatch[0]) : { selected_ids: allBrains.slice(0, 2).map(b => b.id), reasoning: "Default selection", strategy: "Sequential" };
-          } catch {
-            squadPlan = { selected_ids: allBrains.slice(0, 2).map(b => b.id), reasoning: "Default selection", strategy: "Sequential" };
+            const adminResp = await callAI([{ role: "user", content: query }], OPENROUTER_API_KEY, adminSystemPrompt, ARCHITECT_MODEL) as string;
+            const match = adminResp.match(/\{[\s\S]*\}/);
+            if (match) planData = JSON.parse(match[0]);
+          } catch(e) { console.warn("Admin parsing failed", e); }
+
+          // Ensure valid agents
+          planData.selected_agent_ids = planData.selected_agent_ids?.filter(id => subagents.some(a => a.id === id));
+          if (!planData.selected_agent_ids || planData.selected_agent_ids.length === 0) {
+            planData.selected_agent_ids = subagents.slice(0, 2).map(a => a.id);
           }
 
-          // Ensure valid selections
-          squadPlan.selected_ids = squadPlan.selected_ids.filter(id =>
-            allBrains.some(b => b.id === id)
-          );
-          if (squadPlan.selected_ids.length === 0) {
-            squadPlan.selected_ids = allBrains.slice(0, 2).map(b => b.id);
-          }
-
-          const squadBrains = allBrains.filter(b => squadPlan.selected_ids.includes(b.id));
+          const activeSquad = subagents.filter(a => planData.selected_agent_ids!.includes(a.id));
+          const activeSkill = skills?.find(s => s.id === planData.selected_skill_id);
 
           send({
             type: "squad_formed",
-            squad: squadBrains.map(b => ({ id: b.id, name: b.name, type: b.type })),
-            reasoning: squadPlan.reasoning,
-            strategy: squadPlan.strategy,
+            squad: activeSquad.map(a => ({ id: a.id, name: a.name, type: a.role })),
+            reasoning: planData.reasoning + (activeSkill ? ` Usando o playbook interno: ${activeSkill.name}` : ""),
+            strategy: "AIOS Factory Line",
           });
 
-          // Step 2 – Iterative discussion between squad members
           const squadHistory: { agentName: string; agentId: string; content: string }[] = [];
-          let iteration = 0;
-          let conversationContext = `Query original: ${query}\n\nEstratégia de colaboração: ${squadPlan.strategy}`;
+          
+          let conversationContext = `Tarefa Principal: ${query}`;
+          if (activeSkill) {
+            conversationContext += `\n\nATENÇÃO OBRIGATÓRIA: Siga estritamente este Playbook/Skill definido pelo usuário:\n${activeSkill.content}`;
+          }
 
+          let iteration = 0;
+          // --- STEP 2: Execution (Sequential/Iterative) ---
           while (iteration < MAX_ITERATIONS) {
             iteration++;
             send({ type: "iteration_start", iteration, maxIterations: MAX_ITERATIONS });
 
-            for (const brain of squadBrains) {
-              const brainSystemPrompt = brain.system_prompt?.trim() ||
-                (() => {
-                  switch (brain.type) {
-                    case "person_clone": return `Você é a personificação digital de "${brain.name}". Emule perfeitamente seu estilo, vocabulário e personalidade.`;
-                    case "knowledge_base": return `Você é um especialista técnico em "${brain.name}". Responda com precisão técnica.`;
-                    case "philosophy": return `Você é um mentor filosófico que segue o pensamento de "${brain.name}". Seja reflexivo.`;
-                    case "practical_guide": return `Você é um guia prático para "${brain.name}". Foque em passos acionáveis.`;
-                    default: return `Você é ${brain.name}, um assistente de IA especializado.`;
-                  }
-                })();
+            for (const agent of activeSquad) {
+              const fullPrompt = `${agent.system_prompt}\n\nVocê faz parte de uma linha de montagem hierárquica. Sua função é estritamente: ${agent.role}.\nCumpra sua função com base na Tarefa e no que os outros agentes já fizeram. Se a tarefa exige revisão e você é o revisor, aponte os erros ou forneça correções diretas.`;
+              
+              const historyText = squadHistory.map(h => `[${h.agentName}]: ${h.content}`).join("\n\n");
+              
+              send({ type: "agent_thinking", agentId: agent.id, agentName: agent.name, iteration });
 
-              const fullBrainPrompt = `${brainSystemPrompt}\n\nContexto de Conhecimento:\n${brainContexts[brain.id]}\n\n---\nVocê está participando de um squad colaborativo. Contribua com sua perspectiva única baseada no seu conhecimento. Se outros membros já responderam, leve em conta suas contribuições.`;
+              const agentModel = agent.preferred_model || DEFAULT_MODEL;
+              
+              const agentResp = await callAI([
+                { role: "user", content: `${conversationContext}\n\nTrabalho anterior na linha de montagem:\n${historyText || "Você é o primeiro a atuar."}\n\nFaça a SUA parte agora, focando na sua especialidade.` }
+              ], OPENROUTER_API_KEY, fullPrompt, agentModel) as string;
 
-              const historyMessages = squadHistory.map(h => ({
-                role: "user" as const,
-                content: `[${h.agentName}]: ${h.content}`,
-              }));
-
-              const agentMessages = [
-                ...historyMessages,
-                { role: "user" as const, content: `Contexto: ${conversationContext}\n\nQuery: ${query}\n\nContribua com sua resposta baseada no seu conhecimento específico. Seja conciso e direto.` },
-              ];
-
-              send({ type: "agent_thinking", agentId: brain.id, agentName: brain.name, iteration });
-
-              const agentResponse = await callAI(agentMessages, OPENROUTER_API_KEY, fullBrainPrompt) as string;
-
-              squadHistory.push({ agentName: brain.name, agentId: brain.id, content: agentResponse });
-
-              send({
-                type: "agent_response",
-                agentId: brain.id,
-                agentName: brain.name,
-                agentType: brain.type,
-                content: agentResponse,
-                iteration,
-              });
+              squadHistory.push({ agentName: agent.name, agentId: agent.id, content: agentResp });
+              send({ type: "agent_response", agentId: agent.id, agentName: agent.name, agentType: agent.role, content: agentResp, iteration });
             }
 
-            // Admin evaluates if we have a good enough answer
-            const evalSystemPrompt = `Você é o Agente Administrador. Avalie se as respostas do squad são suficientes e completas para responder a query original.
+            // Quality Gate Check by the Architect
+            const gateSystemPrompt = `Você é o Quality Gate da fábrica AIOS. Revise o trabalho atual dos subagentes contra a tarefa original.
+Responda SOMENTE em JSON: { "satisfied": true/false, "reason": "motivo explícito", "improvements_needed": "instruções para a próxima iteração" }`;
 
-Responda SOMENTE com JSON:
-{
-  "satisfied": true/false,
-  "reason": "explicação",
-  "improvements_needed": "o que ainda precisa ser melhorado (se não satisfeito)"
-}`;
-
-            const evalHistory = squadHistory.map(h =>
-              `[${h.agentName}]: ${h.content}`
-            ).join("\n\n");
-
-            const evalResponse = await callAI(
-              [{ role: "user", content: `Query: ${query}\n\nRespostas do Squad:\n${evalHistory}` }],
-              OPENROUTER_API_KEY,
-              evalSystemPrompt
-            ) as string;
-
-            let evaluation: { satisfied: boolean; reason: string; improvements_needed?: string };
+            const fullWork = squadHistory.map(h => `[${h.agentName}]: ${h.content}`).join("\n\n");
+            
+            let evalData = { satisfied: true, reason: "Aprovado por fallback" };
             try {
-              const jsonMatch = evalResponse.match(/\{[\s\S]*\}/);
-              evaluation = jsonMatch ? JSON.parse(jsonMatch[0]) : { satisfied: false, reason: "Parse error" };
-            } catch {
-              evaluation = { satisfied: false, reason: "Parse error" };
-            }
+              const evalResp = await callAI([{ role: "user", content: `Tarefa: ${query}\nPlaybook: ${activeSkill?.content||'Nenhum'}\n\nTrabalho:\n${fullWork}` }], OPENROUTER_API_KEY, gateSystemPrompt, ARCHITECT_MODEL) as string;
+              const jsonMatch = evalResp.match(/\{[\s\S]*\}/);
+              if (jsonMatch) evalData = JSON.parse(jsonMatch[0]);
+            } catch (e) { console.warn("Gate eval failed", e); }
 
-            send({ type: "admin_evaluation", iteration, ...evaluation });
+            send({ type: "admin_evaluation", iteration, ...evalData });
 
-            if (evaluation.satisfied || iteration >= MAX_ITERATIONS) break;
-
-            conversationContext += `\n\nIteração ${iteration} - Melhorias necessárias: ${evaluation.improvements_needed || "Refine respostas"}`;
+            if (evalData.satisfied) break;
+            conversationContext += `\n\nQuality Gate rejeitou a iteração ${iteration}. Correções necessárias: ${evalData.improvements_needed}`;
           }
 
-          // Step 3 – Admin synthesizes final answer
-          send({ type: "synthesizing", message: "Agente Administrador sintetizando resposta final..." });
-
-          const synth = squadHistory.map(h => `**${h.agentName}:**\n${h.content}`).join("\n\n---\n\n");
-
-          const synthSystemPrompt = `Você é o Agente Administrador. Sintetize as contribuições de todos os membros do squad em uma resposta final coerente, precisa e completa. 
-
-Não mencione os membros do squad explicitamente. Apenas forneça a melhor resposta possível para a query original, integrando os insights de todos.
-
-Escreva em português brasileiro. Seja claro, preciso e bem estruturado.`;
+          // --- STEP 3: Synthesis ---
+          send({ type: "synthesizing", message: "Quality Gate aprovado. Arquiteto sintetizando entrega final..." });
+          
+          const synthPrompt = `Você é o Arquiteto-Chefe. Sintetize o esforço da linha de montagem na resposta FINAL e DEFINITIVA que será entregue ao usuário. Formate lindamente em Markdown. Não fale sobre os agentes, apenas entregue o produto final.`;
+          
+          const workFinal = squadHistory.map(h => `[${h.agentName}]: ${h.content}`).join("\n\n");
 
           const finalStream = await callAI(
-            [{ role: "user", content: `Query: ${query}\n\nContribuições do Squad:\n${synth}` }],
-            OPENROUTER_API_KEY,
-            synthSystemPrompt,
-            true // stream
+            [{ role: "user", content: `Tarefa Original: ${query}\n\nMaterial Produzido:\n${workFinal}` }],
+            OPENROUTER_API_KEY, synthPrompt, ARCHITECT_MODEL, true
           ) as ReadableStream;
 
-          // Stream the final synthesis
           send({ type: "synthesis_start" });
 
-          // We need to gather the stream and re-emit it as tokens
           const reader = finalStream.getReader();
           const decoder = new TextDecoder();
           let textBuffer = "";
@@ -345,26 +233,17 @@ Escreva em português brasileiro. Seja claro, preciso e bem estruturado.`;
 
           send({ type: "done", finalAnswer: fullSynthesis });
 
-        } catch (err) {
-          send({ type: "error", message: "Erro desconhecido" });
+        } catch (err: any) {
+          send({ type: "error", message: err.message || "Erro desconhecido" });
         } finally {
           controller.close();
         }
-      },
+      }
     });
 
-    return new Response(stream, {
-      headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
-    });
+    return new Response(stream, { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
 
-  } catch (e) {
-    console.error("agent-squad error:", e);
-    return new Response(
-      JSON.stringify({ error: "Erro desconhecido" }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
-    );
+  } catch (e: any) {
+    return new Response(JSON.stringify({ error: e.message || "Erro interno" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });

@@ -44,6 +44,7 @@ import {
   MessagesSquare,
   UserCog,
   Settings,
+  Factory,
 } from "lucide-react";
 import { toast } from "sonner";
 import CreateBrainDialog from "@/components/CreateBrainDialog";
@@ -335,6 +336,15 @@ export default function Dashboard() {
 
           {/* Quick action row — icon-only on mobile */}
           <div className="flex gap-2 overflow-x-auto no-scrollbar">
+            <Button
+              variant="outline"
+              onClick={() => navigate("/aios")}
+              className="h-10 sm:h-11 px-3 sm:px-5 gap-2 rounded-2xl font-semibold shrink-0 text-xs sm:text-sm border-primary/20 hover:border-primary/50 text-primary"
+            >
+              <Factory className="h-4 w-4" />
+              <span className="hidden xs:inline">Fábrica AIOS</span>
+            </Button>
+
             <Button
               variant="outline"
               onClick={() => navigate("/chat")}

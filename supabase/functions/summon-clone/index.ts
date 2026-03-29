@@ -174,12 +174,17 @@ serve(async (req) => {
     }
 
     const models = [
-      "google/gemini-2.5-flash-lite",
-      "google/gemini-2.0-flash-001",
-      "meta-llama/llama-3.3-70b-instruct:free",
-      "arcee-ai/trinity-large-preview:free",
-      "mistralai/mistral-small-3.1-24b-instruct:free",
-    ];
+  "liquid/lfm-2.5-1.2b-instruct:free",
+  "liquid/lfm-2.5-1.2b-thinking:free",
+  "nvidia/nemotron-3-super-120b-a12b:free",
+  "minimax/minimax-m2.5:free",
+  "stepfun/step-3.5-flash:free",
+  "bytedance/seedance-1-5-pro",
+  "google/gemini-2.0-flash-001",
+  "google/gemini-2.5-flash-lite",
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "mistralai/mistral-small-3.1-24b-instruct:free",
+];
 
     let lastErrorInfo: { status?: number; text?: string } | null = null;
     let response = null;

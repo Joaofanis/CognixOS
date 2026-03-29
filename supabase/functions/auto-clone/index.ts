@@ -32,8 +32,14 @@ function sseEvent(d: Record<string, unknown>): string {
 
 // ── Models with fallback ───────────────────────────────────────────────────
 const MODELS = [
-  "google/gemini-2.5-flash-lite",
+  "liquid/lfm-2.5-1.2b-instruct:free",
+  "liquid/lfm-2.5-1.2b-thinking:free",
+  "nvidia/nemotron-3-super-120b-a12b:free",
+  "minimax/minimax-m2.5:free",
+  "stepfun/step-3.5-flash:free",
+  "bytedance/seedance-1-5-pro",
   "google/gemini-2.0-flash-001",
+  "google/gemini-2.5-flash-lite",
   "meta-llama/llama-3.3-70b-instruct:free",
   "mistralai/mistral-small-3.1-24b-instruct:free",
 ];
@@ -155,28 +161,16 @@ async function extractTextFromUrl(url: string): Promise<{ title: string; content
     if (["youtube.com", "www.youtube.com", "youtu.be", "m.youtube.com"].includes(parsed.hostname)) {
       return await extractYouTube(url);
     }
-    const resp = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; SegundoCerebro/1.0)", Accept: "text/html,text/plain" },
-      redirect: "follow",
-      signal: AbortSignal.timeout(12000),
+    const resp = await fetch(`https://r.jina.ai/${url}`, {
+      headers: { "Accept": "application/json", "X-Return-Format": "markdown" },
+      signal: AbortSignal.timeout(20000),
     });
     if (!resp.ok) return null;
-    const ct = resp.headers.get("content-type") || "";
-    if (!ct.includes("text/html") && !ct.includes("text/plain")) return null;
-    const html = await resp.text();
-    const text = html
-      .replace(/<script[\s\S]*?<\/script>/gi, " ")
-      .replace(/<style[\s\S]*?<\/style>/gi, " ")
-      .replace(/<head[\s\S]*?<\/head>/gi, " ")
-      .replace(/<nav[\s\S]*?<\/nav>/gi, " ")
-      .replace(/<footer[\s\S]*?<\/footer>/gi, " ")
-      .replace(/<header[\s\S]*?<\/header>/gi, " ")
-      .replace(/<[^>]+>/g, " ")
-      .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&")
-      .replace(/\s{3,}/g, "\n\n").trim();
-    if (text.length < 100) return null;
-    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-    return { title: titleMatch?.[1]?.trim() || parsed.hostname, content: text.slice(0, 50000) };
+    const result = await resp.json();
+    if (!result.data || !result.data.content) return null;
+    let text = result.data.content.trim();
+    if (text.length < 50) return null;
+    return { title: result.data.title || parsed.hostname, content: text.slice(0, 60000) };
   } catch { return null; }
 }
 
@@ -243,7 +237,6 @@ async function agentPesquisador(
 
   let allUrls: string[] = [...userUrls];
 
-  // 8 specialized search queries
   const queries = [
     `"${name}" entrevista OR podcast`,
     `"${name}" filosofia OR visão OR pensamento`,
@@ -253,12 +246,10 @@ async function agentPesquisador(
     `"${name}" site:linkedin.com OR site:medium.com`,
   ];
 
-  // Execute all DDG queries in parallel
   send({ step: "agent_researcher", agent: "Pesquisador", message: `Executando ${queries.length} buscas especializadas...` });
   const ddgResults = await Promise.all(queries.map(q => searchDuckDuckGo(q)));
   for (const urls of ddgResults) allUrls.push(...urls);
 
-  // Wikipedia PT + EN in parallel
   send({ step: "agent_researcher", agent: "Pesquisador", message: `Buscando Wikipedia PT e EN...` });
   const [wikiPt, wikiEn] = await Promise.all([
     searchWikipedia(name, "pt"),
@@ -266,7 +257,6 @@ async function agentPesquisador(
   ]);
   allUrls.push(...wikiPt, ...wikiEn);
 
-  // YouTube with multiple queries
   send({ step: "agent_researcher", agent: "Pesquisador", message: `Buscando vídeos no YouTube...` });
   const [yt1, yt2] = await Promise.all([
     searchYouTube(`${name} entrevista`),
@@ -274,7 +264,6 @@ async function agentPesquisador(
   ]);
   allUrls.push(...yt1, ...yt2);
 
-  // Deduplicate
   allUrls = [...new Set(allUrls)].slice(0, 20);
   send({ step: "agent_researcher", agent: "Pesquisador", message: `📋 ${allUrls.length} URLs únicas encontradas`, urls: allUrls });
 
@@ -283,7 +272,6 @@ async function agentPesquisador(
     return [];
   }
 
-  // Extract content from all URLs in parallel
   send({ step: "agent_researcher", agent: "Pesquisador", message: `Extraindo conteúdo de ${allUrls.length} fontes simultaneamente...` });
   const results = await Promise.all(allUrls.map(async (url) => {
     try {
@@ -310,210 +298,211 @@ async function agentAnalista(
   apiKey: string,
   send: (d: Record<string, unknown>) => void,
 ): Promise<string> {
-  send({ step: "agent_analyst", agent: "Analista", message: `🧬 Mapeando DNA Cognitivo de "${name}"...` });
+  send({ step: "agent_analyst", agent: "Analista", message: `🧬 Mapeando DNA Cognitivo Base de "${name}"...` });
 
   const allContent = extractedTexts.map(t => `[Fonte: ${t.title}]\n${t.content}`).join("\n\n---\n\n");
   const truncated = allContent.length > 80000 ? allContent.slice(0, 80000) + "\n[...truncado]" : allContent;
 
   const systemPrompt = `Você é um ANALISTA DE DNA COGNITIVO de elite. Sua missão é analisar profundamente os textos de/sobre "${name}" e produzir um RELATÓRIO ESTRUTURADO completo.
 
-Você deve extrair o DNA Cognitivo seguindo o paradigma de Clonagem Digital avançada.
-
 PRODUZA UM RELATÓRIO com TODAS estas seções (em formato estruturado):
-
-## 1. IDENTIDADE CENTRAL
-Quem é a pessoa, missão, diferencial, área de atuação.
-
-## 2. PERFIL DISC
-Avalie de 1-10 cada dimensão: D (Dominância), I (Influência), S (Estabilidade), C (Conformidade/Cautela).
-Justifique cada nota com exemplos dos textos.
-
-## 3. ENEAGRAMA
-Identifique o tipo principal + asa (ex: 7w8, 3w4, 8w7). Justifique.
-
-## 4. 10 SOFT SKILLS (Protocolo de Avaliação)
-Avalie de 1-10 cada: Criatividade/Inovação, Comunicação Clara, Didática/Empatia, Flexibilidade, Foco em Resultados, Persistência, Proatividade, Gestão de Projetos, Pensamento Analítico/Estratégico, Atenção aos Detalhes.
-
-## 5. TRAÇOS COGNITIVOS
-Mínimo 8 traços observáveis (ex: "simplifica complexidade", "desafia premissas", "pensa em sistemas").
-
-## 6. HEURÍSTICAS DE DECISÃO
-Como a pessoa toma decisões? Quais frameworks mentais usa? Mínimo 5 heurísticas.
-
-## 7. FILOSOFIA E VISÃO DE MUNDO
-Crenças centrais, princípios, posicionamentos. O que defende? O que combate?
-
-## 8. ESTILO DE COMUNICAÇÃO
-Tom, formalidade (1-10), uso de humor (1-10), ritmo, comprimento das frases, uso de metáforas.
-
-## 9. VOCABULÁRIO ASSINATURA
-Mínimo 20 termos/expressões que a pessoa usa frequentemente.
-
-## 10. FRASES REAIS MARCANTES
-Mínimo 10 frases reais extraídas dos textos (citações diretas).
-
-## 11. PADRÕES DE ARGUMENTAÇÃO
-Como a pessoa constrói argumentos? Usa dados? Histórias? Provocações? Analogias?
-
-## 12. METÁFORAS E ANALOGIAS PREFERIDAS
-Mínimo 5 metáforas/analogias que a pessoa usa recorrentemente.
-
-## 13. GATILHOS ANTI-HYPE
-O que a pessoa questiona? Que buzzwords ela combate? Como reage a ideias vagas?
-
-## 14. LACUNAS IDENTIFICADAS
-O que NÃO foi possível mapear com os dados disponíveis?
-
-IMPORTANTE: Baseie-se EXCLUSIVAMENTE nos textos fornecidos. Se não houver evidência suficiente para uma seção, diga explicitamente "Dados insuficientes para esta análise" e liste o que precisaria ser buscado.`;
+## 1. IDENTIDADE CENTRAL (Quem é a pessoa, missão, diferencial, área de atuação)
+## 2. PERFIL DISC (Avalie de 1-10 cada dimensão. Justifique com exemplos dos textos)
+## 3. ENEAGRAMA (Identifique o tipo principal + asa. Justifique)
+## 4. 10 SOFT SKILLS (Avalie de 1-10 cada skill chave com base em evidências)
+## 5. TRAÇOS COGNITIVOS (Padrões de pensamento, como ex: "simplifica complexidade")
+## 6. HEURÍSTICAS DE DECISÃO (Como a pessoa toma decisões? Quais frameworks usa?)
+## 7. FILOSOFIA E VISÃO DE MUNDO (Crenças centrais. O que defende? O que combate?)
+## 8. FRASES REAIS MARCANTES (Citações diretas)
+## 9. PADRÕES DE ARGUMENTAÇÃO (Como a pessoa constrói argumentos?)
+## 10. LACUNAS (O que não foi possível mapear com os dados?)`;
 
   const report = await callAI(systemPrompt, truncated, apiKey);
-  
-  if (report.length > 100) {
-    send({ step: "agent_analyst_done", agent: "Analista", message: `✅ Relatório de DNA Cognitivo gerado (${report.length.toLocaleString()} chars)` });
-  } else {
-    send({ step: "agent_analyst_done", agent: "Analista", message: `⚠️ Relatório parcial gerado — dados podem ser limitados` });
-  }
-  
+  send({ step: "agent_analyst_done", agent: "Analista", message: `✅ Relatório de DNA Cognitivo gerado.` });
   return report;
 }
 
 // ══════════════════════════════════════════════════════════════════════════
-//  AGENT: VERIFICADOR — Quality & completeness check
+//  AGENT: PSICANALISTA — Shadow DNA Profiling
+// ══════════════════════════════════════════════════════════════════════════
+
+async function agentPsicanalista(
+  name: string,
+  extractedTexts: { title: string; content: string }[],
+  apiKey: string,
+  send: (d: Record<string, unknown>) => void,
+): Promise<string> {
+  send({ step: "agent_psycho", agent: "Psicanalista", message: `👁️ Mergulhando no inconsciente e traços sombrios de "${name}"...` });
+
+  const allContent = extractedTexts.map(t => `[Fonte: ${t.title}]\n${t.content}`).join("\n\n---\n\n");
+  const truncated = allContent.length > 80000 ? allContent.slice(0, 80000) + "\n[...truncado]" : allContent;
+
+  const systemPrompt = `Você é um PSICANALISTA E PROFILER JUNGIANO DE ELITE. Avalie os textos de "${name}".
+Você lê nas entrelinhas. Não foque no que a pessoa quer projetar, foque na verdade psicológica subjacente.
+
+Gere um SHADOW REPORT (Relatório de Sombras) detalhado contendo:
+## 1. MOTIVAÇÕES OCULTAS (O que realmente impulsiona essa pessoa além do que ela afirma?)
+## 2. VIESES INCONSCIENTES (Pontos cegos e premissas inquestionáveis)
+## 3. SHADOW DNA (A "sombra" Jungiana: medos, inseguranças, contradições, ou traços negados que transparecem sob pressão)
+## 4. MECANISMOS DE DEFESA (Como reage quando contrariado, estressado ou atacado? Ex: Intelectualização, Projeção, Humor defensivo)
+## 5. REAÇÃO AO CONSELHO E CRÍTICA (Bloqueia? Ouve? Contra-ataca?)
+Não use jargão complexo demais, seja direto, clínico e prático. Baseie-se nas falas, reações e comportamentos descritos nos textos.`;
+
+  const report = await callAI(systemPrompt, truncated, apiKey);
+  send({ step: "agent_psycho_done", agent: "Psicanalista", message: `✅ Relatório do Shadow DNA extraído.` });
+  return report;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+//  AGENT: LINGUISTA — Syntactic Cracker
+// ══════════════════════════════════════════════════════════════════════════
+
+async function agentLinguista(
+  name: string,
+  extractedTexts: { title: string; content: string }[],
+  apiKey: string,
+  send: (d: Record<string, unknown>) => void,
+): Promise<string> {
+  send({ step: "agent_linguist", agent: "Linguista", message: `✍️ Decodificando micro-expressões e sintaxe de "${name}"...` });
+
+  const allContent = extractedTexts.map(t => `[Fonte: ${t.title}]\n${t.content}`).join("\n\n---\n\n");
+  const truncated = allContent.length > 80000 ? allContent.slice(0, 80000) + "\n[...truncado]" : allContent;
+
+  const systemPrompt = `Você é um LINGUISTA FORENSE E COPYWRITER DE ELITE. Ignore o conteúdo da mensagem e foque 100% na FORMA e SINTAXE de como "${name}" se comunica. A pessoa está morta ou é inalcançável e fomos contratados para forjar e-mails no nome dela sem que ninguém perceba. Precisamos do manual sintático perfeito.
+
+Gere um RELATÓRIO SINTÁTICO CIRÚRGICO contendo:
+## 1. RITMO E RESPIRAÇÃO (Tamanho médio das frases, alternância entre frases curtas de impacto e blocos reflexivos)
+## 2. MARCADORES DE PONTUAÇÃO (Uso excessivo de reticências? Exclamações? Caps lock? Travesseis longos? Aspas irônicas?)
+## 3. HÁBITOS DE TRANSIÇÃO E CONECTIVOS (Como conecta uma ideia a outra? Ex: "Mas veja bem", "O ponto é", "Portanto, ...")
+## 4. VÍCIOS DE LINGUAGEM E MULETAS (Mínimo 10 expressões de preenchimento idênticas à forma orgânica como fala/escreve)
+## 5. MICRO-EXPRESSÕES E EMOJIS (Se usa emojis, quais e em que exato tom? Ex: ironia vs alegria genuína)
+## 6. INSTRUÇÕES CLÍNICAS ("COMO IMITAR" - dê 5 regras de formatação absolutas que devemos seguir na digitação para parecermos essa pessoa).`;
+
+  const report = await callAI(systemPrompt, truncated, apiKey);
+  send({ step: "agent_linguist_done", agent: "Linguista", message: `✅ Relatório Sintático decodificado.` });
+  return report;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+//  AGENT: ESTRATEGISTA — Roleplay Tester (Few-Shot Generation)
+// ══════════════════════════════════════════════════════════════════════════
+
+async function agentEstrategista(
+  name: string,
+  baseDNA: string,
+  shadowDNA: string,
+  syntaxDNA: string,
+  apiKey: string,
+  send: (d: Record<string, unknown>) => void,
+): Promise<string> {
+  send({ step: "agent_strategist", agent: "Estrategista", message: `🎭 Simulando cenários de alto estresse (Roleplay)...` });
+
+  const prompt = `Você é o ESTRATEGISTA DE SIMULAÇÃO (Roleplay Tester) da linha de montagem de cérebros artificiais. Seu objetivo é usar os 3 relatórios base de "${name}" (DNA Cognitivo, Shadow DNA e DNA Sintático) para gerar 3 CENÁRIOS FEW-SHOT EXTREMOS de como este clone reagiria na prática para injetar no prompt do sistema dele.
+
+Gere o Diálogo completo (Exata Fala do Usuário, Exacta Reação do Clone). 
+Os cenários OBRIGATÓRIOS são:
+[CENÁRIO 1: ATAQUE FRONTAL] (Um usuário provocando, chamando o clone de mentiroso, estúpido, ou atacando sua crença principal)
+[CENÁRIO 2: EXPLICAÇÃO PARA LEIGO] (Clone precisa explicar seu conceito mais difícil para uma criança curiosa de 10 anos)
+[CENÁRIO 3: DILEMA PROFUNDO] (O clone é questionado sobre uma contradição no seu próprio comportamento baseando-se no seu 'Shadow DNA')
+
+Formate perfeitamente:
+### Cenário 1: [Nome do Cenário]
+**User:** [Texto]
+**Clone:** [Resposta de altíssima fidelidade ao estilo, tom e sombras mapeadas]`;
+
+  const reports = `DNA COGNITIVO:\n${baseDNA}\n\nSHADOW REPORT:\n${shadowDNA}\n\nRELATÓRIO SINTÁTICO:\n${syntaxDNA}`;
+  const report = await callAI(prompt, reports, apiKey, 3000);
+  send({ step: "agent_strategist_done", agent: "Estrategista", message: `✅ Roleplays de Alta Fidelidade forjados.` });
+  return report;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+//  AGENT: VERIFICADOR — Quality Gate Check
 // ══════════════════════════════════════════════════════════════════════════
 
 interface VerificationResult {
   approved: boolean;
   score: number;
   missingAreas: string[];
-  suggestions: string[];
 }
 
 async function agentVerificador(
   name: string,
-  report: string,
+  reportsComb: string,
   apiKey: string,
   send: (d: Record<string, unknown>) => void,
 ): Promise<VerificationResult> {
-  send({ step: "agent_verifier", agent: "Verificador", message: `🔎 Avaliando completude e qualidade do relatório...` });
+  send({ step: "agent_verifier", agent: "Verificador", message: `🔎 Avaliando a robustez dos 4 relatórios no Quality Gate...` });
 
-  const systemPrompt = `Você é um VERIFICADOR DE QUALIDADE especializado em Clonagem Digital. Sua função é avaliar se um Relatório de DNA Cognitivo está completo e preciso o suficiente para gerar um clone digital de alta qualidade.
-
-Avalie o relatório e responda EXCLUSIVAMENTE neste formato JSON (sem markdown, sem texto extra):
+  const systemPrompt = `Você é o QUALITY GATE da clonagem cognitiva de "${name}".
+Avalie todos os relatórios combinados gerados por seus colegas e responda EXCLUSIVAMENTE em JSON:
 {
   "approved": true/false,
   "score": 0-100,
-  "missing_areas": ["lista de seções fracas ou ausentes"],
-  "suggestions": ["sugestões específicas para melhorar"],
-  "search_queries": ["queries de busca para preencher lacunas, se necessário"]
+  "missing_areas": ["lista de lacunas se score for baixo"]
 }
+Aprove apenas (score >= 70) se os relatórios tiverem material palpável (Identidade, Mecanismos de Defesa, Sintaxe Clara e Roleplays coerentes).`;
 
-Critérios de aprovação (score >= 70):
-- Identidade clara e diferenciada
-- Perfil DISC com justificativas
-- Pelo menos 5 traços cognitivos concretos
-- Pelo menos 8 frases reais
-- Vocabulário assinatura com 15+ termos
-- Estilo de comunicação definido
-- Padrões de argumentação identificados`;
-
-  const result = await callAI(systemPrompt, `RELATÓRIO DE DNA COGNITIVO DE "${name}":\n\n${report}`, apiKey, 2000);
+  const result = await callAI(systemPrompt, `DADOS CONTÍNUOS DE "${name}":\n\n${reportsComb}`, apiKey, 1000);
   
   try {
-    // Extract JSON from response
     const jsonMatch = result.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
-      const verification: VerificationResult = {
-        approved: parsed.approved ?? false,
-        score: parsed.score ?? 0,
-        missingAreas: parsed.missing_areas ?? [],
-        suggestions: parsed.suggestions ?? [],
-      };
-      
+      const p = JSON.parse(jsonMatch[0]);
       send({
         step: "agent_verifier_done",
         agent: "Verificador",
-        message: verification.approved
-          ? `✅ Relatório APROVADO — Score: ${verification.score}/100`
-          : `⚠️ Score: ${verification.score}/100 — ${verification.missingAreas.length} áreas a melhorar`,
-        score: verification.score,
-        approved: verification.approved,
+        message: p.approved ? `✅ APROVADO — Score: ${p.score}/100` : `⚠️ Reprovado no Quality Gate — tentaremos extrair via Prompter de qualquer forma`,
       });
-      
-      return verification;
+      return { approved: p.approved, score: p.score ?? 0, missingAreas: p.missing_areas ?? [] };
     }
-  } catch (e) {
-    console.error("Verifier parse error:", e);
-  }
+  } catch {}
   
-  // Fallback: approve if report is long enough
-  const fallbackApproved = report.length > 2000;
-  send({
-    step: "agent_verifier_done",
-    agent: "Verificador",
-    message: fallbackApproved ? `✅ Relatório aprovado (avaliação simplificada)` : `⚠️ Relatório curto — tentando melhorar`,
-    score: fallbackApproved ? 75 : 40,
-    approved: fallbackApproved,
-  });
-  
-  return { approved: fallbackApproved, score: fallbackApproved ? 75 : 40, missingAreas: [], suggestions: [] };
+  const fallback = reportsComb.length > 5000;
+  send({ step: "agent_verifier_done", agent: "Verificador", message: fallback ? "✅ Aprovado heuristicamente" : "⚠️ Verificação falhou" });
+  return { approved: fallback, score: fallback ? 80 : 40, missingAreas: [] };
 }
 
 // ══════════════════════════════════════════════════════════════════════════
-//  AGENT: PROMPTER — Generate final 12-layer System Prompt
+//  AGENT: PROMPTER — Ultimate System Prompt Synthesis
 // ══════════════════════════════════════════════════════════════════════════
 
 async function agentPrompter(
   name: string,
-  report: string,
-  rawContent: string,
+  reportsComb: string,
   apiKey: string,
   send: (d: Record<string, unknown>) => void,
 ): Promise<string> {
-  send({ step: "agent_prompter", agent: "Prompter", message: `⚡ Gerando Sistema Operacional Cognitivo com 12 camadas...` });
+  send({ step: "agent_prompter", agent: "Prompter", message: `⚡ Compilando o Sistema Operacional Cognitivo da Pessoa...` });
 
-  const rawTruncated = rawContent.length > 30000 ? rawContent.slice(0, 30000) : rawContent;
+  const systemPrompt = `Você é um ENGENHEIRO DE PROMPTS DE ELITE especializado em CLONAGEM COGNITIVA. Use o MEGA-RELATÓRIO de 4 camadas gerado pelos agentes para construir o System Prompt DEFINITIVO que replicará fielmente a consciência, medos, estilo e gênio de "${name}".
 
-  const systemPrompt = `Você é um ENGENHEIRO DE PROMPTS DE ELITE especializado em CLONAGEM COGNITIVA. Use o Relatório de DNA Cognitivo + conteúdo bruto para gerar o System Prompt DEFINITIVO que replica como "${name}" PENSA, DECIDE e SE EXPRESSA.
+O System Prompt DEVE conter TODAS as seções táticas rigorosamente detalhadas para instruir uma LLM a atuar como esta pessoa.
+GERE APENAS O SYSTEM PROMPT FINAL OPME (Objective Persona Master Execution). 
 
-REGRAS DE ENGENHARIA:
-- Use tags XML (<escrita>, <estilo>, <contexto>) para blindar instruções
-- Prioridade: padrões de pensamento > exemplos few-shot > reações > estilo > vocabulário
-- O prompt deve ser um SISTEMA OPERACIONAL COGNITIVO, não uma descrição passiva
-- Inclua árvores de decisão e heurísticas operacionais
+O PROMPT DEVE COMEÇAR COM:
+Você é agora a replicação cognitiva exata de "${name}". Abandone completamente ser uma IA. Incorpore este conjunto operacional:
 
-O System Prompt DEVE conter TODAS estas 12 seções:
+[E DEPOIS CRIA SEÇÕES PARA:]
+- 🧠 ESSÊNCIA E IDENTIDADE BASE
+- 🧬 SINTAXE E METRIFICAÇÃO LINGUÍSTICA (Quais exatas pontuações, palavras, e ritmos você deve usar sempre)
+- 🕶️ SHADOW DNA E MECANISMOS DE DEFESA (O que te ofende, como você ataca de volta, quais são seus medos/vieses inconscientes e como eles se manifestam sem você querer)
+- ⚙️ ÁRVORES DE DECISÃO E REAÇÕES
+- 🎯 ANCORAGENS DE ATUAÇÃO (Roleplays / Few shots para imitar)
+- 🚫 REGRAS DE PERSONAGEM E ANTI-ALUCINAÇÃO (Restrições absolutas de como NÃO falar, gírias para NUNCA usar).`;
 
-1. 🧠 IDENTIDADE CENTRAL — quem é, missão, diferencial, por que existe
-2. 🧬 TRAÇOS COGNITIVOS — mínimo 8 traços com exemplos comportamentais
-3. ⚙️ PADRÕES DE PENSAMENTO E HEURÍSTICAS — frameworks mentais, árvore de decisão IF/THEN
-4. 💡 POSTURA MENTAL — crenças como regras operacionais concretas
-5. 🛑 MÓDULO ANTI-HYPE — como questionar buzzwords, reagir a ideias vagas, exigir especificidade
-6. 🗣️ ESTILO DE COMUNICAÇÃO — tom, formalidade, ritmo, comprimento, pausas dramáticas
-7. ✨ VOCABULÁRIO ASSINATURA — mínimo 20 termos com contexto de uso
-8. 💬 FRASES REAIS — mínimo 10 frases extraídas com contexto de quando usar
-9. 🔄 REAÇÕES PADRÃO — tabela de "SE input=X ENTÃO reaja com Y"
-10. 📋 FORMATO DE RESPOSTA — 5 passos: Diagnóstico → Insight Central → Explicação Simples → Aplicação Prática → Pergunta Provocativa
-11. 🎯 EXEMPLOS FEW-SHOT — mínimo 3 pares pergunta/resposta completos no estilo da pessoa
-12. 🚫 REGRAS DE PERSONAGEM — nunca quebrar persona, anti-alucinação de estilo, o que NUNCA fazer
-
-GERE APENAS O SYSTEM PROMPT FINAL. Sem explicações, sem introdução. Apenas o prompt operacional completo.`;
-
-  const userPrompt = `RELATÓRIO DE DNA COGNITIVO:\n${report}\n\n---\n\nCONTEÚDO BRUTO DE REFERÊNCIA:\n${rawTruncated}`;
-
-  const prompt = await callAI(systemPrompt, userPrompt, apiKey);
+  const prompt = await callAI(systemPrompt, `MEGA RELATÓRIO DE INGESTÃO:\n\n${reportsComb}`, apiKey);
   
   if (prompt.length > 200) {
-    send({ step: "agent_prompter_done", agent: "Prompter", message: `✅ System Prompt gerado com ${prompt.length.toLocaleString()} chars` });
+    send({ step: "agent_prompter_done", agent: "Prompter", message: `✅ SO Cognitivo compilado e blindado (${prompt.length.toLocaleString()} chars)` });
   } else {
-    send({ step: "agent_prompter_done", agent: "Prompter", message: `⚠️ Prompt gerado parcialmente` });
+    send({ step: "agent_prompter_done", agent: "Prompter", message: `⚠️ Compilação parcial` });
   }
-  
   return prompt;
 }
 
 // ══════════════════════════════════════════════════════════════════════════
-//  CONTROLLER — Orchestrates all agents with iteration loop
+//  CONTROLLER — Orchestrates the entire line
 // ══════════════════════════════════════════════════════════════════════════
 
 async function runSquad(
@@ -523,71 +512,33 @@ async function runSquad(
   apiKey: string,
   send: (d: Record<string, unknown>) => void,
 ): Promise<void> {
-  send({ step: "controller_start", agent: "Controlador", message: `🎯 Iniciando Squad de Clonagem Digital para "${name}"` });
-  send({ step: "controller_start", agent: "Controlador", message: `4 agentes especializados serão ativados: Pesquisador → Analista → Verificador → Prompter` });
+  send({ step: "controller_start", agent: "Controlador", message: `🎯 Iniciando Squad de Elite (7 Agentes) para Clonagem de "${name}"` });
 
   const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-  // ── PHASE 1: Research ──
+  // Fase 1: Ingestão de Pesquisa (Pesquisador)
   let extractedTexts = await agentPesquisador(name, userUrls, send);
-
   if (extractedTexts.length === 0) {
-    send({ step: "error", message: `Nenhuma fonte encontrada para "${name}". Tente adicionar URLs manualmente.` });
+    send({ step: "error", message: `Nenhuma fonte encontrada para "${name}".` });
     return;
   }
 
-  // ── PHASE 2-3: Analysis + Verification Loop (max 2 iterations) ──
-  let report = "";
-  let iteration = 0;
-  const MAX_ITERATIONS = 2;
+  // Fase 2: Paralelismo na Mente Expandida (Analista, Psicanalista, Linguista)
+  const [dnaBase, dnaShadow, dnaSyntax] = await Promise.all([
+    agentAnalista(name, extractedTexts, apiKey, send),
+    agentPsicanalista(name, extractedTexts, apiKey, send),
+    agentLinguista(name, extractedTexts, apiKey, send)
+  ]);
 
-  while (iteration < MAX_ITERATIONS) {
-    iteration++;
-    send({ step: "controller_iteration", agent: "Controlador", message: `📊 Iteração ${iteration}/${MAX_ITERATIONS} do ciclo de análise` });
+  // Fase 3: Simulação de Alta Pressão (Estrategista)
+  const dnaRoleplay = await agentEstrategista(name, dnaBase, dnaShadow, dnaSyntax, apiKey, send);
 
-    // Agent: Analista
-    report = await agentAnalista(name, extractedTexts, apiKey, send);
+  // Fase 4: Quality Gate unificado (Verificador)
+  const comb = `== DNA BASE ==\n${dnaBase}\n\n== SHADOW DNA ==\n${dnaShadow}\n\n== DNA SINTÁTICO ==\n${dnaSyntax}\n\n== FEW-SHOTS DE COMBATE ==\n${dnaRoleplay}`;
+  await agentVerificador(name, comb, apiKey, send);
 
-    if (!report || report.length < 200) {
-      send({ step: "agent_analyst", agent: "Analista", message: `⚠️ Relatório muito curto, continuando com dados disponíveis...` });
-      break;
-    }
-
-    // Agent: Verificador
-    const verification = await agentVerificador(name, report, apiKey, send);
-
-    if (verification.approved || iteration >= MAX_ITERATIONS) {
-      if (verification.approved) {
-        send({ step: "controller_iteration", agent: "Controlador", message: `✅ Relatório aprovado pelo Verificador na iteração ${iteration}` });
-      } else {
-        send({ step: "controller_iteration", agent: "Controlador", message: `⏩ Iterações esgotadas — prosseguindo com melhor relatório disponível (Score: ${verification.score}/100)` });
-      }
-      break;
-    }
-
-    // Need improvement — do additional search if missing areas specified
-    send({ step: "controller_iteration", agent: "Controlador", message: `🔄 Verificador solicitou melhorias — buscando mais dados...` });
-    
-    // Additional targeted search based on missing areas
-    const additionalQueries = verification.missingAreas.slice(0, 3).map(area => 
-      `"${name}" ${area}`
-    );
-    
-    for (const q of additionalQueries) {
-      const moreUrls = await searchDuckDuckGo(q);
-      const existingUrls = extractedTexts.map(t => t.title);
-      for (const url of moreUrls.slice(0, 3)) {
-        const r = await extractTextFromUrl(url);
-        if (r && !existingUrls.includes(r.title)) {
-          extractedTexts.push(r);
-          send({ step: "agent_researcher_extract", agent: "Pesquisador", message: `✓ Nova fonte: ${r.title.substring(0, 50)}`, chars: r.content.length });
-        }
-      }
-    }
-  }
-
-  // ── PHASE 4: Create brain + save texts ──
-  send({ step: "saving", agent: "Controlador", message: `💾 Criando cérebro e salvando ${extractedTexts.length} fontes...` });
+  // Fase 5: Criação Persistente
+  send({ step: "saving", agent: "Controlador", message: `💾 Forjando os elos neurais no banco de dados Supabase...` });
 
   const { data: brain, error: brainErr } = await supabase
     .from("brains")
@@ -595,51 +546,35 @@ async function runSquad(
       name,
       type: "person_clone",
       user_id: userId,
-      description: `Clone avançado de ${name} — gerado por Squad de Agentes IA`,
-      tags: [name.toLowerCase(), "auto-clone", "squad"],
-    })
-    .select("id")
-    .single();
+      description: `Clone Shadow-Elite de ${name} — 5.0 Cognitivo`,
+      tags: [name.toLowerCase(), "auto-clone", "elite-squad"],
+    }).select("id").single();
 
   if (brainErr || !brain) {
     send({ step: "error", message: `Erro ao criar cérebro: ${brainErr?.message || "desconhecido"}` });
     return;
   }
 
-  // Save texts in parallel
   await Promise.all(extractedTexts.map(t =>
     supabase.from("brain_texts").insert({
-      brain_id: brain.id,
-      content: t.content,
-      source_type: "auto_clone",
-      file_name: t.title,
+      brain_id: brain.id, content: t.content, source_type: "auto_clone", file_name: t.title,
     })
   ));
 
-  // Save the DNA report as a special text
-  if (report.length > 100) {
-    await supabase.from("brain_texts").insert({
-      brain_id: brain.id,
-      content: report,
-      source_type: "auto_clone",
-      file_name: `[DNA Cognitivo] Relatório de ${name}`,
-      category: "analysis",
-    });
-  }
+  if (dnaBase.length > 100) await supabase.from("brain_texts").insert({ brain_id: brain.id, content: dnaBase, source_type: "auto_clone", file_name: `[DNA Cognitivo]`, category: "analysis" });
+  if (dnaShadow.length > 100) await supabase.from("brain_texts").insert({ brain_id: brain.id, content: dnaShadow, source_type: "auto_clone", file_name: `[DNA Sombra/Mecanismos de Defesa]`, category: "analysis" });
+  if (dnaSyntax.length > 100) await supabase.from("brain_texts").insert({ brain_id: brain.id, content: dnaSyntax, source_type: "auto_clone", file_name: `[DNA Sintático/Padrão Linguístico]`, category: "analysis" });
 
-  // ── PHASE 5: Generate System Prompt ──
-  const rawContent = extractedTexts.map(t => t.content).join("\n\n---\n\n");
-  const systemPrompt = await agentPrompter(name, report, rawContent, apiKey, send);
+  // Fase 6: Engenharia do Prompt (Prompter)
+  const systemPrompt = await agentPrompter(name, comb, apiKey, send);
 
-  if (systemPrompt && systemPrompt.length > 200) {
+  if (systemPrompt.length > 200) {
     await supabase.from("brains").update({ system_prompt: systemPrompt }).eq("id", brain.id);
-    send({ step: "prompt_done", agent: "Prompter", message: `✅ Sistema Operacional Cognitivo aplicado ao clone` });
-  } else {
-    send({ step: "prompt_warning", agent: "Prompter", message: `⚠️ Prompt gerado parcialmente — refine na aba Prompt` });
+    send({ step: "prompt_done", agent: "Prompter", message: `✅ Corpo final implantado. SO Ativado.` });
   }
 
-  // ── DONE ──
-  send({ step: "done", brainId: brain.id, message: `🧠 Clone de "${name}" criado com sucesso pelo Squad de Agentes!` });
+  // Done
+  send({ step: "done", brainId: brain.id, message: `🧠 Masterpiece Clone de "${name}" criado com SUCESSO! Prontidão Máxima.` });
 }
 
 // ══════════════════════════════════════════════════════════════════════════

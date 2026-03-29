@@ -139,6 +139,9 @@ export default function BrainSettings({ brain }: Props) {
   };
 
   // ── Prompt save ────────────────────────────────────────────────────────────
+  const [promptSteps, setPromptSteps] = useState<any[]>([]);
+  const [promptRunning, setPromptRunning] = useState(false);
+
   const handleSavePrompt = async () => {
     setSavingPrompt(true);
     try {
@@ -158,10 +161,13 @@ export default function BrainSettings({ brain }: Props) {
 
   const handleGeneratePrompt = async () => {
     setGeneratingPrompt(true);
+    setPromptSteps([]);
+    setPromptRunning(true);
     try {
       const {
         data: { session },
       } = await supabase.auth.getSession();
+      
       const resp = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-prompt`,
         {
@@ -173,14 +179,50 @@ export default function BrainSettings({ brain }: Props) {
           body: JSON.stringify({ brainId: brain.id }),
         },
       );
-      const result = await resp.json();
-      if (!resp.ok) throw new Error(result.error || "Erro ao gerar prompt");
-      setPrompt(result.prompt);
-      toast.success("Prompt gerado! Revise e salve.");
+      
+      if (!resp.ok) throw new Error("Erro ao gerar prompt");
+      
+      const reader = resp.body?.getReader();
+      if (!reader) throw new Error("No stream");
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      let finalPrompt = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        let newlineIndex: number;
+        while ((newlineIndex = buffer.indexOf("
+
+")) !== -1) {
+          const chunk = buffer.slice(0, newlineIndex).trim();
+          buffer = buffer.slice(newlineIndex + 2);
+
+          if (!chunk.startsWith("data: ")) continue;
+          const jsonStr = chunk.slice(6);
+          try {
+            const data = JSON.parse(jsonStr);
+            setPromptSteps((prev) => [...prev, data]);
+            
+            if (data.step === "done" && data.prompt) {
+               finalPrompt = data.prompt;
+               setPrompt(data.prompt);
+               toast.success("Prompt Operacional gerado do Squad!");
+               queryClient.invalidateQueries({ queryKey: ["brain", brain.id] });
+               setSavedPrompt(data.prompt);
+            }
+          } catch { /* ignore parse errors */ }
+        }
+      }
     } catch (err: any) {
       toast.error(err.message);
+      setPromptSteps((prev) => [...prev, { step: "error", message: err.message }]);
     } finally {
       setGeneratingPrompt(false);
+      setPromptRunning(false);
     }
   };
 
@@ -307,6 +349,24 @@ export default function BrainSettings({ brain }: Props) {
           </div>
         ) : (
           <>
+            {promptSteps.length > 0 && (
+              <div className="bg-muted/30 p-4 rounded-xl space-y-2 mb-4">
+                <div className="flex items-center gap-2">
+                  <Wand2 className={`h-4 w-4 text-primary ${promptRunning ? 'animate-pulse' : ''}`} />
+                  <span className="font-semibold text-sm">Squad em Operação ⚡</span>
+                </div>
+                <div className="space-y-1 max-h-32 overflow-y-auto">
+                  {promptSteps.map((s, i) => (
+                    <div key={i} className={`text-xs p-1.5 rounded bg-background/50 border border-border/50 break-all 
+                        ${s.step === 'error' ? 'text-destructive' : s.step === 'done' ? 'text-primary font-medium' : 'text-muted-foreground'}`
+                    }>
+                       <span className="font-bold">{s.agent ? `[${s.agent}] ` : ''}</span>
+                       {s.message}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="flex flex-wrap gap-2">
               <Button
                 variant="outline"

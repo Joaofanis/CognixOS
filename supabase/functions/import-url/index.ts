@@ -227,44 +227,33 @@ serve(async (req) => {
       if (e instanceof Error && e.message.includes("não permitida")) throw e;
     }
 
-    const resp = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; SegundoCerebro/1.0)" },
-      redirect: "manual",
-      signal: AbortSignal.timeout(15000),
+    const resp = await fetch(`https://r.jina.ai/${url}`, {
+      headers: { 
+        "Accept": "application/json",
+        "X-Return-Format": "markdown"
+      },
+      signal: AbortSignal.timeout(20000),
     });
-    if (resp.status >= 300 && resp.status < 400) {
-      throw new Error("Redirecionamentos não são permitidos por segurança");
-    }
-    if (!resp.ok) throw new Error(`Falha ao acessar URL: ${resp.status}`);
-    
-    const contentType = resp.headers.get("content-type") || "";
-    if (!contentType.includes("text/html") && !contentType.includes("text/plain")) {
-      throw new Error("Apenas páginas HTML ou texto plano são suportadas");
+
+    if (!resp.ok) {
+      throw new Error(`Falha na extração de texto (Jina API): ${resp.status}`);
     }
 
-    const html = await resp.text();
-    const text = html
-      .replace(/<script[\s\S]*?<\/script>/gi, " ")
-      .replace(/<style[\s\S]*?<\/style>/gi, " ")
-      .replace(/<head[\s\S]*?<\/head>/gi, " ")
-      .replace(/<nav[\s\S]*?<\/nav>/gi, " ")
-      .replace(/<footer[\s\S]*?<\/footer>/gi, " ")
-      .replace(/<header[\s\S]*?<\/header>/gi, " ")
-      .replace(/<[^>]+>/g, " ")
-      .replace(/&nbsp;/g, " ")
-      .replace(/&amp;/g, "&")
-      .replace(/&lt;/g, "<")
-      .replace(/&gt;/g, ">")
-      .replace(/&quot;/g, '"')
-      .replace(/&#039;/g, "'")
-      .replace(/\s{3,}/g, "\n\n")
-      .trim();
+    const jinaResult = await resp.json();
+    const data = jinaResult.data;
 
-    if (text.length < 50) throw new Error("Página sem conteúdo suficiente");
-    if (text.length > 200000) throw new Error("Página muito grande (max 200k chars)");
+    if (!data || !data.content) {
+      throw new Error("Não foi possível extrair conteúdo útil da URL.");
+    }
 
-    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-    const title = titleMatch?.[1]?.trim() || parsed.hostname;
+    let text = data.content.trim();
+    const title = data.title || parsed.hostname;
+
+    if (text.length < 50) throw new Error("Página sem conteúdo suficiente ou bloqueada");
+    if (text.length > 200000) {
+      // Trunca em vez de falhar para aproveitar artigos muito longos
+      text = text.substring(0, 200000) + "\\n\\n[Conteúdo truncado por limite de tamanho]";
+    }
 
     const { error: insertErr } = await supabase.from("brain_texts").insert({
       brain_id: brainId,

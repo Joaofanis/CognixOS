@@ -9,6 +9,94 @@ const corsHeaders = {
 };
 
 // Validation constants
+
+// --- Mem0 Logic ---
+async function extractMemoriesBg(supabase: any, openrouterKey: string, userId: string, message: string) {
+  try {
+    if (!message || message.length < 5) return;
+    
+    const aiResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${openrouterKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash-lite", // Fast and cheap for ETL
+        messages: [
+          { 
+            role: "system", 
+            content: `Você é uma engine de extração de memória. Aja como o Mem0.
+Analise a mensagem do usuário e extraia fatos isolados, opiniões ou detalhes explícitos sobre ele (estado atual, preferências, posses, etc).
+Mínimo de interferência: Retorne APENAS um array JSON válido contendo as strings. Exemplo: ["O usuário tem um cachorro branco", "O usuário programa em Node"].
+Se não houver detalhes úteis (mensagens como "ok", "obrigado", "oi"), retorne [].`
+          },
+          { role: "user", content: message }
+        ],
+        temperature: 0.1
+      }),
+    });
+    
+    if (!aiResponse.ok) return;
+    const aiData = await aiResponse.json();
+    let rawText = aiData.choices?.[0]?.message?.content || "[]";
+    
+    const match = rawText.match(/\[([\s\S]*)\]/);
+    if (!match) return;
+    
+    const parsed = JSON.parse(`[${match[1]}]`);
+    if (!Array.isArray(parsed) || parsed.length === 0) return;
+
+    // Supabase native built-in Edge Runtime embedding
+    // @ts-ignore
+    if (typeof Supabase !== 'undefined' && Supabase.ai && Supabase.ai.Session) {
+      // @ts-ignore
+      const session = new Supabase.ai.Session('gte-small');
+      
+      for (const fact of parsed) {
+         if (typeof fact === 'string' && fact.trim().length > 0) {
+           const vector = await session.run(fact, { mean_pool: true, normalize: true });
+           const embedding = Array.from(vector);
+           await supabase.from("user_memories").insert({
+             user_id: userId,
+             fact: fact.trim(),
+             embedding
+           });
+           console.log("Memory saved:", fact);
+         }
+      }
+    }
+  } catch (e) {
+    console.error("Mem0 extraction failed:", e);
+  }
+}
+
+async function getRelevantMemories(supabase: any, userId: string, query: string) {
+  try {
+    // @ts-ignore
+    if (typeof Supabase !== 'undefined' && Supabase.ai && Supabase.ai.Session) {
+      // @ts-ignore
+      const session = new Supabase.ai.Session('gte-small');
+      const vector = await session.run(query, { mean_pool: true, normalize: true });
+      const embedding = Array.from(vector);
+      
+      const { data } = await supabase.rpc('match_user_memories', {
+         query_embedding: embedding,
+         match_threshold: 0.7,
+         match_count: 5,
+         p_user_id: userId
+      });
+      if (data && data.length > 0) {
+        return data.map((d: any) => `- ${d.fact}`).join('\n');
+      }
+    }
+    return "";
+  } catch (e) {
+    console.error("Mem0 retrieval failed:", e);
+    return "";
+  }
+}
+
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const VALID_ROLES = ["user", "assistant", "system"];
@@ -226,7 +314,15 @@ serve(async (req) => {
     const MAX_CONTEXT_CHARS = 120_000; // ~120k chars ≈ 30k tokens (fits in 65k context windows)
     
     // Build optimized context: use RAG summaries for processed texts, full content for unprocessed
+    
+    const lastUserMessage = sanitizedMessages.filter(m => m.role === 'user').pop()?.content || "";
+    const relevantMemories = await getRelevantMemories(supabase, userId, lastUserMessage);
+    
     const contextParts: string[] = [];
+    if (relevantMemories) {
+       contextParts.push(`[MEMÓRIA DE LONGO PRAZO DO USUÁRIO]\nEstes são fatos resgatados de conversas passadas sobre o usuário que podem ser úteis:\n${relevantMemories}`);
+    }
+
     if (texts) {
       for (const t of texts) {
         if (t.rag_processed && t.rag_summary) {
@@ -291,12 +387,17 @@ serve(async (req) => {
     systemPrompt += thinkingInstruction;
 
     const models = [
-      "google/gemini-2.5-flash-lite",
-      "google/gemini-2.0-flash-001",
-      "meta-llama/llama-3.3-70b-instruct:free",
-      "arcee-ai/trinity-large-preview:free",
-      "mistralai/mistral-small-3.1-24b-instruct:free",
-    ];
+  "liquid/lfm-2.5-1.2b-instruct:free",
+  "liquid/lfm-2.5-1.2b-thinking:free",
+  "nvidia/nemotron-3-super-120b-a12b:free",
+  "minimax/minimax-m2.5:free",
+  "stepfun/step-3.5-flash:free",
+  "bytedance/seedance-1-5-pro",
+  "google/gemini-2.0-flash-001",
+  "google/gemini-2.5-flash-lite",
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "mistralai/mistral-small-3.1-24b-instruct:free",
+];
 
     let lastErrorInfo = null;
     let response = null;
@@ -366,7 +467,21 @@ serve(async (req) => {
       );
     }
 
+    
+    // Kickoff BG task for Mem0
+    if (lastUserMessage) {
+      const p = extractMemoriesBg(supabase, OPENROUTER_API_KEY, userId, lastUserMessage);
+      // @ts-ignore
+      if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime.waitUntil) {
+        // @ts-ignore
+        EdgeRuntime.waitUntil(p);
+      } else {
+        p.catch(console.error);
+      }
+    }
+
     return new Response(response.body, {
+
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
     });
   } catch (e) {

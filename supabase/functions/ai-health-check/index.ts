@@ -5,12 +5,17 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { SmtpClient } from "https://deno.land/x/smtp@v0.7.0/mod.ts";
 
 const MODELS = [
-      "google/gemini-2.5-flash-lite",
-      "google/gemini-2.0-flash-001",
-      "meta-llama/llama-3.3-70b-instruct:free",
-      "arcee-ai/trinity-large-preview:free",
-      "mistralai/mistral-small-3.1-24b-instruct:free",
-    ];
+  "liquid/lfm-2.5-1.2b-instruct:free",
+  "liquid/lfm-2.5-1.2b-thinking:free",
+  "nvidia/nemotron-3-super-120b-a12b:free",
+  "minimax/minimax-m2.5:free",
+  "stepfun/step-3.5-flash:free",
+  "bytedance/seedance-1-5-pro",
+  "google/gemini-2.0-flash-001",
+  "google/gemini-2.5-flash-lite",
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "mistralai/mistral-small-3.1-24b-instruct:free",
+];
 
 const NOTIFY_EMAIL = "joaovitorfanis1@gmail.com";
 const PROBE_PROMPT = "Respond with only the word OK.";

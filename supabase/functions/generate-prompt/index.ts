@@ -8,372 +8,569 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Validation
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// ── Auth ───────────────────────────────────────────────────────────────────
+async function getUserId(authHeader: string): Promise<string> {
+  const url = Deno.env.get("SUPABASE_URL")!;
+  const key = Deno.env.get("SUPABASE_ANON_KEY")!;
+  const c = createClient(url, key, { global: { headers: { Authorization: authHeader } } });
+  const { data: { user }, error } = await c.auth.getUser();
+  if (error || !user) throw new Error("Token inválido");
+  return user.id;
+}
 
-// Model waterfall — tries in order, skips on rate-limit/error
+// ── HTML helpers ───────────────────────────────────────────────────────────
+function decodeHtml(t: string): string {
+  return t.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&apos;/g, "'")
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCharCode(parseInt(h, 16)))
+    .replace(/&nbsp;/g, " ");
+}
+
+function sseEvent(d: Record<string, unknown>): string {
+  return `data: ${JSON.stringify(d)}\n\n`;
+}
+
+// ── Models ─────────────────────────────────────────────────────────────────
 const MODELS = [
-      "google/gemini-2.5-flash-lite",
-      "google/gemini-2.0-flash-001",
-      "meta-llama/llama-3.3-70b-instruct:free",
-      "arcee-ai/trinity-large-preview:free",
-      "mistralai/mistral-small-3.1-24b-instruct:free",
-    ];
+  "liquid/lfm-2.5-1.2b-instruct:free",
+  "liquid/lfm-2.5-1.2b-thinking:free",
+  "nvidia/nemotron-3-super-120b-a12b:free",
+  "minimax/minimax-m2.5:free",
+  "stepfun/step-3.5-flash:free",
+  "bytedance/seedance-1-5-pro",
+  "google/gemini-2.0-flash-001",
+  "google/gemini-2.5-flash-lite",
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "mistralai/mistral-small-3.1-24b-instruct:free",
+];
 
+async function callAI(systemPrompt: string, userPrompt: string, apiKey: string, maxTokens = 16000): Promise<string> {
+  for (const model of MODELS) {
+    try {
+      const resp = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": "https://ai-second-brain.app",
+          "X-Title": "AI Second Brain",
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          temperature: 0.7,
+          max_tokens: maxTokens,
+        }),
+      });
+      if (!resp.ok) {
+        if (resp.status === 401) break;
+        await new Promise(r => setTimeout(r, 1500));
+        continue;
+      }
+      const data = await resp.json();
+      const content = data.choices?.[0]?.message?.content?.trim() || "";
+      if (content.length > 30) return content;
+    } catch (e) {
+      console.error(`callAI ${model}:`, e);
+      await new Promise(r => setTimeout(r, 1500));
+    }
+  }
+  return "";
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+//  SEARCH FUNCTIONS
+// ══════════════════════════════════════════════════════════════════════════
+
+async function searchDuckDuckGo(query: string): Promise<string[]> {
+  const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
+  try {
+    const resp = await fetch(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
+      },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!resp.ok) return [];
+    const html = await resp.text();
+    const urls: string[] = [];
+    const re = /<a class="result__url" href="([^"]+)"/g;
+    let m;
+    while ((m = re.exec(html)) !== null) {
+      try {
+        let href = m[1];
+        if (href.startsWith("//duckduckgo.com/l/?uddg=")) {
+          const ud = new URL("https:" + href);
+          const actual = ud.searchParams.get("uddg");
+          if (actual) href = decodeURIComponent(actual);
+        }
+        const u = new URL(href);
+        if (["duckduckgo.com", "google.com"].some(d => u.hostname.includes(d))) continue;
+        if (["http:", "https:"].includes(u.protocol)) urls.push(href);
+      } catch {}
+    }
+    return [...new Set(urls)].slice(0, 8);
+  } catch { return []; }
+}
+
+async function searchWikipedia(query: string, lang = "pt"): Promise<string[]> {
+  const url = `https://${lang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&utf8=&format=json&srlimit=1`;
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (data.query?.search?.length > 0) {
+      return [`https://${lang}.wikipedia.org/wiki/${encodeURIComponent(data.query.search[0].title)}`];
+    }
+  } catch {}
+  return [];
+}
+
+async function searchYouTube(query: string): Promise<string[]> {
+  const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
+  try {
+    const res = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)", "Accept-Language": "pt-BR,pt;q=0.9" },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return [];
+    const html = await res.text();
+    const urls: string[] = [];
+    const re = /"url":"\/watch\?v=([^"]+)"/g;
+    let m;
+    while ((m = re.exec(html)) !== null) {
+      if (urls.length >= 3) break;
+      const v = `https://www.youtube.com/watch?v=${m[1]}`;
+      if (!urls.includes(v)) urls.push(v);
+    }
+    return urls;
+  } catch { return []; }
+}
+
+async function extractTextFromUrl(url: string): Promise<{ title: string; content: string } | null> {
+  try {
+    const parsed = new URL(url);
+    if (["youtube.com", "www.youtube.com", "youtu.be", "m.youtube.com"].includes(parsed.hostname)) {
+      return await extractYouTube(url);
+    }
+    const resp = await fetch(`https://r.jina.ai/${url}`, {
+      headers: { "Accept": "application/json", "X-Return-Format": "markdown" },
+      signal: AbortSignal.timeout(20000),
+    });
+    if (!resp.ok) return null;
+    const result = await resp.json();
+    if (!result.data || !result.data.content) return null;
+    let text = result.data.content.trim();
+    if (text.length < 50) return null;
+    return { title: result.data.title || parsed.hostname, content: text.slice(0, 60000) };
+  } catch { return null; }
+}
+
+async function extractYouTube(url: string): Promise<{ title: string; content: string } | null> {
+  try {
+    const u = new URL(url);
+    let videoId = u.searchParams.get("v");
+    if (u.hostname === "youtu.be") videoId = u.pathname.slice(1).split("/")[0];
+    if (!videoId) return null;
+    const pageResp = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
+      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)", "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8" },
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!pageResp.ok) return null;
+    const html = await pageResp.text();
+    const pm = html.match(/ytInitialPlayerResponse\s*=\s*(\{.+?\});/s);
+    if (!pm) return null;
+    const pr = JSON.parse(pm[1]);
+    const title = pr?.videoDetails?.title || `YouTube ${videoId}`;
+    const desc = pr?.videoDetails?.shortDescription || "";
+    const author = pr?.videoDetails?.author || "";
+    const kw = pr?.videoDetails?.keywords || [];
+    const tracks = pr?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+    if (tracks?.length > 0) {
+      const track = tracks.find((t: any) => t.languageCode?.startsWith("pt")) ||
+        tracks.find((t: any) => t.languageCode?.startsWith("en")) || tracks[0];
+      if (track?.baseUrl) {
+        try {
+          const cr = await fetch(track.baseUrl, { signal: AbortSignal.timeout(8000) });
+          if (cr.ok) {
+            const xml = await cr.text();
+            const segs: string[] = [];
+            const re = /<text[^>]*>([\s\S]*?)<\/text>/g;
+            let m;
+            while ((m = re.exec(xml)) !== null) {
+              const d = decodeHtml(m[1].replace(/<[^>]+>/g, "")).trim();
+              if (d) segs.push(d);
+            }
+            if (segs.length > 0) {
+              return { title, content: `Título: ${title}\nCanal: ${author}\nTags: ${kw.slice(0, 15).join(", ")}\n\n[Transcrição]:\n${segs.join(" ")}` };
+            }
+          }
+        } catch {}
+      }
+    }
+    const parts = [`Título: ${title}`, `Canal: ${author}`];
+    if (kw.length > 0) parts.push(`Tags: ${kw.slice(0, 20).join(", ")}`);
+    if (desc) parts.push(`\n[Descrição]:\n${desc}`);
+    const content = parts.join("\n");
+    return content.length > 50 ? { title, content } : null;
+  } catch { return null; }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+//  AGENTS
+// ══════════════════════════════════════════════════════════════════════════
+
+async function agentAnalista(
+  name: string,
+  extractedTexts: { title: string; content: string }[],
+  apiKey: string,
+  send: (d: Record<string, unknown>) => void,
+): Promise<string> {
+  send({ step: "agent_analyst", agent: "Analista", message: `🧬 Mapeando DNA Cognitivo dos dados atuais de "${name}"...` });
+
+  const allContent = extractedTexts.map(t => `[Fonte: ${t.title}]\n${t.content}`).join("\n\n---\n\n");
+  const truncated = allContent.length > 80000 ? allContent.slice(0, 80000) + "\n[...truncado]" : allContent;
+
+  const systemPrompt = `Você é um ANALISTA DE DNA COGNITIVO de elite. Sua missão é analisar profundamente os textos de/sobre "${name}" e produzir um RELATÓRIO ESTRUTURADO completo.
+
+Você deve extrair o DNA Cognitivo seguindo o paradigma de Clonagem Digital avançada.
+
+PRODUZA UM RELATÓRIO com TODAS estas seções (em formato estruturado):
+
+## 1. IDENTIDADE CENTRAL
+Quem é a pessoa, missão, diferencial, área de atuação.
+
+## 2. PERFIL DISC
+Avalie de 1-10 cada dimensão: D (Dominância), I (Influência), S (Estabilidade), C (Conformidade/Cautela).
+Justifique cada nota com exemplos dos textos.
+
+## 3. ENEAGRAMA
+Identifique o tipo principal + asa (ex: 7w8, 3w4, 8w7). Justifique.
+
+## 4. 10 SOFT SKILLS (Protocolo de Avaliação)
+Avalie de 1-10 cada: Criatividade/Inovação, Comunicação Clara, Didática/Empatia, Flexibilidade, Foco em Resultados, Persistência, Proatividade, Gestão de Projetos, Pensamento Analítico/Estratégico, Atenção aos Detalhes.
+
+## 5. TRAÇOS COGNITIVOS
+Mínimo 8 traços observáveis (ex: "simplifica complexidade", "desafia premissas", "pensa em sistemas").
+
+## 6. HEURÍSTICAS DE DECISÃO
+Como a pessoa toma decisões? Quais frameworks mentais usa? Mínimo 5 heurísticas.
+
+## 7. FILOSOFIA E VISÃO DE MUNDO
+Crenças centrais, princípios, posicionamentos. O que defende? O que combate?
+
+## 8. ESTILO DE COMUNICAÇÃO
+Tom, formalidade (1-10), humor (1-10), ritmo, comprimento das frases, uso de metáforas.
+
+## 9. VOCABULÁRIO ASSINATURA
+Mínimo 20 termos/expressões que a pessoa usa frequentemente.
+
+## 10. FRASES REAIS MARCANTES
+Mínimo 10 frases reais extraídas dos textos (citações diretas).
+
+## 11. PADRÕES DE ARGUMENTAÇÃO
+Como a pessoa constrói argumentos? Usa dados? Histórias? Provocações? Analogias?
+
+## 12. METÁFORAS E ANALOGIAS PREFERIDAS
+Mínimo 5 metáforas/analogias que a pessoa usa recorrentemente.
+
+## 13. GATILHOS ANTI-HYPE
+O que a pessoa questiona? Que buzzwords ela combate? Como reage a ideias vagas?
+
+## 14. LACUNAS IDENTIFICADAS
+O que NÃO foi possível mapear com os dados disponíveis?
+
+IMPORTANTE: Baseie-se EXCLUSIVAMENTE nos textos fornecidos. Se não houver evidência suficiente para uma seção, diga explicitamente "Dados insuficientes para esta análise".`;
+
+  const report = await callAI(systemPrompt, truncated, apiKey);
+  
+  if (report.length > 100) {
+    send({ step: "agent_analyst_done", agent: "Analista", message: `✅ Relatório de DNA Cognitivo gerado (${report.length.toLocaleString()} chars)` });
+  } else {
+    send({ step: "agent_analyst_done", agent: "Analista", message: `⚠️ Relatório parcial gerado — dados limitados` });
+  }
+  
+  return report;
+}
+
+interface VerificationResult {
+  approved: boolean;
+  score: number;
+  missingAreas: string[];
+  suggestions: string[];
+}
+
+async function agentVerificador(
+  name: string,
+  report: string,
+  apiKey: string,
+  send: (d: Record<string, unknown>) => void,
+): Promise<VerificationResult> {
+  send({ step: "agent_verifier", agent: "Verificador", message: `🔎 Avaliando completude e qualidade do relatório...` });
+
+  const systemPrompt = `Você é um VERIFICADOR DE QUALIDADE especializado em Clonagem Digital. Sua função é avaliar se um Relatório de DNA Cognitivo está completo e preciso o suficiente para gerar um clone digital.
+
+Avalie o relatório e responda EXCLUSIVAMENTE neste formato JSON:
+{
+  "approved": true/false,
+  "score": 0-100,
+  "missing_areas": ["lista de seções fracas ou ausentes"],
+  "suggestions": ["sugestões de busca específicas"]
+}
+
+Critérios de aprovação (score >= 70):
+- Identidade clara
+- Perfil DISC preenchido com lógica
+- Pelo menos 5 traços cognitivos concretos
+- Pelo menos 8 frases reais
+- Vocabulário assinatura com 15+ termos
+- Estilo definido`;
+
+  const result = await callAI(systemPrompt, `RELATÓRIO:
+
+${report}`, apiKey, 2000);
+  
+  try {
+    const jsonMatch = result.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      const verification: VerificationResult = {
+        approved: parsed.approved ?? false,
+        score: parsed.score ?? 0,
+        missingAreas: parsed.missing_areas ?? [],
+        suggestions: parsed.suggestions ?? [],
+      };
+      
+      send({
+        step: "agent_verifier_done",
+        agent: "Verificador",
+        message: verification.approved
+          ? `✅ Relatório APROVADO — Score: ${verification.score}/100`
+          : `⚠️ Score: ${verification.score}/100 — Acionando Pesquisador para ${verification.missingAreas.length} áreas`,
+        score: verification.score,
+        approved: verification.approved,
+      });
+      return verification;
+    }
+  } catch (e) { }
+  
+  const fallbackApproved = report.length > 2000;
+  return { approved: fallbackApproved, score: fallbackApproved ? 75 : 40, missingAreas: [], suggestions: [] };
+}
+
+async function agentPrompter(
+  name: string,
+  report: string,
+  rawContent: string,
+  apiKey: string,
+  send: (d: Record<string, unknown>) => void,
+): Promise<string> {
+  send({ step: "agent_prompter", agent: "Prompter", message: `⚡ Gerando Sistema Operacional Cognitivo com 12 camadas...` });
+
+  const rawTruncated = rawContent.length > 30000 ? rawContent.slice(0, 30000) : rawContent;
+
+  const systemPrompt = `Você é um ENGENHEIRO DE PROMPTS DE ELITE especializado em CLONAGEM COGNITIVA. Use o Relatório de DNA Cognitivo + conteúdo bruto para gerar o System Prompt DEFINITIVO que replica como "${name}" PENSA, DECIDE e SE EXPRESSA.
+
+O System Prompt DEVE conter TODAS estas 12 seções:
+1. 🧠 IDENTIDADE CENTRAL
+2. 🧬 TRAÇOS COGNITIVOS
+3. ⚙️ PADRÕES DE PENSAMENTO E HEURÍSTICAS
+4. 💡 POSTURA MENTAL
+5. 🛑 MÓDULO ANTI-HYPE
+6. 🗣️ ESTILO DE COMUNICAÇÃO
+7. ✨ VOCABULÁRIO ASSINATURA
+8. 💬 FRASES REAIS
+9. 🔄 REAÇÕES PADRÃO
+10. 📋 FORMATO DE RESPOSTA OBRIGATÓRIO (Diagnóstico → Insight → Explicação → Aplicação → Pergunta)
+11. 🎯 EXEMPLOS FEW-SHOT
+12. 🚫 REGRAS DE PERSONAGEM
+
+GERE APENAS O SYSTEM PROMPT FINAL. Sem explicações, sem introdução. Apenas o prompt operacional completo.`;
+
+  const userPrompt = `RELATÓRIO DE DNA COGNITIVO:\n${report}\n\n---\n\nCONTEÚDO BRUTO RECENTE (extraído para contexto da voz/exemplos):\n${rawTruncated}`;
+  const prompt = await callAI(systemPrompt, userPrompt, apiKey);
+  
+  if (prompt.length > 200) {
+    send({ step: "prompt_done", agent: "Prompter", message: `✅ Novo Sistema Operacional Cognitivo gerado.` });
+  } else {
+    send({ step: "prompt_warning", agent: "Prompter", message: `⚠️ Prompt gerado parcialmente.` });
+  }
+  return prompt;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+//  CONTROLLER (Manual Generation Flow)
+// ══════════════════════════════════════════════════════════════════════════
+
+async function runManualSquad(
+  brainId: string,
+  userId: string,
+  apiKey: string,
+  send: (d: Record<string, unknown>) => void,
+) {
+  const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+  const { data: brain, error: brainErr } = await supabase
+    .from("brains")
+    .select("id, name, type, description")
+    .eq("id", brainId)
+    .single();
+
+  if (brainErr || !brain) {
+    send({ step: "error", message: "Brain não encontrado." });
+    return;
+  }
+
+  send({ step: "controller_start", agent: "Controlador", message: `🎯 Iniciando geração manual para "${brain.name}"` });
+
+  // Get current brain texts
+  const { data: texts } = await supabase
+    .from("brain_texts")
+    .select("content, file_name, created_at")
+    .eq("brain_id", brainId)
+    .order("created_at", { ascending: false });
+
+  if (!texts || texts.length === 0) {
+    send({ step: "error", message: "Este clone não possui conteúdo na Base de Conhecimento." });
+    return;
+  }
+
+  let extractedTexts = texts.map((t, i) => ({ title: t.file_name || `Fonte ${i+1}`, content: t.content || "" }));
+
+  if (brain.type !== "person_clone") {
+    // Basic generation for non-person
+    send({ step: "agent_prompter", agent: "Controlador", message: `Gerando prompt especialista padrão...` });
+    const rawContent = extractedTexts.map(t => t.content).join("\n\n---\n\n").slice(0, 40000);
+    const metaPrompt = `Você é um especialista em criar System Prompts para assistentes de IA. Analise os textos abaixo que pertencem ao clone "${brain.name}" (tipo: ${brain.type}) e gere um System Prompt detalhado em português com estas 7 seções: IDENTIDADE, ESTILO, TEMAS, POSTURA MENTAL, REGRAS DE COMPORTAMENTO E FORMATO, EXEMPLOS REAIS, NÃO-FAÇA.
+
+TEXTOS:\n${rawContent}`;
+    
+    const generated = await callAI(
+      "Você gera System Prompts de elite em português de forma direta, sem introdução.",
+      metaPrompt,
+      apiKey
+    );
+    await supabase.from("brains").update({ system_prompt: generated }).eq("id", brainId);
+    send({ step: "done", prompt: generated, message: `✅ Prompt gerado com sucesso.` });
+    return;
+  }
+
+  // ── Squad Logic for Person Clone ──
+  send({ step: "controller_iteration", agent: "Controlador", message: `Iniciando análise Squad nos dados atuais (${extractedTexts.length} fontes)...` });
+  
+  let report = await agentAnalista(brain.name, extractedTexts, apiKey, send);
+  const verification = await agentVerificador(brain.name, report, apiKey, send);
+
+  if (!verification.approved && verification.missingAreas.length > 0) {
+    send({ step: "controller_iteration", agent: "Controlador", message: `🔄 Verificador rejeitou. Acionando Pesquisador para suprir lacunas...` });
+    
+    // Agent Pesquisador step
+    const queries = verification.missingAreas.slice(0, 3).map(a => `"${brain.name}" ${a}`);
+    send({ step: "agent_researcher", agent: "Pesquisador", message: `Buscando na web por: ${queries.join(", ")}` });
+    
+    // Quick ddg search
+    const newTexts: {title: string, content: string}[] = [];
+    for (const q of queries) {
+      const urls = await searchDuckDuckGo(q);
+      for (const u of urls.slice(0, 3)) {
+        const r = await extractTextFromUrl(u);
+        if (r && r.content.length > 200 && !extractedTexts.some(e => e.title === r.title)) {
+          newTexts.push(r);
+          send({ step: "agent_researcher_extract", agent: "Pesquisador", message: `✓ Encontrou: ${r.title.substring(0, 40)}`, chars: r.content.length });
+        }
+      }
+    }
+
+    if (newTexts.length > 0) {
+      extractedTexts.push(...newTexts);
+      report = await agentAnalista(brain.name, extractedTexts, apiKey, send);
+      
+      send({ step: "saving", agent: "Pesquisador", message: `Salvando ${newTexts.length} novas fontes descobertas na base de conhecimento...` });
+      await Promise.all(newTexts.map(t => 
+        supabase.from("brain_texts").insert({
+          brain_id: brainId,
+          content: t.content,
+          source_type: "agent_augmentation",
+          file_name: t.title
+        })
+      ));
+    } else {
+      send({ step: "agent_researcher_done", agent: "Pesquisador", message: `⚠️ Nenhuma fonte nova relevante encontrada. Usando dados atuais.` });
+    }
+  }
+
+  const rawContent = extractedTexts.map(t => t.content).join("\n\n---\n\n");
+  const finalPrompt = await agentPrompter(brain.name, report, rawContent, apiKey, send);
+  
+  if (report.length > 100) {
+    await supabase.from("brain_texts").insert({
+      brain_id: brainId,
+      content: report,
+      source_type: "agent_augmentation",
+      file_name: `[DNA Cognitivo Atualizado] Relatório de ${brain.name}`,
+      category: "analysis",
+    });
+  }
+
+  await supabase.from("brains").update({ system_prompt: finalPrompt }).eq("id", brainId);
+  send({ step: "done", prompt: finalPrompt, message: `🧠 Prompt Operacional de "${brain.name}" gerado com sucesso!` });
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+//  HTTP / SSE Handler
+// ══════════════════════════════════════════════════════════════════════════
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "No authorization header" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Não autenticado" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Safe JSON parsing
-    let body: Record<string, unknown>;
-    try {
-      body = await req.json();
-    } catch {
-      return new Response(JSON.stringify({ error: "Invalid JSON in request body" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const userId = await getUserId(authHeader);
+    const body = await req.json();
+    const brainId = body.brainId;
 
-    const { brainId } = body as { brainId: unknown };
+    if (!brainId) throw new Error("brainId é obrigatório");
+    const apiKey = Deno.env.get("OPENROUTER_API_KEY");
+    if (!apiKey) throw new Error("API KEY ausente");
 
-    // Validate brainId — must be a UUID
-    if (!brainId || typeof brainId !== "string" || !UUID_REGEX.test(brainId)) {
-      return new Response(JSON.stringify({ error: "Invalid or missing brainId. Must be a valid UUID." }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
-    if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY not configured");
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
-    // Verify user JWT
-    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        const send = (d: Record<string, unknown>) => {
+          controller.enqueue(encoder.encode(sseEvent(d)));
+        };
+        try {
+          await runManualSquad(brainId, userId, apiKey, send);
+        } catch (e) {
+          console.error("generate-prompt squad error:", e);
+          send({ step: "error", message: e instanceof Error ? e.message : "Erro desconhecido" });
+        } finally {
+          controller.close();
+        }
+      },
     });
-    const { data: { user }, error: authError } = await userClient.auth.getUser();
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    const userId = user.id;
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Get brain info and verify ownership
-    const { data: brain, error: brainErr } = await supabase
-      .from("brains")
-      .select("name, type, description, user_id")
-      .eq("id", brainId)
-      .single();
-
-    if (brainErr || !brain) {
-      return new Response(JSON.stringify({ error: "Brain not found" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    if (brain.user_id !== userId) {
-      return new Response(JSON.stringify({ error: "Forbidden" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Get brain texts for context
-    const { data: texts } = await supabase
-      .from("brain_texts")
-      .select("content")
-      .eq("brain_id", brainId)
-      .order("created_at", { ascending: false })
-      .limit(30);
-
-    // Larger context for person_clone
-    const MAX_CONTEXT = brain.type === "person_clone" ? 40000 : 20000;
-    let context = texts?.map((t) => t.content).join("\n\n---\n\n") || "";
-    if (context.length > MAX_CONTEXT) {
-      context = context.slice(0, MAX_CONTEXT) + "\n\n[...truncado]";
-    }
-
-    if (!context.trim()) {
-      return new Response(JSON.stringify({ error: "Esse cérebro não tem textos ainda. Adicione conteúdo na aba Fontes primeiro." }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Get existing brain analysis for enrichment (if person_clone)
-    let analysisEnrichment = "";
-    if (brain.type === "person_clone") {
-      const { data: analysis } = await supabase
-        .from("brain_analysis")
-        .select("communication_style, voice_patterns, signature_phrases, skills, personality_traits")
-        .eq("brain_id", brainId)
-        .single();
-
-      if (analysis) {
-        const parts: string[] = [];
-        if (analysis.personality_traits && Object.keys(analysis.personality_traits).length > 0) {
-          const pt = analysis.personality_traits as Record<string, number>;
-          parts.push(`TRAÇOS DE PERSONALIDADE (escala 0-10):\n${Object.entries(pt).map(([k,v]) => `  - ${k}: ${v}/10`).join("\n")}`);
-        }
-        if (analysis.communication_style && Object.keys(analysis.communication_style).length > 0) {
-          const cs = analysis.communication_style as Record<string, number>;
-          parts.push(`ESTILO DE COMUNICAÇÃO (escala 0-10):\n${Object.entries(cs).map(([k,v]) => `  - ${k}: ${v}/10`).join("\n")}`);
-        }
-        if (analysis.voice_patterns && typeof analysis.voice_patterns === "object") {
-          const vp = analysis.voice_patterns as Record<string, unknown>;
-          const vpStr = Object.entries(vp)
-            .map(([k, v]) => `  - ${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
-            .join("\n");
-          parts.push(`PADRÕES DE VOZ E ESCRITA:\n${vpStr}`);
-        }
-        if (Array.isArray(analysis.signature_phrases) && analysis.signature_phrases.length > 0) {
-          parts.push(`FRASES CARACTERÍSTICAS (use como exemplos few-shot):\n${(analysis.signature_phrases as string[]).map(p => `  "${p}"`).join("\n")}`);
-        }
-        if (analysis.skills && Object.keys(analysis.skills).length > 0) {
-          const sk = analysis.skills as Record<string, number>;
-          parts.push(`HABILIDADES IDENTIFICADAS:\n${Object.entries(sk).map(([k,v]) => `  - ${k}: ${v}/10`).join("\n")}`);
-        }
-        if (parts.length > 0) {
-          analysisEnrichment = `\n\n== PERFIL ANALÍTICO DO CLONE (gerado por análise de IA) ==\n${parts.join("\n\n")}`;
-        }
-      }
-
-      // Also get signature quotes from brain_quotes
-      const { data: quotes } = await supabase
-        .from("brain_quotes")
-        .select("quote, context")
-        .eq("brain_id", brainId)
-        .limit(20);
-
-      if (quotes && quotes.length > 0) {
-        const quotesStr = quotes.map(q => `  "${q.quote}"${q.context ? ` [${q.context}]` : ""}`).join("\n");
-        analysisEnrichment += `\n\nBANCO DE FALAS E FRASES (use na seção de exemplos do prompt):\n${quotesStr}`;
-      }
-    }
-
-    const isPersonClone = brain.type === "person_clone";
-
-    let metaPrompt: string;
-
-    if (isPersonClone) {
-      metaPrompt = `Você é um engenheiro de prompts de elite especializado em CLONAGEM COGNITIVA de pessoas reais. Sua tarefa é analisar os textos de "${brain.name}" e gerar um System Prompt do tipo SYSTEM ARCHITECTURE — não uma biografia narrativa, mas um SISTEMA OPERACIONAL que replica como esta pessoa PENSA, DECIDE e SE EXPRESSA.
-
-IMPORTANTE: Este é um prompt de IMPRINT COGNITIVO. O objetivo não é descrever a pessoa, é REPLICAR sua estrutura mental. O prompt gerado deve funcionar como um manual de operação para qualquer IA se tornar indistinguível desta pessoa.
-
-## PRIORIDADE DAS SEÇÕES (do mais ao menos impactante)
-1. Padrões de Pensamento e Heurísticas de Decisão
-2. Exemplos Few-Shot reais
-3. Reações Padrão contextuais
-4. Estilo de Comunicação e ritmo
-5. Vocabulário Assinatura
-
-## INSTRUÇÕES DE EXTRAÇÃO
-Antes de escrever o prompt, EXTRAIA dos textos:
-• Padrões recorrentes de argumentação (como a pessoa constrói um raciocínio)
-• Metáforas e analogias preferidas (de quais domínios vêm: construção, música, games, etc.)
-• Estrutura de explicação (começa pelo problema? pelo princípio? pela história?)
-• Perguntas retóricas que usa para engajar
-• Heurísticas de decisão implícitas (regras práticas que a pessoa segue)
-• Contradições ou nuances no pensamento
-
-## O SYSTEM PROMPT GERADO DEVE CONTER TODAS ESTAS SEÇÕES, NESTA ORDEM:
-
-### 1. 🧠 IDENTIDADE CENTRAL (IMUTÁVEL)
-Quem a pessoa é. Como se posiciona no mundo. Qual sua missão. O que a diferencia.
-NÃO use adjetivos genéricos. Use descrições concretas extraídas dos textos.
-
-### 2. 🧬 TRAÇOS COGNITIVOS
-Liste os traços cognitivos dominantes desta pessoa (mínimo 5). Exemplos:
-• simplifica ideias complexas
-• desafia premissas da pergunta
-• prefere princípios antes de táticas
-• usa analogias para ensinar
-• conecta tecnologia com comportamento humano
-Extraia APENAS traços observáveis nos textos.
-
-### 3. ⚙️ PADRÕES DE PENSAMENTO E HEURÍSTICAS DE DECISÃO
-Como a pessoa RACIOCINA. Inclua:
-- Frameworks mentais que usa (mesmo que implícitos)
-- Árvore de decisão: quando simplifica vs. aprofunda
-- Heurísticas práticas (regras do tipo "sempre X antes de Y")
-- Como conecta ideias de áreas diferentes
-- Vieses cognitivos observáveis (otimismo, pragmatismo, etc.)
-Esta é a seção MAIS IMPORTANTE. Quanto mais detalhada, melhor o clone.
-
-### 4. 💡 POSTURA MENTAL — Crenças e Princípios Inegociáveis
-Valores, crenças e princípios que transparecem nos textos.
-Liste como regras concretas, não como descrição narrativa.
-Ex: "Execução > Teoria. Sempre." em vez de "Ele valoriza a execução."
-
-### 5. 🛑 MÓDULO ANTI-HYPE (OBRIGATÓRIO)
-Se o usuário apresentar buzzwords, ideias vagas, hype tecnológico sem aplicação ou tentativas de pular etapas, o clone DEVE questionar imediatamente:
-- "Ok, mas qual o caso de uso real disso?"
-- "Quem pagaria por isso?"
-- "Qual problema concreto resolve?"
-- "Isso é uma alucinação ou você tem um plano?"
-Adapte as frases ao estilo da pessoa. O objetivo é NUNCA validar por hype — validar apenas por valor real.
-
-### 6. 🗣️ ESTILO DE COMUNICAÇÃO
-Tom, formalidade (escala 0-10), ritmo de escrita, analogias preferidas.
-Inclua: frases de transição, como abre e fecha argumentos, nível de humor, assertividade.
-
-### 7. ✨ VOCABULÁRIO ASSINATURA
-Palavras e expressões que esta pessoa usa com frequência.
-Liste no mínimo 15 termos/expressões característicos extraídos dos textos.
-
-### 8. 💬 COMO ESTA PESSOA FALA — Frases Reais
-Mínimo 10 frases REAIS extraídas diretamente dos textos.
-Estas servem como calibração de estilo. Agrupe por contexto quando possível.
-
-### 9. 🔄 REAÇÕES PADRÃO — Modos de Resposta Contextuais
-Defina como a pessoa reagiria a diferentes tipos de input:
-- Pergunta técnica → como responde
-- Ideia vaga/sem plano → como questiona (use o módulo anti-hype)
-- Pedido de conselho → como estrutura
-- Discordância → como reage
-- Pergunta emocional → como equilibra empatia com pragmatismo
-- Pergunta casual → tom e profundidade
-
-### 10. 📋 FORMATO DE RESPOSTA OBRIGATÓRIO
-Defina uma estrutura padrão que o clone deve seguir nas respostas:
-1. Diagnóstico — o que está acontecendo de verdade
-2. Insight central — a percepção que muda o jogo
-3. Explicação simples — sem jargão, com analogia se necessário
-4. Aplicação prática — próximo passo concreto
-5. Pergunta provocativa — força o usuário a agir
-Adapte ao estilo natural da pessoa, mas MANTENHA a estrutura.
-
-### 11. 🎯 EXEMPLOS FEW-SHOT (mínimo 3)
-Crie pares realistas de pergunta → resposta NO ESTILO EXATO da pessoa.
-Use vocabulário, ritmo e estrutura observados nos textos.
-Estes exemplos CALIBRAM o modelo — são a parte mais poderosa do prompt.
-
-### 12. 🚫 REGRAS DE PERSONAGEM E ANTI-ALUCINAÇÃO
-Regras obrigatórias:
-- Nunca revelar ser IA
-- Nunca quebrar personagem
-- RESTRIÇÃO DE ESTILO: NÃO inventar bordões ou expressões novas. Reutilizar APENAS padrões linguísticos observados nos textos originais.
-- Se não souber algo que a pessoa saberia, responda como a pessoa responderia a algo fora de seu domínio
-- Manter consistência de tom mesmo em temas novos
-
-## REGRAS DE GERAÇÃO
-- Escreva o System Prompt COMPLETO, pronto para uso direto
-- Use emojis e títulos para cada seção
-- Seja EXTENSO e DETALHADO — não há limite de tamanho
-- Priorize ESTRUTURA OPERACIONAL sobre descrição narrativa
-- Cada seção deve ter instruções ACIONÁVEIS, não apenas descritivas
-- O prompt é um SISTEMA, não uma biografia
-- PRIORIDADE COGNITIVA: dedique mais tokens e profundidade às seções de maior impacto (padrões de pensamento > exemplos few-shot > reações > estilo > vocabulário)${analysisEnrichment}
-
-TEXTOS DA PESSOA PARA ANÁLISE:\n${context}`;
-    } else {
-      metaPrompt = `Você é um especialista em criar System Prompts para assistentes de IA. Analise os textos abaixo que pertencem ao clone "${brain.name}" (tipo: ${brain.type}) e gere um System Prompt detalhado em português.
-
-O System Prompt gerado deve:
-1. Definir a IDENTIDADE CENTRAL do clone — quem ele é, como pensa, como se posiciona no mundo
-2. Capturar o ESTILO DE COMUNICAÇÃO — vocabulário, tom, nível de formalidade
-3. Identificar TEMAS E ÁREAS DE CONHECIMENTO que o clone domina
-4. Definir a POSTURA MENTAL — crenças, princípios, valores
-5. Estabelecer REGRAS DE COMPORTAMENTO — como responder, o que evitar, formato preferido
-6. Incluir EXEMPLOS de como o clone responderia (few-shot), baseados nos textos reais
-7. Ser auto-contido — quem ler o prompt deve entender perfeitamente como a IA deve agir
-
-Formato: Escreva o System Prompt completo, pronto para uso. Use seções com emojis e títulos. Seja EXTENSO e DETALHADO.${analysisEnrichment}
-
-TEXTOS DO CLONE:\n${context}`;
-    }
-
-    // Try each model in order — skip on rate limits, break on auth errors
-    let generatedPrompt = "";
-    let lastError: { status?: number; text?: string } | null = null;
-
-    for (const model of MODELS) {
-      try {
-        console.log(`generate-prompt: trying model ${model}`);
-        const aiResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-            "Content-Type": "application/json",
-            "HTTP-Referer": "https://ai-second-brain.app",
-            "X-Title": "AI Second Brain",
-          },
-          body: JSON.stringify({
-            model,
-            messages: [
-              { role: "system", content: isPersonClone
-                ? "Você é um engenheiro de System Prompts de elite. Gere APENAS o System Prompt final, sem explicações, sem comentários, sem markdown extra. O prompt deve ser um SISTEMA OPERACIONAL COGNITIVO — com estrutura de decisão, heurísticas, exemplos few-shot e regras operacionais. NÃO gere biografia narrativa. Gere um sistema que OPERA como a pessoa."
-                : "Você gera System Prompts profissionais e detalhados para assistentes de IA. Responda APENAS com o System Prompt gerado, sem explicações extras, sem markdown extra." },
-              { role: "user", content: metaPrompt },
-            ],
-            temperature: 0.7,
-            max_tokens: 16000,
-          }),
-        });
-
-        if (!aiResponse.ok) {
-          const errText = await aiResponse.text();
-          console.error(`generate-prompt: model ${model} failed with ${aiResponse.status}:`, errText);
-          lastError = { status: aiResponse.status, text: errText };
-          if (aiResponse.status === 401) break;
-          await new Promise(r => setTimeout(r, 1000));
-          continue;
-        }
-
-        const result = await aiResponse.json();
-        const content = result.choices?.[0]?.message?.content?.trim() || "";
-        if (content.length > 20) {
-          generatedPrompt = content;
-          console.log(`generate-prompt: success with model ${model}, length: ${content.length}`);
-          break;
-        } else {
-          console.warn(`generate-prompt: model ${model} returned empty/short content`);
-          lastError = { text: "Empty response from model" };
-        }
-      } catch (e) {
-        console.error(`generate-prompt: fetch error for model ${model}:`, e);
-        lastError = { text: "Erro interno" };
-      }
-    }
-
-    if (!generatedPrompt) {
-      const isRateLimit = lastError?.status === 429;
-      // Log raw error server-side only — never expose provider details to client
-      console.error("generate-prompt: all models failed. Last error:", JSON.stringify(lastError));
-      const errorMsg = isRateLimit
-        ? "Limite de requisições excedido pelos modelos de IA. Aguarde alguns segundos e tente novamente."
-        : "Falha ao gerar o prompt. Todos os modelos de IA estão indisponíveis no momento. Tente novamente em alguns instantes.";
-      return new Response(JSON.stringify({ error: errorMsg }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    return new Response(JSON.stringify({ prompt: generatedPrompt }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    return new Response(stream, {
+      headers: {
+        ...corsHeaders,
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      },
     });
   } catch (e) {
-    console.error("generate-prompt error:", e);
-    return new Response(JSON.stringify({ error: "Erro desconhecido" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    console.error("generate-prompt sync error:", e);
+    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Erro" }), {
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });

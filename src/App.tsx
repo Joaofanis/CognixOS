@@ -12,6 +12,7 @@ import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import GeneralChat from "./pages/GeneralChat";
 import UserProfileAI from "./pages/UserProfileAI";
+import AIOS from "./pages/AIOS";
 import Settings from "./pages/Settings";
 import { ThemeProvider } from "./components/ThemeProvider";
 import { SettingsProvider } from "./hooks/useSettings";
@@ -110,6 +111,14 @@ const App = () => (
                   element={
                     <ProtectedRoute>
                       <Settings />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/aios"
+                  element={
+                    <ProtectedRoute>
+                      <AIOS />
                     </ProtectedRoute>
                   }
                 />
