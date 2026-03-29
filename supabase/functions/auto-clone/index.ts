@@ -1,6 +1,7 @@
-// @ts-nocheck
+// @ts-expect-error: Deno modules are valid in Supabase Edge Functions
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+// @ts-expect-error: Deno modules are valid in Supabase Edge Functions
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,7 +11,9 @@ const corsHeaders = {
 
 // ── Auth ───────────────────────────────────────────────────────────────────
 async function getUserId(authHeader: string): Promise<string> {
+  // @ts-expect-error: Deno is available at runtime in Supabase Edge Functions
   const url = Deno.env.get("SUPABASE_URL")!;
+  // @ts-expect-error: Deno is available at runtime in Supabase Edge Functions
   const key = Deno.env.get("SUPABASE_ANON_KEY")!;
   const c = createClient(url, key, { global: { headers: { Authorization: authHeader } } });
   const { data: { user }, error } = await c.auth.getUser();
@@ -111,7 +114,9 @@ async function searchDuckDuckGo(query: string): Promise<string[]> {
         const u = new URL(href);
         if (["duckduckgo.com", "google.com"].some(d => u.hostname.includes(d))) continue;
         if (["http:", "https:"].includes(u.protocol)) urls.push(href);
-      } catch {}
+      } catch (err) {
+        // Ignore invalid URLs
+      }
     }
     return [...new Set(urls)].slice(0, 8);
   } catch { return []; }
@@ -126,7 +131,9 @@ async function searchWikipedia(query: string, lang = "pt"): Promise<string[]> {
     if (data.query?.search?.length > 0) {
       return [`https://${lang}.wikipedia.org/wiki/${encodeURIComponent(data.query.search[0].title)}`];
     }
-  } catch {}
+  } catch (err) {
+    // Wikipedia API failure
+  }
   return [];
 }
 
@@ -148,7 +155,9 @@ async function searchYouTube(query: string): Promise<string[]> {
       if (!urls.includes(v)) urls.push(v);
     }
     return urls;
-  } catch { return []; }
+  } catch (err) {
+    return [];
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -168,10 +177,12 @@ async function extractTextFromUrl(url: string): Promise<{ title: string; content
     if (!resp.ok) return null;
     const result = await resp.json();
     if (!result.data || !result.data.content) return null;
-    let text = result.data.content.trim();
+    const text: string = result.data.content.trim();
     if (text.length < 50) return null;
     return { title: result.data.title || parsed.hostname, content: text.slice(0, 60000) };
-  } catch { return null; }
+  } catch (err) {
+    return null;
+  }
 }
 
 async function extractYouTube(url: string): Promise<{ title: string; content: string } | null> {
@@ -195,8 +206,8 @@ async function extractYouTube(url: string): Promise<{ title: string; content: st
     const kw = pr?.videoDetails?.keywords || [];
     const tracks = pr?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
     if (tracks?.length > 0) {
-      const track = tracks.find((t: any) => t.languageCode?.startsWith("pt")) ||
-        tracks.find((t: any) => t.languageCode?.startsWith("en")) || tracks[0];
+      const track = tracks.find((t: { languageCode: string; baseUrl: string }) => t.languageCode?.startsWith("pt")) ||
+        tracks.find((t: { languageCode: string; baseUrl: string }) => t.languageCode?.startsWith("en")) || tracks[0];
       if (track?.baseUrl) {
         try {
           const cr = await fetch(track.baseUrl, { signal: AbortSignal.timeout(8000) });
@@ -213,7 +224,9 @@ async function extractYouTube(url: string): Promise<{ title: string; content: st
               return { title, content: `Título: ${title}\nCanal: ${author}\nTags: ${kw.slice(0, 15).join(", ")}\n\n[Transcrição]:\n${segs.join(" ")}` };
             }
           }
-        } catch {}
+        } catch (err) {
+          // Transcript fetch failure
+        }
       }
     }
     const parts = [`Título: ${title}`, `Canal: ${author}`];
@@ -456,7 +469,9 @@ Aprove apenas (score >= 70) se os relatórios tiverem material palpável (Identi
       });
       return { approved: p.approved, score: p.score ?? 0, missingAreas: p.missing_areas ?? [] };
     }
-  } catch {}
+  } catch (err) {
+    // JSON parse failure
+  }
   
   const fallback = reportsComb.length > 5000;
   send({ step: "agent_verifier_done", agent: "Verificador", message: fallback ? "✅ Aprovado heuristicamente" : "⚠️ Verificação falhou" });
@@ -513,11 +528,12 @@ async function runSquad(
   send: (d: Record<string, unknown>) => void,
 ): Promise<void> {
   send({ step: "controller_start", agent: "Controlador", message: `🎯 Iniciando Squad de Elite (7 Agentes) para Clonagem de "${name}"` });
-
+  
+  // @ts-expect-error: Deno is available at runtime in Supabase Edge Functions
   const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
   // Fase 1: Ingestão de Pesquisa (Pesquisador)
-  let extractedTexts = await agentPesquisador(name, userUrls, send);
+  const extractedTexts = await agentPesquisador(name, userUrls, send);
   if (extractedTexts.length === 0) {
     send({ step: "error", message: `Nenhuma fonte encontrada para "${name}".` });
     return;
@@ -581,7 +597,7 @@ async function runSquad(
 //  HTTP Handler
 // ══════════════════════════════════════════════════════════════════════════
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
@@ -593,13 +609,32 @@ serve(async (req) => {
     }
 
     const userId = await getUserId(authHeader);
-    const { name, urls, brainName } = await req.json();
+    const { name, urls, brainName, messages } = await req.json();
 
     if (!name || typeof name !== "string") {
       return new Response(JSON.stringify({ error: "Nome é obrigatório" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const sanitizedMessages = (messages as { role: string; content: string }[]).map(
+      (msg) => ({
+        role: msg.role,
+        content: msg.content.trim(),
+      }),
+    );
+
+    // @ts-expect-error: Deno is available at runtime in Supabase Edge Functions
+    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
+    if (!OPENROUTER_API_KEY)
+      throw new Error("OPENROUTER_API_KEY not configured");
+
+    // @ts-expect-error: Deno is available at runtime in Supabase Edge Functions
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    // @ts-expect-error: Deno is available at runtime in Supabase Edge Functions
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    // @ts-expect-error: Deno is available at runtime in Supabase Edge Functions
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
     const apiKey = Deno.env.get("OPENROUTER_API_KEY");
     if (!apiKey) throw new Error("OPENROUTER_API_KEY not set");

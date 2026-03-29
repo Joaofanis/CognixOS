@@ -1,6 +1,7 @@
-// @ts-nocheck
+// @ts-expect-error: Deno modules are valid in Supabase Edge Functions
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+// @ts-expect-error: Deno modules are valid in Supabase Edge Functions
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,7 +12,7 @@ const corsHeaders = {
 // Validation constants
 
 // --- Mem0 Logic ---
-async function extractMemoriesBg(supabase: any, openrouterKey: string, userId: string, message: string) {
+async function extractMemoriesBg(supabase: SupabaseClient, openrouterKey: string, userId: string, message: string) {
   try {
     if (!message || message.length < 5) return;
     
@@ -39,7 +40,7 @@ Se não houver detalhes úteis (mensagens como "ok", "obrigado", "oi"), retorne 
     
     if (!aiResponse.ok) return;
     const aiData = await aiResponse.json();
-    let rawText = aiData.choices?.[0]?.message?.content || "[]";
+    const rawText = aiData.choices?.[0]?.message?.content || "[]";
     
     const match = rawText.match(/\[([\s\S]*)\]/);
     if (!match) return;
@@ -48,9 +49,9 @@ Se não houver detalhes úteis (mensagens como "ok", "obrigado", "oi"), retorne 
     if (!Array.isArray(parsed) || parsed.length === 0) return;
 
     // Supabase native built-in Edge Runtime embedding
-    // @ts-ignore
+    // @ts-expect-error: Supabase is injected at runtime in Edge Functions
     if (typeof Supabase !== 'undefined' && Supabase.ai && Supabase.ai.Session) {
-      // @ts-ignore
+      // @ts-expect-error: Supabase is injected at runtime in Edge Functions
       const session = new Supabase.ai.Session('gte-small');
       
       for (const fact of parsed) {
@@ -71,11 +72,11 @@ Se não houver detalhes úteis (mensagens como "ok", "obrigado", "oi"), retorne 
   }
 }
 
-async function getRelevantMemories(supabase: any, userId: string, query: string) {
+async function getRelevantMemories(supabase: SupabaseClient, userId: string, query: string) {
   try {
-    // @ts-ignore
+    // @ts-expect-error: Supabase is injected at runtime in Edge Functions
     if (typeof Supabase !== 'undefined' && Supabase.ai && Supabase.ai.Session) {
-      // @ts-ignore
+      // @ts-expect-error: Supabase is injected at runtime in Edge Functions
       const session = new Supabase.ai.Session('gte-small');
       const vector = await session.run(query, { mean_pool: true, normalize: true });
       const embedding = Array.from(vector);
@@ -87,7 +88,7 @@ async function getRelevantMemories(supabase: any, userId: string, query: string)
          p_user_id: userId
       });
       if (data && data.length > 0) {
-        return data.map((d: any) => `- ${d.fact}`).join('\n');
+        return data.map((d: { fact: string }) => `- ${d.fact}`).join('\n');
       }
     }
     return "";
@@ -104,7 +105,7 @@ const MAX_MESSAGES = 1000;                            // 1k messages
 const MAX_MESSAGE_CONTENT_LENGTH = 4_000_000;         // ~4M chars per message
 const MAX_BODY_SIZE = 20 * 1024 * 1024;              // 20MB total body size
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === "OPTIONS")
     return new Response(null, { headers: corsHeaders });
 
@@ -254,13 +255,17 @@ serve(async (req) => {
         content: msg.content.trim(),
       }),
     );
-
+    
+    // @ts-expect-error: Deno is available at runtime in Supabase Edge Functions
     const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
     if (!OPENROUTER_API_KEY)
       throw new Error("OPENROUTER_API_KEY not configured");
 
+    // @ts-expect-error: Deno is available at runtime in Supabase Edge Functions
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    // @ts-expect-error: Deno is available at runtime in Supabase Edge Functions
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    // @ts-expect-error: Deno is available at runtime in Supabase Edge Functions
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
     // Verify User JWT
@@ -308,6 +313,9 @@ serve(async (req) => {
       }
       brain = data;
     }
+
+    const contextParts: string[] = [];
+    let systemPrompt = "";
 
     if (hasBrain) {
       const { data: texts } = await supabase
@@ -488,9 +496,9 @@ serve(async (req) => {
     // Kickoff BG task for Mem0
     if (lastUserMessage) {
       const p = extractMemoriesBg(supabase, OPENROUTER_API_KEY, userId, lastUserMessage);
-      // @ts-ignore
+      // @ts-expect-error: EdgeRuntime is available in Supabase Edge Functions
       if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime.waitUntil) {
-        // @ts-ignore
+        // @ts-expect-error: EdgeRuntime is available in Supabase Edge Functions
         EdgeRuntime.waitUntil(p);
       } else {
         p.catch(console.error);
