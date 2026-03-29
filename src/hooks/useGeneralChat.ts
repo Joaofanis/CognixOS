@@ -2,7 +2,7 @@ import { useState, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { ChatMode, Message } from "./useBrainChat";
 
-const GENERAL_CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/general-chat`;
+const GENERAL_CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/brain-chat`;
 
 export type { ChatMode, Message };
 

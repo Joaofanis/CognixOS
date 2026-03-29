@@ -158,11 +158,13 @@ serve(async (req) => {
 
     // --- Input Validation ---
 
-    // Validate brainId: must be a non-empty string in UUID format
-    if (!brainId || typeof brainId !== "string" || !UUID_REGEX.test(brainId)) {
+    // Validate brainId: OPTIONAL — if provided, must be a non-empty string in UUID format
+    const hasBrain = brainId && typeof brainId === "string" && UUID_REGEX.test(brainId);
+    
+    if (brainId && !hasBrain) {
       return new Response(
         JSON.stringify({
-          error: "Invalid or missing brainId. Must be a valid UUID.",
+          error: "Invalid brainId format. Must be a valid UUID.",
         }),
         {
           status: 400,
@@ -279,125 +281,140 @@ serve(async (req) => {
     // Use service role for data operations
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get brain info and verify ownership
-    const { data: brain, error: brainErr } = await supabase
-      .from("brains")
-      .select("name, type, description, user_id, system_prompt")
-      .eq("id", brainId)
-      .single();
+    let brain = null;
+    if (hasBrain) {
+      // Get brain info and verify ownership
+      const { data, error: brainErr } = await supabase
+        .from("brains")
+        .select("name, type, description, user_id, system_prompt")
+        .eq("id", brainId)
+        .single();
 
-    if (brainErr || !brain) {
-      return new Response(JSON.stringify({ error: "Brain not found" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    if (brain.user_id !== userId) {
-      return new Response(
-        JSON.stringify({ error: "Forbidden: You don't own this brain" }),
-        {
-          status: 403,
+      if (brainErr || !data) {
+        return new Response(JSON.stringify({ error: "Brain not found" }), {
+          status: 404,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
+        });
+      }
+
+      if (data.user_id !== userId) {
+        return new Response(
+          JSON.stringify({ error: "Forbidden: You don't own this brain" }),
+          {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+      brain = data;
     }
 
-    // Get brain texts for context — prefer RAG-processed summaries
-    const { data: texts } = await supabase
-      .from("brain_texts")
-      .select("content, rag_summary, rag_keywords, category, rag_processed")
-      .eq("brain_id", brainId)
-      .order("created_at", { ascending: false })
-      .limit(50);
+    if (hasBrain) {
+      const { data: texts } = await supabase
+        .from("brain_texts")
+        .select("content, rag_summary, rag_keywords, category, rag_processed")
+        .eq("brain_id", brainId)
+        .order("created_at", { ascending: false })
+        .limit(50);
 
-    const MAX_CONTEXT_CHARS = 120_000; // ~120k chars ≈ 30k tokens (fits in 65k context windows)
-    
-    // Build optimized context: use RAG summaries for processed texts, full content for unprocessed
-    
-    const lastUserMessage = sanitizedMessages.filter(m => m.role === 'user').pop()?.content || "";
-    const relevantMemories = await getRelevantMemories(supabase, userId, lastUserMessage);
-    
-    const contextParts: string[] = [];
-    if (relevantMemories) {
-       contextParts.push(`[MEMÓRIA DE LONGO PRAZO DO USUÁRIO]\nEstes são fatos resgatados de conversas passadas sobre o usuário que podem ser úteis:\n${relevantMemories}`);
-    }
-
-    if (texts) {
-      for (const t of texts) {
-        if (t.rag_processed && t.rag_summary) {
-          const keywords = t.rag_keywords ? `[Palavras-chave: ${(t.rag_keywords as string[]).join(", ")}]` : "";
-          const cat = t.category ? `[Categoria: ${t.category}]` : "";
-          contextParts.push(`${cat} ${keywords}\nResumo: ${t.rag_summary}`);
-        } else {
-          contextParts.push(t.content);
+      if (texts) {
+        for (const t of texts) {
+          if (t.rag_processed && t.rag_summary) {
+            const keywords = t.rag_keywords ? `[Palavras-chave: ${(t.rag_keywords as string[]).join(", ")}]` : "";
+            const cat = t.category ? `[Categoria: ${t.category}]` : "";
+            if (t.rag_summary) contextParts.push(`${cat} ${keywords}\nResumo: ${t.rag_summary}`);
+          } else if (t.content) {
+            contextParts.push(t.content);
+          }
         }
       }
     }
     
+    const MAX_CONTEXT_CHARS = 120_000;
+    const lastUserMessage = sanitizedMessages.filter(m => m.role === 'user').pop()?.content || "";
+    const relevantMemories = await getRelevantMemories(supabase, userId, lastUserMessage);
+    
+    if (relevantMemories) {
+       contextParts.unshift(`[MEMÓRIA DE LONGO PRAZO DO USUÁRIO]\nEstes são fatos resgatados de conversas passadas sobre o usuário que podem ser úteis:\n${relevantMemories}`);
+    }
+
     let contextTexts = contextParts.join("\n\n---\n\n");
     if (contextTexts.length > MAX_CONTEXT_CHARS) {
-      contextTexts =
-        contextTexts.slice(0, MAX_CONTEXT_CHARS) +
-        "\n\n[...contexto truncado por limite]";
-      console.log(`brain-chat: truncated context to ${MAX_CONTEXT_CHARS} chars`);
+      contextTexts = contextTexts.slice(0, MAX_CONTEXT_CHARS) + "\n\n[...contexto truncado]";
     }
 
     // Mode modifiers
     const chatMode = mode === "thinking" ? "thinking" : mode === "fast" ? "fast" : "default";
-    const thinkingInstruction = chatMode === "thinking"
-      ? `\n\n## Modo Pensamento Ativo\nAntes de responder, raciocine passo a passo entre as tags <raciocinio> e </raciocinio>. Após o raciocínio, forneça sua resposta final de forma clara. Formato obrigatório:\n<raciocinio>\n[seu raciocínio aqui]\n</raciocinio>\n\n[sua resposta final aqui]`
+    
+    // IMPORTANT: Instructions are placed at the END of the system prompt to ensure high attention.
+    const modeInstruction = chatMode === "thinking"
+      ? `\n\n[ATIVADO: MODO PENSAMENTO PROFUNDO — OBRIGATÓRIO]\nAntes de me responder, você DEVE analisar o problema passo a passo usando as tags <raciocinio> e </raciocinio>. Sua resposta final deve vir APÓS o raciocínio.\nExemplo de formato:\n<raciocinio>\n[seu pensamento lógico aqui]\n</raciocinio>\n[sua resposta clara aqui]`
       : chatMode === "fast"
-      ? `\n\n## Modo Rápido Ativo\nResponda de forma direta e concisa, sem elaborar desnecessariamente. Priorize clareza e velocidade.`
+      ? `\n\n[ATIVADO: MODO RÁPIDO — OBRIGATÓRIO]\nSeja extremamente conciso e direto ao ponto. Use poucas palavras, formatos de lista e evite qualquer tipo de introdução ou conclusão educada. Resposta curta e funcional apenas.`
       : "";
 
-    const chatTemperature = chatMode === "fast" ? 0.3 : chatMode === "thinking" ? 0.8 : 0.7;
+    const chatTemperature = chatMode === "fast" ? 0.2 : chatMode === "thinking" ? 0.9 : 0.7;
 
-    // Build system prompt - use custom prompt if available, otherwise default
-    let systemPrompt = "";
+    if (hasBrain && brain) {
+      if (brain.system_prompt && brain.system_prompt.trim()) {
+        systemPrompt = brain.system_prompt.trim();
+        systemPrompt += `\n\nContexto de Conhecimento de "${brain.name}":\n${contextTexts}`;
+      } else {
+        const baseInstruction =
+          "\n\nUse APENAS o contexto fornecido abaixo. Se a informação não estiver lá, admita honestamente que não sabe. Mantenha as respostas concisas e úteis.";
 
-    if (brain.system_prompt && brain.system_prompt.trim()) {
-      // User has a custom system prompt — use it and append context
-      systemPrompt = brain.system_prompt.trim();
-      systemPrompt += `\n\nContexto de Conhecimento de "${brain.name}":\n${contextTexts}`;
-    } else {
-      // Default prompts by brain type
-      const baseInstruction =
-        "\n\nUse APENAS o contexto fornecido abaixo. Se a informação não estiver lá, admita honestamente que não sabe. Mantenha as respostas concisas e úteis.";
-
-      switch (brain.type) {
-        case "person_clone":
-          systemPrompt = `Você é a personificação digital de "${brain.name}". Seu objetivo é emular perfeitamente o estilo de escrita, vocabulário, gírias, tom emocional e personalidade desta pessoa. ${baseInstruction}`;
-          break;
-        case "knowledge_base":
-          systemPrompt = `Você é um Assistente especializado em "${brain.name}". Atue como um especialista técnico altamente preciso. ${baseInstruction}`;
-          break;
-        case "philosophy":
-          systemPrompt = `Você é um mentor que segue estritamente a linha de raciocínio de "${brain.name}". Suas respostas devem ser reflexivas e baseadas nos princípios filosóficos encontrados no contexto. ${baseInstruction}`;
-          break;
-        case "practical_guide":
-          systemPrompt = `Você é um guia instrucional prático para "${brain.name}". Responda com passos claros, listas e orientações diretas para execução. ${baseInstruction}`;
-          break;
+        switch (brain.type) {
+          case "person_clone":
+            systemPrompt = `Você é a personificação digital de "${brain.name}". Seu objetivo é emular perfeitamente o estilo de escrita, vocabulário, gírias, tom emocional e personalidade desta pessoa. ${baseInstruction}`;
+            break;
+          case "knowledge_base":
+            systemPrompt = `Você é um Assistente especializado em "${brain.name}". Atue como um especialista técnico altamente preciso. ${baseInstruction}`;
+            break;
+          case "philosophy":
+            systemPrompt = `Você é um mentor que segue estritamente a linha de raciocínio de "${brain.name}". Suas respostas devem ser reflexivas e baseadas nos princípios filosóficos encontrados no contexto. ${baseInstruction}`;
+            break;
+          case "practical_guide":
+            systemPrompt = `Você é um guia instrucional prático para "${brain.name}". Responda com passos claros, listas e orientações diretas para execução. ${baseInstruction}`;
+            break;
+          default:
+            systemPrompt = `Você é um assistente de IA. ${baseInstruction}`;
+        }
+        systemPrompt += `\n\nContexto de Conhecimento de "${brain.name}":\n${contextTexts}`;
       }
-
-      systemPrompt += `\n\nContexto de Conhecimento de "${brain.name}":\n${contextTexts}`;
+    } else {
+      // MODE: GENERAL ASSISTANT (no brainId)
+      systemPrompt = `Você é o "AIOS Assistant", um assistente de IA geral poderoso, prestativo e inteligente. Você ajuda o usuário a gerenciar seu Segundo Cérebro, criar clones e analisar dados.`;
+      if (contextTexts) {
+        systemPrompt += `\n\nInformações relevantes de memória de longo prazo do usuário:\n${contextTexts}`;
+      }
     }
 
-    // Append mode instruction
-    systemPrompt += thinkingInstruction;
+    // Append mode instruction at the very end of the system prompt for maximum weight
+    systemPrompt += modeInstruction;
 
-    const models = [
-  "liquid/lfm-2.5-1.2b-instruct:free",
-  "liquid/lfm-2.5-1.2b-thinking:free",
-  "nvidia/nemotron-3-super-120b-a12b:free",
-  "minimax/minimax-m2.5:free",
-  "stepfun/step-3.5-flash:free",
-  "bytedance/seedance-1-5-pro",
-  "google/gemini-2.0-flash-001",
-  "google/gemini-2.5-flash-lite",
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "mistralai/mistral-small-3.1-24b-instruct:free",
-];
+    // Finally, truncate system prompt if it's too large (safety check)
+    if (systemPrompt.length > 30000) {
+      systemPrompt = systemPrompt.slice(0, 30000) + "... [truncated]";
+    }
+
+    const models = chatMode === "thinking" 
+      ? [
+          "liquid/lfm-2.5-1.2b-thinking:free",
+          "google/gemini-2.0-flash-thinking-exp-1219:free",
+          "meta-llama/llama-3.3-70b-instruct:free",
+        ]
+      : chatMode === "fast"
+      ? [
+          "liquid/lfm-2.5-1.2b-instruct:free",
+          "google/gemini-2.0-flash-lite-001:free",
+        ]
+      : [
+          "google/gemini-2.0-flash-001",
+          "meta-llama/llama-3.3-70b-instruct:free",
+          "google/gemini-flash-1.5-8b",
+          "liquid/lfm-2.5-120b:free",
+          "mistralai/mistral-7b-instruct:free",
+        ];
 
     let lastErrorInfo = null;
     let response = null;

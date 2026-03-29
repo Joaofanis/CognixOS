@@ -59,9 +59,10 @@ export function useBrainChat({
     onStreamingEnd?.();
   }, [onStreamingEnd]);
 
-  const sendMessage = useCallback(async (input: string) => {
+  const sendMessage = useCallback(async (input: string, overrideMode?: ChatMode) => {
     if (!input.trim() || isStreaming) return;
 
+    const currentMode = overrideMode || mode;
     lastUserInputRef.current = input.trim();
     const userMsg: Message = { role: "user", content: input.trim() };
     setMessages((prev) => [...prev, userMsg]);
@@ -107,7 +108,7 @@ export function useBrainChat({
         },
         body: JSON.stringify({
           brainId,
-          mode,
+          mode: currentMode,
           messages: [...messages, userMsg].map((m) => ({
             role: m.role,
             content: m.content,

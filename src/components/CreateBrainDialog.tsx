@@ -43,144 +43,7 @@ const STEPS = [
 ];
 
 // ── Auto-Clone Progress UI ─────────────────────────────────────────────────
-interface AutoCloneStep {
-  step: string;
-  message: string;
-  urls?: string[];
-  brainId?: string;
-  chars?: number;
-  url?: string;
-  agent?: string;
-  score?: number;
-  approved?: boolean;
-}
-
-function AutoCloneProgress({
-  steps,
-  isRunning,
-  onDone,
-}: {
-  steps: AutoCloneStep[];
-  isRunning: boolean;
-  onDone: (brainId: string) => void;
-}) {
-  const lastStep = steps[steps.length - 1];
-  const doneStep = steps.find((s) => s.step === "done");
-  const errorStep = steps.find((s) => s.step === "error");
-
-  // Calculate progress based on agent phases
-  const progressMap: Record<string, number> = {
-    controller_start: 5,
-    agent_researcher: 15,
-    agent_researcher_extract: 25,
-    agent_researcher_done: 30,
-    controller_iteration: 35,
-    agent_analyst: 45,
-    agent_analyst_done: 55,
-    agent_verifier: 60,
-    agent_verifier_done: 68,
-    saving: 72,
-    agent_prompter: 80,
-    agent_prompter_done: 90,
-    prompt_done: 95,
-    prompt_warning: 95,
-    done: 100,
-    error: 0,
-  };
-  const progress = progressMap[lastStep?.step || ""] || 0;
-
-  // Get current agent name
-  const currentAgent = lastStep?.agent || "";
-
-  return (
-    <div className="space-y-4 py-2">
-      <div className="flex items-center gap-3">
-        <div className="relative">
-          <Zap className="h-8 w-8 text-primary" />
-          {isRunning && (
-            <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-primary animate-pulse" />
-          )}
-        </div>
-        <div>
-          <h3 className="font-semibold text-sm">Squad de Clonagem Digital</h3>
-          <p className="text-xs text-muted-foreground">
-            {isRunning
-              ? currentAgent
-                ? `Agente ${currentAgent} ativo...`
-                : "Inicializando squad..."
-              : doneStep ? "Clone criado com sucesso!" : errorStep ? "Erro no processo" : "Aguardando..."}
-          </p>
-        </div>
-      </div>
-
-      {/* Agent indicators */}
-      {isRunning && (
-        <div className="flex gap-1.5 flex-wrap">
-          {["Pesquisador", "Analista", "Verificador", "Prompter"].map((ag) => {
-            const isActive = currentAgent === ag;
-            const isDone = steps.some(s => s.agent === ag && (s.step?.includes("_done") || s.step === "prompt_done"));
-            return (
-              <span
-                key={ag}
-                className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                  isDone
-                    ? "bg-primary/15 text-primary"
-                    : isActive
-                      ? "bg-primary/10 text-primary animate-pulse"
-                      : "bg-muted text-muted-foreground"
-                }`}
-              >
-                {isDone ? "✓ " : isActive ? "● " : ""}{ag}
-              </span>
-            );
-          })}
-        </div>
-      )}
-
-      <Progress value={progress} className="h-2" />
-
-      <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1">
-        {steps.map((s, i) => (
-          <div
-            key={i}
-            className={`flex items-start gap-2 text-xs rounded-lg px-3 py-1.5 ${
-              s.step === "error"
-                ? "bg-destructive/10 text-destructive"
-                : s.step === "done"
-                  ? "bg-primary/10 text-primary font-medium"
-                  : "bg-muted/50 text-muted-foreground"
-            }`}
-          >
-            {s.step === "done" ? (
-              <Check className="h-3 w-3 mt-0.5 shrink-0" />
-            ) : s.step === "error" ? (
-              <X className="h-3 w-3 mt-0.5 shrink-0" />
-            ) : (
-              <span className="h-3 w-3 mt-0.5 shrink-0 text-center">•</span>
-            )}
-            <span className="break-all">{s.message}</span>
-          </div>
-        ))}
-      </div>
-
-      {doneStep?.brainId && (
-        <Button
-          onClick={() => onDone(doneStep.brainId!)}
-          className="w-full gap-2 gradient-jewel text-white font-semibold rounded-xl"
-        >
-          <Check className="h-4 w-4" />
-          Abrir Clone Criado
-        </Button>
-      )}
-
-      {errorStep && !doneStep && (
-        <p className="text-xs text-destructive text-center">
-          Tente novamente ou crie manualmente.
-        </p>
-      )}
-    </div>
-  );
-}
+import { AutoCloneProgress, type AutoCloneStep } from "./AutoCloneProgress";
 
 // ── Main Dialog ─────────────────────────────────────────────────────────────
 export default function CreateBrainDialog({ open, onOpenChange }: Props) {
@@ -249,13 +112,19 @@ export default function CreateBrainDialog({ open, onOpenChange }: Props) {
     setAutoCloneSteps([]);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       if (!session) throw new Error("Não autenticado");
 
       const urls = autoCloneUrls
         .split("\n")
         .map((u) => u.trim())
-        .filter((u) => u.length > 0 && (u.startsWith("http://") || u.startsWith("https://")));
+        .filter(
+          (u) =>
+            u.length > 0 &&
+            (u.startsWith("http://") || u.startsWith("https://")),
+        );
 
       const resp = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/auto-clone`,
@@ -274,7 +143,9 @@ export default function CreateBrainDialog({ open, onOpenChange }: Props) {
       );
 
       if (!resp.ok || !resp.body) {
-        const err = await resp.json().catch(() => ({ error: "Erro desconhecido" }));
+        const err = await resp
+          .json()
+          .catch(() => ({ error: "Erro desconhecido" }));
         throw new Error(err.error || `Erro ${resp.status}`);
       }
 
@@ -298,7 +169,9 @@ export default function CreateBrainDialog({ open, onOpenChange }: Props) {
           try {
             const data = JSON.parse(jsonStr) as AutoCloneStep;
             setAutoCloneSteps((prev) => [...prev, data]);
-          } catch { /* ignore parse errors */ }
+          } catch {
+            /* ignore parse errors */
+          }
         }
       }
 
@@ -307,12 +180,17 @@ export default function CreateBrainDialog({ open, onOpenChange }: Props) {
         try {
           const data = JSON.parse(buffer.trim().slice(6)) as AutoCloneStep;
           setAutoCloneSteps((prev) => [...prev, data]);
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       }
     } catch (err) {
       setAutoCloneSteps((prev) => [
         ...prev,
-        { step: "error", message: err instanceof Error ? err.message : "Erro desconhecido" },
+        {
+          step: "error",
+          message: err instanceof Error ? err.message : "Erro desconhecido",
+        },
       ]);
     } finally {
       setAutoCloneRunning(false);
@@ -331,16 +209,23 @@ export default function CreateBrainDialog({ open, onOpenChange }: Props) {
     if (!name.trim()) return toast.error("Digite um nome primeiro");
     setGeneratingDesc(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const { data, error } = await supabase.functions.invoke("generate-description", {
-        body: { name: name.trim(), type, tags },
-        headers: { Authorization: `Bearer ${session?.access_token}` },
-      });
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const { data, error } = await supabase.functions.invoke(
+        "generate-description",
+        {
+          body: { name: name.trim(), type, tags },
+          headers: { Authorization: `Bearer ${session?.access_token}` },
+        },
+      );
       if (error || data?.error) throw new Error(data?.error || error?.message);
       setDescription(data.description);
       toast.success("Descrição gerada!");
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Erro ao gerar descrição");
+      toast.error(
+        err instanceof Error ? err.message : "Erro ao gerar descrição",
+      );
     } finally {
       setGeneratingDesc(false);
     }
@@ -354,7 +239,8 @@ export default function CreateBrainDialog({ open, onOpenChange }: Props) {
       const ext = f.name.substring(f.name.lastIndexOf(".")).toLowerCase();
       return [".txt", ".pdf", ".docx"].includes(ext);
     });
-    if (valid.length < files.length) toast.error("Formatos aceitos: .txt, .pdf, .docx");
+    if (valid.length < files.length)
+      toast.error("Formatos aceitos: .txt, .pdf, .docx");
     setPendingFiles((prev) => [...prev, ...valid]);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
@@ -373,7 +259,9 @@ export default function CreateBrainDialog({ open, onOpenChange }: Props) {
           type,
           user_id: user.id,
           tags,
-          ...(prompt.trim() ? ({ system_prompt: prompt.trim() } as unknown as object) : {}),
+          ...(prompt.trim()
+            ? ({ system_prompt: prompt.trim() } as unknown as object)
+            : {}),
         })
         .select()
         .single();
@@ -395,9 +283,13 @@ export default function CreateBrainDialog({ open, onOpenChange }: Props) {
 
       if (pendingFiles.length > 0) {
         setSavingBase(true);
-        const { data: { session } } = await supabase.auth.getSession();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
         for (const file of pendingFiles) {
-          const ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
+          const ext = file.name
+            .substring(file.name.lastIndexOf("."))
+            .toLowerCase();
           if (ext === ".txt") {
             const content = await file.text();
             await supabase.from("brain_texts").insert({
@@ -410,11 +302,14 @@ export default function CreateBrainDialog({ open, onOpenChange }: Props) {
             const formData = new FormData();
             formData.append("file", file);
             formData.append("brainId", brain.id);
-            await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/parse-file`, {
-              method: "POST",
-              headers: { Authorization: `Bearer ${session?.access_token}` },
-              body: formData,
-            });
+            await fetch(
+              `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/parse-file`,
+              {
+                method: "POST",
+                headers: { Authorization: `Bearer ${session?.access_token}` },
+                body: formData,
+              },
+            );
           }
         }
         fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/process-rag`, {
@@ -498,8 +393,9 @@ export default function CreateBrainDialog({ open, onOpenChange }: Props) {
             ) : (
               <>
                 <p className="text-sm text-muted-foreground">
-                  Digite o nome da pessoa e o sistema buscará informações automaticamente na internet,
-                  extrairá conteúdo e gerará o clone com as 12 camadas cognitivas.
+                  Digite o nome da pessoa e o sistema buscará informações
+                  automaticamente na internet, extrairá conteúdo e gerará o
+                  clone com as 12 camadas cognitivas.
                 </p>
 
                 <div className="space-y-2">
@@ -509,19 +405,25 @@ export default function CreateBrainDialog({ open, onOpenChange }: Props) {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Ex: Alan Nicolas, Naval Ravikant, Carl Sagan..."
-                    onKeyDown={(e) => e.key === "Enter" && name.trim() && handleAutoClone()}
+                    onKeyDown={(e) =>
+                      e.key === "Enter" && name.trim() && handleAutoClone()
+                    }
                   />
                 </div>
 
                 <div className="space-y-2">
                   <Label>
                     URLs adicionais{" "}
-                    <span className="text-muted-foreground font-normal">(opcional, uma por linha)</span>
+                    <span className="text-muted-foreground font-normal">
+                      (opcional, uma por linha)
+                    </span>
                   </Label>
                   <Textarea
                     value={autoCloneUrls}
                     onChange={(e) => setAutoCloneUrls(e.target.value)}
-                    placeholder={"https://youtube.com/watch?v=...\nhttps://linkedin.com/in/...\nhttps://medium.com/@..."}
+                    placeholder={
+                      "https://youtube.com/watch?v=...\nhttps://linkedin.com/in/...\nhttps://medium.com/@..."
+                    }
                     rows={3}
                   />
                 </div>
@@ -564,7 +466,9 @@ export default function CreateBrainDialog({ open, onOpenChange }: Props) {
                       <Zap className="h-5 w-5 text-primary" />
                     </div>
                     <div className="flex-1">
-                      <p className="font-semibold text-foreground">Auto-Criar Clone</p>
+                      <p className="font-semibold text-foreground">
+                        Auto-Criar Clone
+                      </p>
                       <p className="text-xs text-muted-foreground">
                         Busca web + extração + prompt automático
                       </p>
@@ -610,14 +514,19 @@ export default function CreateBrainDialog({ open, onOpenChange }: Props) {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Ex: Einstein, Contabilidade, Estoicismo..."
-                    onKeyDown={(e) => e.key === "Enter" && name.trim() && setStep(2)}
+                    onKeyDown={(e) =>
+                      e.key === "Enter" && name.trim() && setStep(2)
+                    }
                   />
                 </div>
 
                 {/* Tags */}
                 <div className="space-y-2">
                   <Label>
-                    Tags <span className="text-muted-foreground font-normal">(opcional)</span>
+                    Tags{" "}
+                    <span className="text-muted-foreground font-normal">
+                      (opcional)
+                    </span>
                   </Label>
                   <TagInput
                     tags={tags}
@@ -630,7 +539,10 @@ export default function CreateBrainDialog({ open, onOpenChange }: Props) {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label htmlFor="brain-desc">
-                      Descrição <span className="text-muted-foreground font-normal">(opcional)</span>
+                      Descrição{" "}
+                      <span className="text-muted-foreground font-normal">
+                        (opcional)
+                      </span>
                     </Label>
                     <Button
                       type="button"
@@ -672,8 +584,9 @@ export default function CreateBrainDialog({ open, onOpenChange }: Props) {
             {step === 2 && (
               <div className="space-y-4">
                 <p className="text-sm text-muted-foreground">
-                  Adicione textos ou arquivos para alimentar o cérebro desde o início.
-                  Você poderá adicionar mais depois na aba <strong>Fontes</strong>.
+                  Adicione textos ou arquivos para alimentar o cérebro desde o
+                  início. Você poderá adicionar mais depois na aba{" "}
+                  <strong>Fontes</strong>.
                 </p>
 
                 <div className="space-y-2">
@@ -688,7 +601,9 @@ export default function CreateBrainDialog({ open, onOpenChange }: Props) {
                     />
                     <div className="flex justify-between items-center mt-1">
                       <span className="text-xs text-muted-foreground">
-                        {currentText.length > 0 ? `${currentText.length.toLocaleString()} chars` : ""}
+                        {currentText.length > 0
+                          ? `${currentText.length.toLocaleString()} chars`
+                          : ""}
                       </span>
                       <Button
                         type="button"
@@ -698,7 +613,10 @@ export default function CreateBrainDialog({ open, onOpenChange }: Props) {
                         disabled={!currentText.trim()}
                         onClick={() => {
                           if (currentText.trim()) {
-                            setPendingTexts((prev) => [...prev, currentText.trim()]);
+                            setPendingTexts((prev) => [
+                              ...prev,
+                              currentText.trim(),
+                            ]);
                             setCurrentText("");
                           }
                         }}
@@ -712,7 +630,10 @@ export default function CreateBrainDialog({ open, onOpenChange }: Props) {
 
                 <div className="space-y-2">
                   <Label>
-                    Arquivos <span className="text-muted-foreground font-normal">(.txt, .pdf, .docx)</span>
+                    Arquivos{" "}
+                    <span className="text-muted-foreground font-normal">
+                      (.txt, .pdf, .docx)
+                    </span>
                   </Label>
                   <div className="flex flex-wrap gap-2">
                     <Button
@@ -736,7 +657,8 @@ export default function CreateBrainDialog({ open, onOpenChange }: Props) {
                   {(pendingFiles.length > 0 || pendingTexts.length > 0) && (
                     <div className="mt-4">
                       <Label className="text-xs text-muted-foreground mb-2 block">
-                        Fontes na fila ({pendingFiles.length + pendingTexts.length}):
+                        Fontes na fila (
+                        {pendingFiles.length + pendingTexts.length}):
                       </Label>
                       <ul className="space-y-1">
                         {pendingTexts.map((txt, i) => (
@@ -749,7 +671,11 @@ export default function CreateBrainDialog({ open, onOpenChange }: Props) {
                             </span>
                             <button
                               className="ml-2 text-muted-foreground hover:text-destructive shrink-0"
-                              onClick={() => setPendingTexts((prev) => prev.filter((_, j) => j !== i))}
+                              onClick={() =>
+                                setPendingTexts((prev) =>
+                                  prev.filter((_, j) => j !== i),
+                                )
+                              }
                             >
                               ✕
                             </button>
@@ -760,10 +686,16 @@ export default function CreateBrainDialog({ open, onOpenChange }: Props) {
                             key={`file-${i}`}
                             className="flex items-center justify-between text-xs bg-card/60 rounded-lg px-3 py-2 border border-border/40"
                           >
-                            <span className="truncate text-foreground">{f.name}</span>
+                            <span className="truncate text-foreground">
+                              {f.name}
+                            </span>
                             <button
                               className="ml-2 text-muted-foreground hover:text-destructive shrink-0"
-                              onClick={() => setPendingFiles((prev) => prev.filter((_, j) => j !== i))}
+                              onClick={() =>
+                                setPendingFiles((prev) =>
+                                  prev.filter((_, j) => j !== i),
+                                )
+                              }
                             >
                               ✕
                             </button>
@@ -775,7 +707,11 @@ export default function CreateBrainDialog({ open, onOpenChange }: Props) {
                 </div>
 
                 <div className="flex gap-2 pt-1">
-                  <Button variant="outline" className="gap-1 rounded-xl" onClick={() => setStep(1)}>
+                  <Button
+                    variant="outline"
+                    className="gap-1 rounded-xl"
+                    onClick={() => setStep(1)}
+                  >
                     <ChevronLeft className="h-4 w-4" />
                     Anterior
                   </Button>
@@ -791,7 +727,9 @@ export default function CreateBrainDialog({ open, onOpenChange }: Props) {
                     className="gap-2 gradient-jewel text-white font-semibold rounded-xl"
                     onClick={() => setStep(3)}
                     disabled={
-                      currentText.trim() === "" && pendingTexts.length === 0 && pendingFiles.length === 0
+                      currentText.trim() === "" &&
+                      pendingTexts.length === 0 &&
+                      pendingFiles.length === 0
                     }
                   >
                     <Plus className="h-4 w-4" />
@@ -806,13 +744,17 @@ export default function CreateBrainDialog({ open, onOpenChange }: Props) {
             {step === 3 && (
               <div className="space-y-4">
                 <p className="text-sm text-muted-foreground">
-                  Defina como a IA deve se comportar e falar. Você pode deixar em branco para usar o
-                  padrão, ou editar depois na aba <strong>Prompt</strong>.
+                  Defina como a IA deve se comportar e falar. Você pode deixar
+                  em branco para usar o padrão, ou editar depois na aba{" "}
+                  <strong>Prompt</strong>.
                 </p>
 
                 <div className="space-y-1">
                   <Label>
-                    System Prompt <span className="text-muted-foreground font-normal">(opcional)</span>
+                    System Prompt{" "}
+                    <span className="text-muted-foreground font-normal">
+                      (opcional)
+                    </span>
                   </Label>
                   <textarea
                     value={prompt}
@@ -829,7 +771,11 @@ export default function CreateBrainDialog({ open, onOpenChange }: Props) {
                 </div>
 
                 <div className="flex gap-2 pt-1">
-                  <Button variant="outline" className="gap-1 rounded-xl" onClick={() => setStep(2)}>
+                  <Button
+                    variant="outline"
+                    className="gap-1 rounded-xl"
+                    onClick={() => setStep(2)}
+                  >
                     <ChevronLeft className="h-4 w-4" />
                     Anterior
                   </Button>
