@@ -50,6 +50,9 @@ interface AutoCloneStep {
   brainId?: string;
   chars?: number;
   url?: string;
+  agent?: string;
+  score?: number;
+  approved?: boolean;
 }
 
 function AutoCloneProgress({
@@ -65,21 +68,29 @@ function AutoCloneProgress({
   const doneStep = steps.find((s) => s.step === "done");
   const errorStep = steps.find((s) => s.step === "error");
 
-  // Calculate progress
+  // Calculate progress based on agent phases
   const progressMap: Record<string, number> = {
-    searching: 10,
-    found_urls: 20,
-    extracting: 40,
-    extracted: 50,
-    skip: 50,
-    saving: 60,
-    generating_prompt: 75,
-    prompt_done: 90,
-    prompt_warning: 90,
+    controller_start: 5,
+    agent_researcher: 15,
+    agent_researcher_extract: 25,
+    agent_researcher_done: 30,
+    controller_iteration: 35,
+    agent_analyst: 45,
+    agent_analyst_done: 55,
+    agent_verifier: 60,
+    agent_verifier_done: 68,
+    saving: 72,
+    agent_prompter: 80,
+    agent_prompter_done: 90,
+    prompt_done: 95,
+    prompt_warning: 95,
     done: 100,
     error: 0,
   };
   const progress = progressMap[lastStep?.step || ""] || 0;
+
+  // Get current agent name
+  const currentAgent = lastStep?.agent || "";
 
   return (
     <div className="space-y-4 py-2">
@@ -91,12 +102,40 @@ function AutoCloneProgress({
           )}
         </div>
         <div>
-          <h3 className="font-semibold text-sm">Auto-Criação de Clone</h3>
+          <h3 className="font-semibold text-sm">Squad de Clonagem Digital</h3>
           <p className="text-xs text-muted-foreground">
-            {isRunning ? "Processando..." : doneStep ? "Concluído!" : errorStep ? "Erro" : "Aguardando..."}
+            {isRunning
+              ? currentAgent
+                ? `Agente ${currentAgent} ativo...`
+                : "Inicializando squad..."
+              : doneStep ? "Clone criado com sucesso!" : errorStep ? "Erro no processo" : "Aguardando..."}
           </p>
         </div>
       </div>
+
+      {/* Agent indicators */}
+      {isRunning && (
+        <div className="flex gap-1.5 flex-wrap">
+          {["Pesquisador", "Analista", "Verificador", "Prompter"].map((ag) => {
+            const isActive = currentAgent === ag;
+            const isDone = steps.some(s => s.agent === ag && (s.step?.includes("_done") || s.step === "prompt_done"));
+            return (
+              <span
+                key={ag}
+                className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                  isDone
+                    ? "bg-primary/15 text-primary"
+                    : isActive
+                      ? "bg-primary/10 text-primary animate-pulse"
+                      : "bg-muted text-muted-foreground"
+                }`}
+              >
+                {isDone ? "✓ " : isActive ? "● " : ""}{ag}
+              </span>
+            );
+          })}
+        </div>
+      )}
 
       <Progress value={progress} className="h-2" />
 
