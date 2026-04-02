@@ -1,5 +1,6 @@
-// @ts-nocheck
+// @ts-expect-error: Deno modules are valid in Supabase Edge Functions
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+// @ts-expect-error: Deno modules are valid in Supabase Edge Functions
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -8,271 +9,113 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-async function getUserIdFromJwtAndVerify(authHeader: string): Promise<string> {
-  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-  const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-    global: { headers: { Authorization: authHeader } },
-  });
-  const { data: { user }, error } = await userClient.auth.getUser();
-  if (error || !user) throw new Error("Token inválido ou expirado");
-  return user.id;
+function decodeHtml(t: string): string {
+  return t.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&apos;/g, "'")
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCharCode(parseInt(h, 16)))
+    .replace(/&nbsp;/g, " ");
 }
 
-function isYouTubeUrl(url: string): boolean {
-  try {
-    const u = new URL(url);
-    return (
-      u.hostname === "www.youtube.com" ||
-      u.hostname === "youtube.com" ||
-      u.hostname === "m.youtube.com" ||
-      u.hostname === "youtu.be" ||
-      u.hostname === "www.youtube-nocookie.com"
-    );
-  } catch {
-    return false;
-  }
+async function getUserIdFromJwt(authHeader: string): Promise<string> {
+  // @ts-expect-error: Deno is available at runtime
+  const url = Deno.env.get("SUPABASE_URL")!;
+  // @ts-expect-error: Deno is available at runtime
+  const key = Deno.env.get("SUPABASE_ANON_KEY")!;
+  const c = createClient(url, key, { global: { headers: { Authorization: authHeader } } });
+  const { data: { user }, error } = await c.auth.getUser();
+  if (error || !user) throw new Error("Token inválido");
+  return user.id;
 }
 
 function extractVideoId(url: string): string | null {
   try {
     const u = new URL(url);
-    if (u.hostname === "youtu.be") return u.pathname.slice(1).split("/")[0] || null;
-    if (u.pathname.startsWith("/shorts/")) return u.pathname.split("/")[2] || null;
-    if (u.pathname === "/watch") return u.searchParams.get("v");
-    // /embed/ID or /v/ID
-    const embedMatch = u.pathname.match(/^\/(embed|v)\/([^/?]+)/);
-    if (embedMatch) return embedMatch[2];
+    const p = u.pathname.split("/");
+    if (u.hostname === "youtu.be") return p[1] || null;
+    if (["shorts", "live", "v", "embed"].includes(p[1])) return p[2] || null;
     return u.searchParams.get("v");
-  } catch {
-    return null;
-  }
-}
-
-function decodeHtmlEntities(text: string): string {
-  return text
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&apos;/g, "'")
-    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
-    .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(parseInt(dec, 10)))
-    .replace(/&nbsp;/g, " ");
+  } catch { return null; }
 }
 
 async function fetchYouTubeTranscript(videoId: string): Promise<{ title: string; transcript: string }> {
-  // Fetch YouTube page
-  const pageResp = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
+  const prResp = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
     headers: {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
     },
     signal: AbortSignal.timeout(15000),
   });
-  if (!pageResp.ok) throw new Error(`Falha ao acessar YouTube: ${pageResp.status}`);
-  const html = await pageResp.text();
+  if (!prResp.ok) throw new Error(`YouTube error: ${prResp.status}`);
+  const html = await prResp.text();
+  const pm = html.match(/ytInitialPlayerResponse\s*=\s*(\{.+?\});/s);
+  if (!pm) throw new Error("Could not extract player response");
+  const pr = JSON.parse(pm[1]);
 
-  // Extract ytInitialPlayerResponse
-  const playerMatch = html.match(/ytInitialPlayerResponse\s*=\s*(\{.+?\});/s);
-  if (!playerMatch) throw new Error("Não foi possível extrair dados do vídeo do YouTube");
+  const title = pr?.videoDetails?.title || `YouTube ${videoId}`;
+  const desc = pr?.videoDetails?.shortDescription || "";
+  const author = pr?.videoDetails?.author || "";
+  const kw = pr?.videoDetails?.keywords || [];
+  const tracks = pr?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
 
-  let playerResponse: any;
-  try {
-    playerResponse = JSON.parse(playerMatch[1]);
-  } catch {
-    throw new Error("Falha ao parsear dados do vídeo do YouTube");
+  if (!tracks || tracks.length === 0) {
+    return { title: `${title} [Sem Legendas]`, transcript: `Título: ${title}\nCanal: ${author}\n\n[Descrição]:\n${desc}` };
   }
 
-  // Get title and description
-  const title = playerResponse?.videoDetails?.title || `YouTube ${videoId}`;
-  const description = playerResponse?.videoDetails?.shortDescription || "";
-  const author = playerResponse?.videoDetails?.author || "";
-  const keywords = playerResponse?.videoDetails?.keywords || [];
-  const lengthSeconds = playerResponse?.videoDetails?.lengthSeconds || "";
-
-  // Get caption tracks
-  const captionTracks =
-    playerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
-
-  if (!captionTracks || !Array.isArray(captionTracks) || captionTracks.length === 0) {
-    // Build fallback content from all available metadata
-    const parts: string[] = [];
-    parts.push(`Título: ${title}`);
-    if (author) parts.push(`Canal: ${author}`);
-    if (lengthSeconds) parts.push(`Duração: ${Math.floor(Number(lengthSeconds) / 60)}min`);
-    if (keywords.length > 0) parts.push(`Tags: ${keywords.slice(0, 20).join(", ")}`);
-    if (description.trim().length > 0) parts.push(`\n[Descrição do Vídeo]:\n${description}`);
-
-    const fallbackContent = parts.join("\n");
-    if (fallbackContent.length < 20) {
-      throw new Error("Este vídeo não possui legendas, descrição ou metadados suficientes para importação.");
-    }
-    return { title: `${title} [Sem Legendas]`, transcript: fallbackContent };
+  const track = tracks.find((t: any) => t.languageCode?.startsWith("pt")) ||
+    tracks.find((t: any) => t.languageCode?.startsWith("en")) || tracks[0];
+  
+  if (!track?.baseUrl) throw new Error("No caption URL");
+  const cr = await fetch(track.baseUrl, { signal: AbortSignal.timeout(10000) });
+  if (!cr.ok) throw new Error("Failed to download captions");
+  const xml = await cr.text();
+  const segs: string[] = [];
+  const re = /<text[^>]*>([\s\S]*?)<\/text>/g;
+  let m;
+  while ((m = re.exec(xml)) !== null) {
+    const d = decodeHtml(m[1].replace(/<[^>]+>/g, "")).trim();
+    if (d) segs.push(d);
   }
-
-  // Priority: pt → en → first available
-  let selectedTrack =
-    captionTracks.find((t: any) => t.languageCode?.startsWith("pt")) ||
-    captionTracks.find((t: any) => t.languageCode?.startsWith("en")) ||
-    captionTracks[0];
-
-  const captionUrl = selectedTrack?.baseUrl;
-  if (!captionUrl) throw new Error("URL de legendas não encontrada");
-
-  // Fetch caption XML
-  const captionResp = await fetch(captionUrl, {
-    signal: AbortSignal.timeout(10000),
-  });
-  if (!captionResp.ok) throw new Error("Falha ao baixar legendas");
-  const captionXml = await captionResp.text();
-
-  // Parse XML: extract text from <text> tags
-  const textSegments: string[] = [];
-  const textRegex = /<text[^>]*>([\s\S]*?)<\/text>/g;
-  let match;
-  while ((match = textRegex.exec(captionXml)) !== null) {
-    const decoded = decodeHtmlEntities(match[1].replace(/<[^>]+>/g, "")).trim();
-    if (decoded) textSegments.push(decoded);
-  }
-
-  if (textSegments.length === 0) throw new Error("Legendas vazias ou não puderam ser extraídas");
-
-  const transcript = textSegments.join(" ").replace(/\s{2,}/g, " ").trim();
-  const lang = selectedTrack?.languageCode || "unknown";
-
-  return { title: `${title} [${lang}]`, transcript };
+  return { title, transcript: segs.join(" ").replace(/\s{2,}/g, " ").trim() };
 }
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-
   try {
     const { url, brainId } = await req.json();
-    if (!url || typeof url !== "string") throw new Error("URL inválida");
-    if (!brainId || typeof brainId !== "string") throw new Error("brainId obrigatório");
-
-    // Validate URL
-    let parsed: URL;
-    try {
-      parsed = new URL(url);
-    } catch {
-      throw new Error("URL mal formatada");
-    }
-    if (!["http:", "https:"].includes(parsed.protocol)) throw new Error("Protocolo inválido");
-
-    // Auth
+    if (!url || !brainId) throw new Error("URL e brainId obrigatórios");
     const authHeader = req.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) throw new Error("Não autenticado");
+    if (!authHeader) throw new Error("Não autenticado");
+    const userId = await getUserIdFromJwt(authHeader);
 
-    const userId = await getUserIdFromJwtAndVerify(authHeader);
+    // @ts-expect-error: Deno is available at runtime
+    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
-
-    // Verify brain belongs to user
+    // Verify brain
     const { data: brain, error: brainErr } = await supabase
       .from("brains").select("id").eq("id", brainId).eq("user_id", userId).single();
     if (brainErr || !brain) throw new Error("Brain não encontrado");
 
-    // === YouTube handling ===
-    if (isYouTubeUrl(url)) {
+    const parsed = new URL(url);
+    if (["youtube.com", "www.youtube.com", "youtu.be", "m.youtube.com"].includes(parsed.hostname)) {
       const videoId = extractVideoId(url);
-      if (!videoId) throw new Error("Não foi possível extrair o ID do vídeo do YouTube");
-
+      if (!videoId) throw new Error("ID do vídeo não encontrado");
       const { title, transcript } = await fetchYouTubeTranscript(videoId);
-
-      if (transcript.length < 10) throw new Error("Conteúdo extraído muito curto");
-      if (transcript.length > 200000) throw new Error("Transcrição muito grande (max 200k chars)");
-
-      const { error: insertErr } = await supabase.from("brain_texts").insert({
-        brain_id: brainId,
-        content: transcript,
-        source_type: "youtube",
-        file_name: title,
-      });
-      if (insertErr) {
-        console.error("DB Insert Error:", insertErr);
-        throw new Error("Falha ao salvar a fonte de dados");
-      }
-
-      return new Response(JSON.stringify({ success: true, title, chars: transcript.length }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      await supabase.from("brain_texts").insert({ brain_id: brainId, content: transcript, source_type: "youtube", file_name: title });
+      return new Response(JSON.stringify({ success: true, title, chars: transcript.length }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // === Generic URL handling (existing logic) ===
-    // SSRF protection
-    const hostname = parsed.hostname;
-    const blockedPatterns = [
-      /^localhost$/i, /^127\./, /^10\./, /^172\.(1[6-9]|2\d|3[01])\./,
-      /^192\.168\./, /^169\.254\./, /^0\./, /^\[?::1\]?$/,
-      /^\[?fd/i, /^\[?fe80/i, /^metadata\.google\.internal$/i,
-    ];
-    if (blockedPatterns.some(p => p.test(hostname))) {
-      throw new Error("URL não permitida: endereço interno ou reservado");
-    }
-
-    try {
-      const ips = await Deno.resolveDns(hostname, "A");
-      for (const ip of ips) {
-        if (blockedPatterns.some(p => p.test(ip))) {
-          throw new Error("URL não permitida: resolve para endereço interno");
-        }
-      }
-    } catch (e) {
-      if (e instanceof Error && e.message.includes("não permitida")) throw e;
-    }
-
+    // Generic Jina import
     const resp = await fetch(`https://r.jina.ai/${url}`, {
-      headers: { 
-        "Accept": "application/json",
-        "X-Return-Format": "markdown"
-      },
+      headers: { "Accept": "application/json", "X-Return-Format": "markdown" },
       signal: AbortSignal.timeout(20000),
     });
-
-    if (!resp.ok) {
-      throw new Error(`Falha na extração de texto (Jina API): ${resp.status}`);
-    }
-
-    const jinaResult = await resp.json();
-    const data = jinaResult.data;
-
-    if (!data || !data.content) {
-      throw new Error("Não foi possível extrair conteúdo útil da URL.");
-    }
-
-    let text = data.content.trim();
-    const title = data.title || parsed.hostname;
-
-    if (text.length < 50) throw new Error("Página sem conteúdo suficiente ou bloqueada");
-    if (text.length > 200000) {
-      // Trunca em vez de falhar para aproveitar artigos muito longos
-      text = text.substring(0, 200000) + "\\n\\n[Conteúdo truncado por limite de tamanho]";
-    }
-
-    const { error: insertErr } = await supabase.from("brain_texts").insert({
-      brain_id: brainId,
-      content: text,
-      source_type: "url_import",
-      file_name: title,
-    });
-    if (insertErr) {
-      console.error("DB Insert Error:", insertErr);
-      throw new Error("Falha ao salvar o conteúdo no banco");
-    }
-
-    return new Response(JSON.stringify({ success: true, title, chars: text.length }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    if (!resp.ok) throw new Error(`Jina error: ${resp.status}`);
+    const res = await resp.json();
+    const text = res.data?.content?.trim();
+    if (!text) throw new Error("Nenhum conteúdo extraído");
+    await supabase.from("brain_texts").insert({ brain_id: brainId, content: text.slice(0, 200000), source_type: "url_import", file_name: res.data.title || parsed.hostname });
+    return new Response(JSON.stringify({ success: true, title: res.data.title, chars: text.length }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (err: any) {
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 400,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(JSON.stringify({ error: err.message }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });

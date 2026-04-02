@@ -195,7 +195,7 @@ export default function FeedTexts({ brainId }: Props) {
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      const { data, error } = await supabase.functions.invoke("import-url", {
+      const { data, error } = await supabase.functions.invoke("import-url-v2", {
         body: { url: urlInput.trim(), brainId },
         headers: { Authorization: `Bearer ${session?.access_token}` },
       });

@@ -188,8 +188,11 @@ async function extractTextFromUrl(url: string): Promise<{ title: string; content
 async function extractYouTube(url: string): Promise<{ title: string; content: string } | null> {
   try {
     const u = new URL(url);
+    const p = u.pathname.split("/");
     let videoId = u.searchParams.get("v");
-    if (u.hostname === "youtu.be") videoId = u.pathname.slice(1).split("/")[0];
+    if (u.hostname === "youtu.be") videoId = p[1];
+    else if (["shorts", "live", "v", "embed"].includes(p[1])) videoId = p[2];
+    
     if (!videoId) return null;
     const pageResp = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
       headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)", "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8" },
