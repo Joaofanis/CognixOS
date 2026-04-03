@@ -28,6 +28,7 @@ import {
   Sparkles,
   Maximize2,
   Minimize2,
+  Edit2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -49,6 +50,13 @@ export default function FeedTexts({ brainId }: Props) {
   const [importingUrl, setImportingUrl] = useState(false);
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [processingRag, setProcessingRag] = useState(false);
+  
+  // New state for inline editing and expanding
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingContent, setEditingContent] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
   // expanded source viewer
   const [expandedSourceId, setExpandedSourceId] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -233,6 +241,26 @@ export default function FeedTexts({ brainId }: Props) {
     } finally {
       setDeleting(false);
       setDeleteTarget(null);
+    }
+  };
+
+  const handleSaveEdit = async (id: string) => {
+    if (!editingContent.trim()) return;
+    setIsSaving(true);
+    try {
+      const { error } = await supabase
+        .from("brain_texts")
+        .update({ content: editingContent.trim() })
+        .eq("id", id);
+      if (error) throw error;
+      toast.success(t("feed.textUpdated") || "Nota atualizada!");
+      setEditingId(null);
+      queryClient.invalidateQueries({ queryKey: ["brain-texts", brainId] });
+      triggerAnalysis();
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao atualizar");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -454,18 +482,70 @@ export default function FeedTexts({ brainId }: Props) {
                       {t.content.length.toLocaleString()} chars
                     </span>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 shrink-0 self-end sm:self-auto text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                    onClick={() => setDeleteTarget(t.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="flex items-center gap-1 self-end sm:self-auto shrink-0">
+                    {editingId !== t.id && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-primary transition-colors"
+                        onClick={() => {
+                          setEditingId(t.id);
+                          setEditingContent(t.content);
+                        }}
+                        title="Editar nota"
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                      onClick={() => setDeleteTarget(t.id)}
+                      title="Excluir nota"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-                <p className="text-sm text-muted-foreground line-clamp-4 whitespace-pre-wrap">
-                  {t.content}
-                </p>
+
+                {editingId === t.id ? (
+                  <div className="space-y-3 mt-2">
+                    <textarea
+                      value={editingContent}
+                      onChange={(e) => setEditingContent(e.target.value)}
+                      className="w-full min-h-[200px] p-3 rounded-xl bg-background/50 border border-border/60 text-sm focus:outline-none focus:border-primary/50 transition-colors leading-relaxed"
+                    />
+                    <div className="flex justify-end gap-2">
+                      <Button variant="ghost" size="sm" onClick={() => setEditingId(null)} disabled={isSaving}>
+                        {t("common.cancel") || "Cancelar"}
+                      </Button>
+                      <Button size="sm" onClick={() => handleSaveEdit(t.id)} disabled={isSaving}>
+                        {isSaving && <Loader2 className="h-3 w-3 mr-2 animate-spin" />}
+                        {t("common.save") || "Salvar"}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <p className={`text-sm text-muted-foreground whitespace-pre-wrap ${!expandedIds.has(t.id) ? "line-clamp-4" : ""}`}>
+                      {t.content}
+                    </p>
+                    {t.content.length > 200 && (
+                      <button
+                        onClick={() => {
+                          const newSet = new Set(expandedIds);
+                          if (newSet.has(t.id)) newSet.delete(t.id);
+                          else newSet.add(t.id);
+                          setExpandedIds(newSet);
+                        }}
+                        className="text-[11px] text-primary mt-1.5 hover:underline font-medium"
+                      >
+                        {expandedIds.has(t.id) ? "Recolher texto" : "Ler nota inteira"}
+                      </button>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))

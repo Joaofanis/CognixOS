@@ -75,7 +75,21 @@ async function fetchTranscriptViaApi(videoId: string): Promise<{ title: string; 
       if (d) segs.push(d);
     }
     if (segs.length === 0) return null;
-    return { title: `YouTube ${videoId}`, transcript: segs.join(" ").replace(/\s{2,}/g, " ").trim() };
+    const finalTranscript = segs.join(" ").replace(/\s{2,}/g, " ").trim();
+    
+    // Check for common error messages returned as transcript
+    const lower = finalTranscript.toLowerCase();
+    if (
+      lower.includes("pedimos desculpas") || 
+      lower.includes("youtube está bloqueando") ||
+      lower.includes("could not retrieve a transcript") ||
+      lower.includes("disabled")
+    ) {
+      console.log(`[import-url-v2] Layer 1 returned error message disguised as transcript: ${finalTranscript}`);
+      return null;
+    }
+    
+    return { title: `YouTube ${videoId}`, transcript: finalTranscript };
   } catch {
     return null;
   }
