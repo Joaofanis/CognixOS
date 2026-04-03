@@ -11,14 +11,12 @@ const corsHeaders = {
 
 // ── Auth ────────────────────────────────────────────────────────────────────
 async function getUserIdFromJwt(authHeader: string): Promise<string> {
-  // @ts-expect-error: Deno is available at runtime
-  const url = Deno.env.get("SUPABASE_URL")!;
-  // @ts-expect-error: Deno is available at runtime
-  const key = Deno.env.get("SUPABASE_ANON_KEY")!;
-  const c = createClient(url, key, { global: { headers: { Authorization: authHeader } } });
-  const { data: { user }, error } = await c.auth.getUser();
-  if (error || !user) throw new Error("Token inválido");
-  return user.id;
+  const token = authHeader.replace("Bearer ", "");
+  const parts = token.split(".");
+  if (parts.length !== 3) throw new Error("Token inválido");
+  const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
+  if (!payload.sub) throw new Error("Token sem identificação");
+  return payload.sub;
 }
 
 // ── HTML Decoder ─────────────────────────────────────────────────────────────
