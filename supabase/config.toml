@@ -41,3 +41,6 @@ verify_jwt = false
 
 [functions.auto-clone]
 verify_jwt = false
+
+[functions.import-url-v2]
+verify_jwt = false
