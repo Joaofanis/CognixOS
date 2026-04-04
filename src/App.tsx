@@ -45,101 +45,101 @@ const App = () => (
   <ErrorBoundary>
     <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
       <SettingsProvider>
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
+        <QueryClientProvider client={queryClient}>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
             <SquadSyncProvider>
               <AuthProvider>
-                <Routes>
-                <Route
-                  path="/auth"
-                  element={
-                    <AuthRoute>
-                      <Auth />
-                    </AuthRoute>
-                  }
-                />
-                <Route
-                  path="/"
-                  element={
-                    <ProtectedRoute>
-                      <Dashboard />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/brain/:id"
-                  element={
-                    <ProtectedRoute>
-                      <BrainDetail />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/compare"
-                  element={
-                    <ProtectedRoute>
-                      <Compare />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/profile"
-                  element={
-                    <ProtectedRoute>
-                      <Profile />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/chat"
-                  element={
-                    <ProtectedRoute>
-                      <GeneralChat />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/profile/ia"
-                  element={
-                    <ProtectedRoute>
-                      <UserProfileAI />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/settings"
-                  element={
-                    <ProtectedRoute>
-                      <Settings />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/aios"
-                  element={
-                    <ProtectedRoute>
-                      <AIOS />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/virtual-office"
-                  element={
-                    <ProtectedRoute>
-                      <VirtualOffice />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </AuthProvider>
-          </SquadSyncProvider>
-        </BrowserRouter>
-        </TooltipProvider>
-      </QueryClientProvider>
+                <BrowserRouter>
+                  <Routes>
+                    <Route
+                      path="/auth"
+                      element={
+                        <AuthRoute>
+                          <Auth />
+                        </AuthRoute>
+                      }
+                    />
+                    <Route
+                      path="/"
+                      element={
+                        <ProtectedRoute>
+                          <Dashboard />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/brain/:id"
+                      element={
+                        <ProtectedRoute>
+                          <BrainDetail />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/compare"
+                      element={
+                        <ProtectedRoute>
+                          <Compare />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/profile"
+                      element={
+                        <ProtectedRoute>
+                          <Profile />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/chat"
+                      element={
+                        <ProtectedRoute>
+                          <GeneralChat />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/profile/ia"
+                      element={
+                        <ProtectedRoute>
+                          <UserProfileAI />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/settings"
+                      element={
+                        <ProtectedRoute>
+                          <Settings />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/aios"
+                      element={
+                        <ProtectedRoute>
+                          <AIOS />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/virtual-office"
+                      element={
+                        <ProtectedRoute>
+                          <VirtualOffice />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </BrowserRouter>
+              </AuthProvider>
+            </SquadSyncProvider>
+          </TooltipProvider>
+        </QueryClientProvider>
       </SettingsProvider>
     </ThemeProvider>
   </ErrorBoundary>
