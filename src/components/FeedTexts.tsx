@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTranslation } from "@/lib/i18n";
+import { useSquadSync } from "@/contexts/SquadSyncContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -115,12 +116,14 @@ export default function FeedTexts({ brainId }: Props) {
     }
   };
 
+  const { startSync, updateSync, endSync, addLog } = useSquadSync();
   const [isSyncingSquad, setIsSyncingSquad] = useState(false);
   const [squadStatus, setSquadStatus] = useState("");
 
   const triggerFullSquadSync = async () => {
     setIsSyncingSquad(true);
-    setSquadStatus("Iniciando Squad de 7 Agentes...");
+    setSquadStatus("Ativando Linha de Produção...");
+    if (brainId) startSync(brainId);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-prompt`, {
@@ -147,7 +150,21 @@ export default function FeedTexts({ brainId }: Props) {
           if (line.startsWith("data: ")) {
             try {
               const data = JSON.parse(line.slice(6));
-              if (data.message) setSquadStatus(data.message);
+              if (data.message) {
+                setSquadStatus(data.message);
+                updateSync({ message: data.message, currentAgent: data.agent, step: data.step });
+                addLog(`${data.agent || 'Sistema'}: ${data.message}`);
+                
+                // Exibe toast informativo com link para a fábrica
+                toast.info(`Produção: ${data.message}`, {
+                  id: "squad-sync-toast",
+                  duration: 2000,
+                  action: {
+                    label: "Ir para Fábrica",
+                    onClick: () => navigate("/aios")
+                  }
+                });
+              }
               if (data.step === "done") {
                  toast.success("Cérebro sincronizado com sucesso!");
                  queryClient.invalidateQueries({ queryKey: ["brain", brainId] });
@@ -160,6 +177,7 @@ export default function FeedTexts({ brainId }: Props) {
     } catch (err: any) {
       console.error(err);
       toast.error("Falha na sincronização completa.");
+      endSync();
     } finally {
       setIsSyncingSquad(false);
       setSquadStatus("");

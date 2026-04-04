@@ -13,10 +13,12 @@ import NotFound from "./pages/NotFound";
 import GeneralChat from "./pages/GeneralChat";
 import AIOS from "./pages/AIOS";
 import VirtualOffice from "./pages/VirtualOffice";
+import UserProfileAI from "./pages/UserProfileAI";
 import Settings from "./pages/Settings";
 import { ThemeProvider } from "./components/ThemeProvider";
 import { SettingsProvider } from "./hooks/useSettings";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { SquadSyncProvider } from "./contexts/SquadSyncContext";
 
 const queryClient = new QueryClient();
 
@@ -48,8 +50,9 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            <AuthProvider>
-              <Routes>
+            <SquadSyncProvider>
+              <AuthProvider>
+                <Routes>
                 <Route
                   path="/auth"
                   element={
@@ -133,7 +136,8 @@ const App = () => (
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </AuthProvider>
-          </BrowserRouter>
+          </SquadSyncProvider>
+        </BrowserRouter>
         </TooltipProvider>
       </QueryClientProvider>
       </SettingsProvider>

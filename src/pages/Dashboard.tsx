@@ -342,7 +342,7 @@ export default function Dashboard() {
               className="h-10 sm:h-11 px-3 sm:px-5 gap-2 rounded-2xl font-semibold shrink-0 text-xs sm:text-sm border-primary/20 hover:border-primary/50 text-primary"
             >
               <Factory className="h-4 w-4" />
-              <span className="hidden xs:inline">Fábrica AIOS</span>
+              <span className="hidden xs:inline text-gradient font-black italic tracking-tighter uppercase">Factory Line</span>
             </Button>
 
             <Button
