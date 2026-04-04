@@ -287,4 +287,26 @@
       box-shadow: 0 0 0 0 hsl(var(--primary) / 0);
     }
   }
+
+  /* Virtual Office Scan Animation */
+  .animate-scan-y {
+    animation: scan-y 2s linear infinite;
+  }
+  @keyframes scan-y {
+    0% { transform: translateY(-100%); }
+    100% { transform: translateY(100vh); }
+  }
+
+  /* Glass Perspective */
+  .perspective-1000 {
+    perspective: 1000px;
+  }
+
+  .animate-spin-slow {
+    animation: spin-slow 8s linear infinite;
+  }
+  @keyframes spin-slow {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
 }

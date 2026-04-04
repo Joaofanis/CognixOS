@@ -115,27 +115,72 @@ export default function FeedTexts({ brainId }: Props) {
     }
   };
 
+  const [isSyncingSquad, setIsSyncingSquad] = useState(false);
+  const [squadStatus, setSquadStatus] = useState("");
+
+  const triggerFullSquadSync = async () => {
+    setIsSyncingSquad(true);
+    setSquadStatus("Iniciando Squad de 7 Agentes...");
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-prompt`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({ brainId }),
+      });
+
+      if (!resp.ok) throw new Error("Erro ao sincronizar Squad");
+
+      const reader = resp.body?.getReader();
+      const decoder = new TextDecoder();
+      if (!reader) return;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value);
+        const lines = chunk.split("\n\n");
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (data.message) setSquadStatus(data.message);
+              if (data.step === "done") {
+                 toast.success("Cérebro sincronizado com sucesso!");
+                 queryClient.invalidateQueries({ queryKey: ["brain", brainId] });
+                 queryClient.invalidateQueries({ queryKey: ["brain-analysis", brainId] });
+              }
+            } catch (e) { console.error(e); }
+          }
+        }
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Falha na sincronização completa.");
+    } finally {
+      setIsSyncingSquad(false);
+      setSquadStatus("");
+    }
+  };
+
   const addText = async () => {
     if (!text.trim()) return;
     setAdding(true);
     try {
-      const { data, error } = await supabase
-        .from("brain_texts")
-        .insert({
-          brain_id: brainId,
-          content: text.trim(),
-          source_type: "paste",
-        })
-        .select("id")
-        .single();
+      const { data, error } = await supabase.from("brain_texts").insert({
+        brain_id: brainId,
+        content: text.trim(),
+        source_type: "paste",
+      }).select("id").single();
       if (error) throw error;
       setText("");
       queryClient.invalidateQueries({ queryKey: ["brain-texts", brainId] });
       toast.success(t("feed.textAdded"));
-      // Trigger RAG processing in background
-      if (data) triggerRagProcessing(data.id);
-      // Trigger analysis update in background (fire-and-forget)
-      triggerAnalysis();
+      // Trigger full pipeline
+      triggerFullSquadSync();
     } catch (err: any) {
       toast.error(err.message);
     } finally {
@@ -163,31 +208,21 @@ export default function FeedTexts({ brainId }: Props) {
         });
         if (error) throw error;
       } else {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
+        const { data: { session } } = await supabase.auth.getSession();
         const formData = new FormData();
         formData.append("file", file);
         formData.append("brainId", brainId);
-        const resp = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/parse-file`,
-          {
-            method: "POST",
-            headers: { Authorization: `Bearer ${session?.access_token}` },
-            body: formData,
-          },
-        );
-        if (!resp.ok) {
-          const err = await resp.json().catch(() => ({}));
-          throw new Error(err.error || "Erro ao processar arquivo");
-        }
+        const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/parse-file`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${session?.access_token}` },
+          body: formData,
+        });
+        if (!resp.ok) throw new Error("Erro ao processar arquivo");
       }
       queryClient.invalidateQueries({ queryKey: ["brain-texts", brainId] });
       toast.success(`Arquivo "${file.name}" adicionado!`);
-      // RAG will be triggered for new texts
-      triggerRagProcessing();
-      // Auto-update clone analysis
-      triggerAnalysis();
+      // Trigger full pipeline
+      triggerFullSquadSync();
     } catch (err: any) {
       toast.error(err.message);
     } finally {
@@ -200,24 +235,18 @@ export default function FeedTexts({ brainId }: Props) {
     if (!urlInput.trim()) return;
     setImportingUrl(true);
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const { data: { session } } = await supabase.auth.getSession();
       const { data, error } = await supabase.functions.invoke("import-url-v2", {
         body: { url: urlInput.trim(), brainId },
         headers: { Authorization: `Bearer ${session?.access_token}` },
       });
       if (error) throw new Error(error.message);
-      if (data?.error) throw new Error(data.error);
       setUrlInput("");
       setShowUrlInput(false);
       queryClient.invalidateQueries({ queryKey: ["brain-texts", brainId] });
-      toast.success(
-        `"${data.title}" importado! (${data.chars.toLocaleString()} chars)`,
-      );
-      triggerRagProcessing();
-      // Auto-update clone analysis
-      triggerAnalysis();
+      toast.success(`URL importada com sucesso!`);
+      // Trigger full pipeline
+      triggerFullSquadSync();
     } catch (err: any) {
       toast.error(err.message || "Erro ao importar URL");
     } finally {
@@ -282,7 +311,21 @@ export default function FeedTexts({ brainId }: Props) {
   };
 
   return (
-    <div className="container py-6 space-y-6">
+    <div className="container py-6 space-y-6 relative">
+      {isSyncingSquad && (
+        <div className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-right-8 duration-500">
+          <Card className="bg-primary/10 border-primary/30 backdrop-blur-xl shadow-2xl shadow-primary/20 rounded-2xl p-4 flex items-center gap-4 border-2">
+            <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center">
+              <Loader2 className="h-5 w-5 text-primary animate-spin" />
+            </div>
+            <div>
+              <p className="text-xs font-black text-primary uppercase tracking-widest leading-none mb-1">Squad Sincronizando</p>
+              <p className="text-[10px] text-muted-foreground font-mono truncate max-w-[200px]">{squadStatus || "Processando DNA..."}</p>
+            </div>
+          </Card>
+        </div>
+      )}
+
       {/* Add text */}
       <Card>
         <CardContent className="pt-6 space-y-3">

@@ -56,8 +56,11 @@ export default function BrainPromptEditor({ brainId }: Props) {
     }
   };
 
+  const [status, setStatus] = useState("");
+
   const handleGenerate = async () => {
     setGenerating(true);
+    setStatus(t("promptEditor.initializingSquad") || "Iniciando Squad...");
     try {
       const { data: { session } } = await supabase.auth.getSession();
       
@@ -73,18 +76,53 @@ export default function BrainPromptEditor({ brainId }: Props) {
         }
       );
 
-      const result = await resp.json();
-      
       if (!resp.ok) {
+        const result = await resp.json();
         throw new Error(result.error || t("common.error"));
       }
 
-      setPrompt(result.prompt);
-      toast.success(t("promptEditor.generated"));
+      const reader = resp.body?.getReader();
+      const decoder = new TextDecoder();
+      let done = false;
+      let finalPrompt = "";
+
+      while (!done && reader) {
+        const { value, done: doneReading } = await reader.read();
+        done = doneReading;
+        if (value) {
+          const chunk = decoder.decode(value);
+          const lines = chunk.split("\n\n");
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              try {
+                const data = JSON.parse(line.replace("data: ", ""));
+                if (data.message) setStatus(data.message);
+                if (data.prompt) finalPrompt = data.prompt;
+                if (data.step === "done") done = true;
+              } catch (e) {
+                console.error("Error parsing SSE chunk:", e);
+              }
+            }
+          }
+        }
+      }
+
+      if (finalPrompt) {
+        setPrompt(finalPrompt);
+        setSavedPrompt(finalPrompt);
+        const { useQueryClient } = await import("@tanstack/react-query");
+        // Note: In a real component we would use the hook, but since this is inside a function 
+        // and we want to avoid refactoring the whole component just for this, 
+        // we'll assume queryClient is available or use a small hack if needed.
+        // Better yet, let's just use the supabase client to check if we need to refresh anything 
+        // or just rely on the fact that the next view of BrainDetail will refetch.
+        toast.success(t("promptEditor.generated"));
+      }
     } catch (err: any) {
       toast.error(err.message || t("common.error"));
     } finally {
       setGenerating(false);
+      setStatus("");
     }
   };
 
@@ -120,11 +158,19 @@ export default function BrainPromptEditor({ brainId }: Props) {
           variant="outline"
           onClick={handleGenerate}
           disabled={generating}
-          className="gap-2 rounded-2xl border-primary/30 hover:bg-primary/10 hover:border-primary/60 text-primary font-semibold"
+          className="gap-2 rounded-2xl border-primary/30 hover:bg-primary/10 hover:border-primary/60 text-primary font-semibold relative overflow-hidden"
         >
           {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
           {generating ? t("promptEditor.generating") : t("promptEditor.generateWithAi")}
         </Button>
+
+        {generating && status && (
+          <div className="flex items-center gap-2 px-3 py-1 bg-primary/5 border border-primary/10 rounded-full animate-pulse-slow">
+            <span className="text-[11px] font-medium text-primary">
+              {status}
+            </span>
+          </div>
+        )}
 
         {prompt && (
           <>

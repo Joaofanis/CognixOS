@@ -11,8 +11,8 @@ import Compare from "./pages/Compare";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import GeneralChat from "./pages/GeneralChat";
-import UserProfileAI from "./pages/UserProfileAI";
 import AIOS from "./pages/AIOS";
+import VirtualOffice from "./pages/VirtualOffice";
 import Settings from "./pages/Settings";
 import { ThemeProvider } from "./components/ThemeProvider";
 import { SettingsProvider } from "./hooks/useSettings";
@@ -119,6 +119,14 @@ const App = () => (
                   element={
                     <ProtectedRoute>
                       <AIOS />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/virtual-office"
+                  element={
+                    <ProtectedRoute>
+                      <VirtualOffice />
                     </ProtectedRoute>
                   }
                 />

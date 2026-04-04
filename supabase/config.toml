@@ -44,3 +44,6 @@ verify_jwt = false
 
 [functions.import-url-v2]
 verify_jwt = false
+
+[functions.virtual-office]
+verify_jwt = false

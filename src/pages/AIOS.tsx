@@ -115,9 +115,19 @@ export default function AIOS() {
           <Button variant="ghost" size="icon" onClick={() => navigate("/")}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div className="flex items-center gap-2">
-            <Activity className="h-5 w-5 text-primary" />
-            <h1 className="font-bold text-lg">AIOS Factory Line</h1>
+          <div className="flex items-center justify-between w-full">
+            <div className="flex items-center gap-2">
+              <Activity className="h-5 w-5 text-primary" />
+              <h1 className="font-bold text-lg">AIOS Factory Line</h1>
+            </div>
+            <Button 
+              variant="outline" 
+              className="gap-2 rounded-xl border-primary/30 bg-primary/5 hover:bg-primary/10"
+              onClick={() => navigate("/virtual-office")}
+            >
+              <Building className="h-4 w-4" />
+              Escritório Virtual (Beta)
+            </Button>
           </div>
         </div>
       </header>
