@@ -3,8 +3,8 @@
  * Usage: node scripts/batch-clone.mjs
  */
 
-const SUPABASE_URL = "https://pnmxqvaafdecqmeradfc.supabase.co";
-const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBubXhxdmFhZmRlY3FtZXJhZGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEzMzMzMTMsImV4cCI6MjA4NjkwOTMxM30.MhgGsNHefvsR3h4J9TZXajgQsz2D9oHQD69YVyRjtiE";
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL || "https://your-project.supabase.co";
+const ANON_KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY || "your-anon-key";
 const AUTO_CLONE_URL = `${SUPABASE_URL}/functions/v1/auto-clone`;
 
 // ── Elite Roster ───────────────────────────────────────────────────────────

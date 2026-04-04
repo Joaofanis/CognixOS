@@ -1,6 +1,6 @@
 # 🧠 AI Second Brain & AIOS Factory
 
-Uma plataforma open-source avançada projetada para atuar não apenas como um "Segundo Cérebro", mas como um verdadeiro **Sistema Operacional de Inteligência Artificial (AIOS)**. O foco do projeto é a criação hiper-realista de **Clones Cognitivos** e a orquestração de **Esquadrões de Subagentes** baseados em processos industriais rigorosos.
+Uma plataforma open-source de última geração projetada para atuar não apenas como um "Segundo Cérebro", mas como um verdadeiro **Sistema Operacional de Inteligência Artificial (AIOS)**. O foco do projeto é a criação hiper-realista de **Clones Cognitivos** e a orquestração de **Esquadrões de Agentes** baseados em processos industriais de alta fidelidade.
 
 ![Demonstração UI](https://img.shields.io/badge/UI-Vite_React-blue?style=for-the-badge&logo=react)
 ![Backend](https://img.shields.io/badge/Backend-Supabase_Edge-3ECF8E?style=for-the-badge&logo=supabase)
@@ -8,83 +8,105 @@ Uma plataforma open-source avançada projetada para atuar não apenas como um "S
 
 ---
 
+## 📖 A História por Trás do Projeto
+
+Vivemos em uma era de **explosão informacional**. O ser humano comum consome hoje mais dados em um dia do que um camponês da Idade Média em uma vida inteira. O problema não é mais a falta de informação, mas a **capacidade de processamento e síntese**.
+
+O **AI Second Brain** nasceu da necessidade de delegar a "cognição de baixo nível" para máquinas, permitindo que o usuário foque na criatividade e na tomada de decisão estratégica. O projeto evoluiu de um simples repositório de notas para uma **Linha de Montagem de Mentes Sintéticas**, onde podemos clonar o estilo de pensamento de especialistas e fazê-los trabalhar em conjunto em um esquadrão coordenado.
+
+## 🎯 O Motivo: Por que um AIOS?
+
+Chats genéricos (como ChatGPT puro) sofrem de "alucinação criativa" e falta de rigor processual. O **AIOS (AI Operating System)** propõe uma arquitetura onde:
+1.  **LLM é o CPU**: O modelo de linguagem apenas processa instruções.
+2.  **Contexto é a RAM**: O RAG (Retrieval-Augmented Generation) fornece a memória de curto e longo prazo.
+3.  **Skills são Programas**: Markdown e Playbooks rígidos definem *como* a IA deve agir, eliminando a aleatoriedade.
+
+## 💡 A Ideia: O Protocolo OPME
+
+O coração deste projeto é o **OPME (Objective Persona Master Execution)**. Quando você cria um clone, ele não é apenas um prompt de "aja como fulano". Ele passa por uma auditoria de agentes de elite antes de nascer:
+
+-   **DNA Cognitivo**: Extração de padrões DISC, Eneagrama e heurísticas de decisão.
+-   **Shadow Profiling**: Mapeamento de motivações ocultas e traços latentes.
+-   **Análise Sintática**: Decodificação exata do ritmo e vocabulário da pessoa.
+-   **Simulador Roleplay**: Testes de estresse antes da ativação final.
+
+---
+
 ## 🌟 Principais Funcionalidades
 
-### 1. Clonagem Cognitiva Avançada (O Esquadrão de 7 Agentes) 🧬
+### 1. Clonagem Cognitiva (Esquadrão de 7 Agentes) 🧬
+O sistema ativa a função `auto-clone` que dispara agentes especializados:
+-   🔍 **Pesquisador**: Varre Google, YouTube e Wikipedia.
+-   🧬 **Analista**: Monta o perfil psicológico e técnico.
+-   👁️ **Psicanalista**: Enxerga o que está "nas entrelinhas" (Shadow DNA).
+-   ✍️ **Linguista**: Mapeia vícios de linguagem e pontuação.
+-   🎭 **Estrategista**: Cria cenários de teste (*Few-Shot Prompts*).
+-   🔎 **Verificador**: O "Quality Gate" que aprova ou reprova o relatório.
+-   ⚡ **Prompter**: Unifica tudo no Sistema Operacional de 12 camadas.
 
-A plataforma vai muito além dos típicos RAGs (Retrieval-Augmented Generation). Para criar o "clone" de uma pessoa, o sistema ativa uma função severa (Edge Function `auto-clone`) que dispara **7 Subagentes de Elite** em paralelo/série:
+### 2. Memória Episódica (Mem0-Style) 🧠
+Um agente "fantasma" observa suas conversas e extrai fatos sobre você, armazenando-os em um banco de vetores (`pgvector`). O clone "lembra" de você meses depois, criando uma conexão real.
 
-- 🔍 **Pesquisador:** Varre o Google (via DuckDuckGo), YouTube e Wikipedia extraindo todo texto cru existente sobre a pessoa.
-- 🧬 **Analista Cognitivo:** Monta o perfil de DISC, Eneagrama e Soft Skills da pessoa.
-- 👁️ **Psicanalista (Shadow Profiler):** Mapeia motivações ocultas, vieses inconscientes e possíveis traços reativos sob pressão.
-- ✍️ **Linguista:** Identifica vícios de digitação, pontuação, transições e regras gramaticais exatas usadas pela pessoa.
-- 🎭 **Estrategista:** Forja simuladores Roleplay de alto estresse ("E se alguém te atacar? E se tiver que explicar para uma criança?") criando _Few-Shot Prompts_.
-- 🔎 **Verificador:** Atua como um _Quality Gate_ dos 4 relatórios gerados.
-- ⚡ **Prompter:** Unifica tudo em um megalomaníaco **Sistema Operacional Cognitivo (OPME)** de 12 camadas rigorosas.
+### 3. Engine de Extração Nativa 🌐
+Integração via **Jina AI** e parsers de YouTube para ler qualquer site ou vídeo, mesmo com proteções anti-bot, convertendo tudo para Markdown puro.
 
-### 2. Fábrica AIOS (Linha de Montagem de Agentes) 🏭
+---
 
-Fugindo da "alucinação generativa" dos chats soltos, o sistema incentiva a automação via **playbooks**:
+## 🚀 Como Usar
 
-- **Skills (Playbooks):** Roteiros rígidos (Markdown) blindando como o fluxo de trabalho deve ocorrer. (_Regra: Código / Processo > LLM_).
-- **Subagentes de Tarefa Única:** A possibilidade de criar "operários" no sistema, definindo seu papel restrito e seu modelo ideal (você pode colocar um _Gemini Flash Lite_ descartável para leitura rápida, e um _Llama 70b_ como Arquiteto Final).
-- **Modo Agente no Chat:** Onde um "Administrador" invisível pega seu prompt, seleciona as _Skills_ necessárias, convoca os _Subagentes_ ideais e faz eles iterarem entre si até gerar a resposta perfeita.
+1.  **Exploração**: Navegue pelos clones já existentes no Dashboard.
+2.  **Criação**: Clique em "Novo Clone", insira o nome de uma personalidade ou especialista e URLs de referência (opcional).
+3.  **Instrução**: Adicione "Skills" (Playbooks em Markdown) para dar superpoderes específicos ao seu clone.
+4.  **Chat**: Converse em tempo real e veja o raciocínio dos agentes acontecendo no painel lateral.
 
-### 3. Memória Episódica Infinita (Mem0-Style) 🧠
+---
 
-Enquanto você conversa com um clone de forma fluida, há um Agente Background minúsculo observando suas frases em modo fantasma.
-Ele extrai **Fatos** sobre você ou sobre o assunto discutido, vetoriza (usando o modelo `gte-small` no PostgreSQL/pgvector interno do Supabase) e armazena na sua `user_memories`. Nas próximas conversas meses depois, o clone tem o contexto injetado no próprio System Prompt antes de te responder.
+## 🛠️ Ativação Local (Guia de Instalação)
 
-### 4. Extração Web Nativa Absoluta 🌐
+### 1. Clonar e Instalar
+```bash
+git clone https://github.com/joaov/ai-companion-mind.git
+cd ai-companion-mind
+npm install
+```
 
-Integrado nativamente com a **API Jina Reader** e parsers de YouTube para conseguir bypass de anti-bots, e extrair _qualquer coisa_ da internet puramente em formato **Markdown**, o formato perfeito para consumo de LLMs.
+### 2. Configurar Supabase
+1.  Crie um projeto no [Supabase](https://supabase.com).
+2.  Instale o Supabase CLI: `npm install supabase --save-dev`.
+3.  Vincule ao seu projeto: `npx supabase login` e `npx supabase link --project-ref seu_projeto_id`.
+4.  Aplique as migrações de banco: `npx supabase db push`.
+
+### 3. Configurar Segredos (Secrets)
+As Edge Functions precisam de chaves de API. Rode:
+```bash
+npx supabase secrets set OPENROUTER_API_KEY="sua_chave"
+```
+
+### 4. Variáveis de Ambiente (`.env`)
+Copie o arquivo de exemplo:
+```bash
+cp .env.example .env
+```
+Preencha o `.env` com suas credenciais do Supabase (URL e Anon Key).
+
+### 5. Executar
+```bash
+# Rodar Frontend
+npm run dev
+
+# Rodar Funções Localmente (Opcional)
+npx supabase functions serve
+```
 
 ---
 
 ## 🏗️ Stack Tecnológica
 
-- **Frontend:** React + Vite + TypeScript. Layout extremamente moderno (Glassmorphism), totalmente responsivo e compatível com PWA (Instalável no Mobile e Desktop).
-- **Interface UI:** Shadcn UI + TailwindCSS + Lucide Icons.
-- **Backend & Autenticação:** Supabase (PostgreSQL, Supabase Auth, Storage para Avatares).
-- **Functions:** Supabase Edge Functions usando Deno para todo o pesado (Web Scraping, Paralelismo de Agentes, Streaming SSE para respostas e raciocínios iterativos ao vivo).
-- **LLM Routing:** OpenRouter (Suporta qualquer modelo: Gemini, Llama, Nemotron, Mistral, OpenAI, Anthropic, etc).
+-   **Frontend**: React + Vite + TypeScript + TailwindCSS + Shadcn/UI.
+-   **Backend**: Supabase (Postgres + Edge Functions + Auth).
+-   **Inteligência**: OpenRouter (Roteamento dinâmico para Gemini, Llama, Qwen).
+-   **Extração**: Jina AI + Custom YouTube Parsers.
 
 ---
 
-## 🚀 Como Executar Localmente
-
-### Pré-requisitos
-
-- Node.js instalado
-- Uma conta no [Supabase](https://supabase.com) (Para banco e funções)
-- Uma chave de API do [OpenRouter](https://openrouter.ai)
-
-### Instalação
-
-1. Cole o repositório na sua máquina:
-   \`\`\`bash
-   git clone https://github.com/SeuUsuario/ai-second-brain.git
-   cd ai-second-brain
-   \`\`\`
-
-2. Instale as dependências:
-   \`\`\`bash
-   npm install
-   \`\`\`
-
-3. Configure as Variáveis de Ambiente locais (`.env`):
-   \`\`\`env
-   VITE_SUPABASE_URL=sua_url_supabase
-   VITE_SUPABASE_ANON_KEY=sua_anon_key
-   \`\`\`
-
-4. Para rodar o Frontend local:
-   \`\`\`bash
-   npm run dev
-   \`\`\`
-
-_(Nota: Para as integrações de IA e as lógicas de Agentes funcionarem, você deve configurar o seu Supabase hospedando o banco de dados contendo o esquema do projeto, e realizar o deploy das Edge Functions localizadas em `/supabase/functions/`)._
-
----
-
-**Nota sobre o Projeto:** Este repositório é fruto de uma profunda engenharia em Arquitetura baseada em Agentes (_Multi-Agent Systems_), priorizando o fluxo hiperestruturado (qualidade) acima do generativo aleatório. Desenvolvido para servir como uma verdadeira mente sintética portátil.
+**Nota:** Este projeto é focado em **Engenharia de Prompt Industrial**. Aqui, o processo e a estrutura vêm antes da geração aleatória de texto. Bem-vindo à era do AIOS.

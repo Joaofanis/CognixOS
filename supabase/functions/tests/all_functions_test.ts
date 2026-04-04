@@ -1,8 +1,8 @@
 import { assertEquals, assertExists } from "https://deno.land/std@0.168.0/testing/asserts.ts";
 
 // Use the deployed Supabase project URL
-const PROJECT_URL = "https://pnmxqvaafdecqmeradfc.supabase.co";
-const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBubXhxdmFhZmRlY3FtZXJhZGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEzMzMzMTMsImV4cCI6MjA4NjkwOTMxM30.MhgGsNHefvsR3h4J9TZXajgQsz2D9oHQD69YVyRjtiE";
+const PROJECT_URL = Deno.env.get("VITE_SUPABASE_URL") ?? "";
+const ANON_KEY = Deno.env.get("VITE_SUPABASE_PUBLISHABLE_KEY") ?? "";
 const FUNCTIONS_URL = `${PROJECT_URL}/functions/v1`;
 
 const FUNCTIONS_WITH_AUTH = [

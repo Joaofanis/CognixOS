@@ -24,8 +24,8 @@ try {
 import { assertEquals, assertExists } from "https://deno.land/std@0.168.0/testing/asserts.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const SUPABASE_URL = Deno.env.get("VITE_SUPABASE_URL") ?? "https://pnmxqvaafdecqmeradfc.supabase.co";
-const ANON_KEY = Deno.env.get("VITE_SUPABASE_PUBLISHABLE_KEY") ?? "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBubXhxdmFhZmRlY3FtZXJhZGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEzMzMzMTMsImV4cCI6MjA4NjkwOTMxM30.MhgGsNHefvsR3h4J9TZXajgQsz2D9oHQD69YVyRjtiE";
+const SUPABASE_URL = Deno.env.get("VITE_SUPABASE_URL") ?? "";
+const ANON_KEY = Deno.env.get("VITE_SUPABASE_PUBLISHABLE_KEY") ?? "";
 const FUNCTIONS_URL = `${SUPABASE_URL}/functions/v1`;
 
 // Test credentials — set via env or .env.test

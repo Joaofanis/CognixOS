@@ -177,7 +177,7 @@ async function fetchYouTubeViaJina(url: string, videoId: string): Promise<{ titl
     const watchUrl = `https://www.youtube.com/watch?v=${videoId}`;
     const res = await fetch(`https://r.jina.ai/${watchUrl}`, {
       headers: { Accept: "application/json", "X-Return-Format": "markdown" },
-      signal: AbortSignal.timeout(20000),
+      signal: AbortSignal.timeout(50000),
     });
     if (!res.ok) return null;
     const data = await res.json();

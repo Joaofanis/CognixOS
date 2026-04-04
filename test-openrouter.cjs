@@ -12,7 +12,7 @@ const data = JSON.stringify({
 const req = https.request('https://openrouter.ai/api/v1/chat/completions', {
   method: 'POST',
   headers: {
-    'Authorization': `Bearer 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`, // Using a placeholder, we'll fetch the real one
+    'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY || "YOUR_KEY_HERE"}`,
     'Content-Type': 'application/json',
     'HTTP-Referer': 'https://pnmxqvaafdecqmeradfc.supabase.co',
     'X-Title': 'Segundo Cerebro'
