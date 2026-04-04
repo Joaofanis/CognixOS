@@ -96,7 +96,7 @@ async function fetchTranscriptViaApi(videoId: string): Promise<{ title: string; 
 }
 
 // ── Method 2: Direct scraping of ytInitialPlayerResponse ────────────────────
-async function fetchTranscriptViaScraping(videoId: string): Promise<{ title: string; transcript: string } | null> {
+async function fetchTranscriptViaScraping(videoId: string): Promise<{ title: string; transcript: string; isMetadataOnly?: boolean } | null> {
   try {
     const pageRes = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
       headers: {
@@ -134,7 +134,7 @@ async function fetchTranscriptViaScraping(videoId: string): Promise<{ title: str
         keywords.length > 0 ? `Palavras-chave: ${keywords.slice(0, 20).join(", ")}` : "",
         desc ? `\n[Descrição]:\n${desc.slice(0, 5000)}` : "",
       ].filter(Boolean).join("\n");
-      return content.length > 50 ? { title: `${title} [Sem Legendas]`, transcript: content } : null;
+      return content.length > 50 ? { title: `${title} [Sem Legendas]`, transcript: content, isMetadataOnly: true } : null;
     }
 
     // Prefer PT, then EN, then any
@@ -205,16 +205,25 @@ async function fetchYouTubeContent(url: string): Promise<{ title: string; transc
 
   // Layer 2: Direct scraping
   const scrapingResult = await fetchTranscriptViaScraping(videoId);
-  if (scrapingResult && scrapingResult.transcript.length > 50) {
+  // If it's valid and has actual transcript (not just metadata), return it
+  if (scrapingResult && !scrapingResult.isMetadataOnly && scrapingResult.transcript.length > 50) {
     console.log(`[import-url-v2] Layer 2 success: ${scrapingResult.transcript.length} chars`);
-    return scrapingResult;
+    return { title: scrapingResult.title, transcript: scrapingResult.transcript };
   }
 
-  // Layer 3: Jina.ai
+  // Layer 3: Jina.ai (Fallback attempt if no transcript was found yet)
   const jinaResult = await fetchYouTubeViaJina(url, videoId);
-  if (jinaResult && jinaResult.transcript.length > 50) {
+  // Only accept Jina if it returns a meaningful amount of text
+  // (otherwise it might just be the "Please enable JS" string)
+  if (jinaResult && jinaResult.transcript.length > 400) {
     console.log(`[import-url-v2] Layer 3 success: ${jinaResult.transcript.length} chars`);
     return jinaResult;
+  }
+
+  // Layer 4: Fallback to Layer 2 metadata if we have nothing better
+  if (scrapingResult && scrapingResult.isMetadataOnly) {
+    console.log(`[import-url-v2] Fallback to layer 2 metadata (video has no captions): ${scrapingResult.transcript.length} chars`);
+    return { title: scrapingResult.title, transcript: scrapingResult.transcript };
   }
 
   throw new Error("Não foi possível extrair conteúdo deste vídeo do YouTube. O vídeo pode não ter legendas disponíveis ou estar protegido.");
