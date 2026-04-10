@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
+import DOMPurify from "dompurify";
 import {
   BarChart,
   Bar,
@@ -221,11 +223,17 @@ export default function ObsidianMarkdown({ content, isError }: Props) {
     : safeContent;
 
   const text = preprocessContent(rawText);
+  // Sanitize the preprocessed HTML to allow our custom spans but block malice
+  const sanitized = DOMPurify.sanitize(text, {
+    ALLOWED_TAGS: ["span", "mark", "br", "p", "strong", "em", "ul", "ol", "li", "code", "pre", "blockquote", "h1", "h2", "h3", "h4", "a"],
+    ALLOWED_ATTR: ["class", "href", "target", "rel"]
+  });
 
   return (
     <div className="obsidian-md min-w-0 prose prose-sm dark:prose-invert max-w-none prose-p:mb-3 prose-p:leading-relaxed prose-headings:text-foreground prose-strong:text-foreground prose-li:text-foreground prose-p:text-foreground">
       <ReactMarkdown
         remarkPlugins={[remarkGfm as never]}
+        rehypePlugins={[rehypeRaw as never]}
         components={{
           // ── Headings ──────────────────────────────────────────────────────
           h1: ({ children }) => (
@@ -362,7 +370,7 @@ export default function ObsidianMarkdown({ content, isError }: Props) {
           ),
         }}
       >
-        {text}
+        {sanitized}
       </ReactMarkdown>
     </div>
   );

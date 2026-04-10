@@ -26,10 +26,13 @@ import {
   Search,
   MessageSquare,
   ShieldCheck,
-  Target
+  Target,
+  ShieldAlert,
+  Shield
 } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import SecurityDashboard from "@/components/SecurityDashboard";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -89,7 +92,7 @@ export default function AIOS() {
       setAgentDialogOpen(false);
       setNewAgent({ name: "", role: "", system_prompt: "", preferred_model: "google/gemini-2.5-flash-lite" });
       queryClient.invalidateQueries({ queryKey: ["subagents", user?.id] });
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Erro interno"); }
   };
 
   const handleCreateSkill = async () => {
@@ -100,7 +103,7 @@ export default function AIOS() {
       setSkillDialogOpen(false);
       setNewSkill({ name: "", description: "", trigger_word: "", content: "" });
       queryClient.invalidateQueries({ queryKey: ["agent_skills", user?.id] });
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Erro interno"); }
   };
 
   const handleDeleteAgent = async (id: string) => {
@@ -109,7 +112,7 @@ export default function AIOS() {
       if (error) throw error;
       toast.success("Subagente removido");
       queryClient.invalidateQueries({ queryKey: ["subagents", user?.id] });
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Erro interno"); }
   };
 
   const handleDeleteSkill = async (id: string) => {
@@ -118,7 +121,7 @@ export default function AIOS() {
       if (error) throw error;
       toast.success("Skill removida");
       queryClient.invalidateQueries({ queryKey: ["agent_skills", user?.id] });
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Erro interno"); }
   };
 
   // Auto-switch to production if syncing
@@ -182,6 +185,9 @@ export default function AIOS() {
               </TabsTrigger>
               <TabsTrigger value="skills" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-white font-bold text-xs uppercase tracking-wider transition-all">
                 <Wrench className="h-3.5 w-3.5 mr-2" /> Playbooks
+              </TabsTrigger>
+              <TabsTrigger value="security" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-red-500 data-[state=active]:text-white font-bold text-xs uppercase tracking-wider transition-all">
+                <Shield className="h-3.5 w-3.5 mr-2" /> Segurança
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -290,7 +296,7 @@ export default function AIOS() {
         <TabsContent value="subagents" className="space-y-6 animate-in fade-in duration-500">
           <div className="flex justify-between items-center mb-6 bg-white/5 p-6 rounded-3xl border border-white/5">
              <div>
-                <h2 className="text-2xl font-black italic tracking-tighter tracking-tight">MEUS ATIVOS</h2>
+                <h2 className="text-2xl font-black italic tracking-tighter">MEUS ATIVOS</h2>
                 <p className="text-muted-foreground text-xs font-medium">As unidades cognitivas prontas para implantação.</p>
              </div>
              <Dialog open={isAgentDialogOpen} onOpenChange={setAgentDialogOpen}>
@@ -301,7 +307,7 @@ export default function AIOS() {
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[500px] bg-[#0c0c0d] border-white/10 text-white rounded-3xl">
                   <DialogHeader>
-                    <DialogTitle className="text-2xl font-black italic italic">CONTRATAR ESPECIALISTA</DialogTitle>
+                    <DialogTitle className="text-2xl font-black italic">CONTRATAR ESPECIALISTA</DialogTitle>
                   </DialogHeader>
                   <div className="grid gap-4 py-4">
                     <div className="grid gap-2">
@@ -329,10 +335,15 @@ export default function AIOS() {
                           <SelectValue placeholder="Selecione um modelo" />
                         </SelectTrigger>
                         <SelectContent className="bg-[#0c0c0d] border-white/10 text-white">
-                          <SelectItem value="google/gemini-2.5-flash-lite">Gemini 2.5 Flash Lite (Eficiente/Linear)</SelectItem>
-                          <SelectItem value="google/gemini-2.0-flash-001">Gemini 2.0 Flash (Equilibrado/Expert)</SelectItem>
-                          <SelectItem value="liquid/lfm-2.5-1.2b-thinking:free">Liquid Thinking (Raciocínio Profundo)</SelectItem>
-                          <SelectItem value="nvidia/nemotron-3-super-120b-a12b:free">Nemotron Super (Análise Complexa)</SelectItem>
+                          <SelectItem value="google/gemini-2.5-flash-lite">Gemini 2.5 Flash Lite (Rápido/Planejamento)</SelectItem>
+                          <SelectItem value="meta-llama/llama-3.3-70b-instruct:free">Llama 3.3 70B (Programação/Análise Pesada)</SelectItem>
+                          <SelectItem value="qwen/qwen3.6-plus:free">Qwen 3.6 Plus (Raciocínio Complexo Multilíngue)</SelectItem>
+                          <SelectItem value="minimax/minimax-m2.5:free">Minimax m2.5 (Escrita Criativa/RP Longo)</SelectItem>
+                          <SelectItem value="sourceful/riverflow-v2-fast">Riverflow v2 Fast (Roteamento Rápido)</SelectItem>
+                          <SelectItem value="stepfun/step-3.5-flash:fre">Step 3.5 Flash (Resumos Rápidos)</SelectItem>
+                          <SelectItem value="arcee-ai/trinity-large-preview:free">Trinity Large Preview (RAG e Leitura Profunda)</SelectItem>
+                          <SelectItem value="liquid/lfm-2.5-1.2b-thinking:free">Liquid Thinking (Cadeia de Raciocínio Base)</SelectItem>
+                          <SelectItem value="google/gemma-3-4b-it:free">Gemma 3 4B (Instruções Diretas/Simples)</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -450,6 +461,10 @@ export default function AIOS() {
               </Card>
             ))}
           </div>
+        </TabsContent>
+
+        <TabsContent value="security" className="space-y-6 animate-in fade-in duration-500">
+          <SecurityDashboard />
         </TabsContent>
       </main>
     </div>

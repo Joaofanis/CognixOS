@@ -1,5 +1,5 @@
-import { useState, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { generateSecuritySignature } from "@/lib/security";
 
 export type Message = { role: "user" | "assistant"; content: string };
 export type ChatMode = "fast" | "thinking" | "default";
@@ -99,20 +99,28 @@ export function useBrainChat({
 
       const { data: { session } } = await supabase.auth.getSession();
 
+      const payloadMessages = [...messages, userMsg].map((m) => ({
+        role: m.role,
+        content: m.content,
+      }));
+
+      // --- Protocol Eta Signing ---
+      const timestamp = Date.now();
+      const signature = await generateSecuritySignature(JSON.stringify(payloadMessages), timestamp);
+
       const resp = await fetch(CHAT_URL, {
         method: "POST",
         signal: controller.signal,
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session?.access_token}`,
+          "X-AIOS-Signature": signature,
+          "X-AIOS-Timestamp": timestamp.toString(),
         },
         body: JSON.stringify({
           brainId,
           mode: currentMode,
-          messages: [...messages, userMsg].map((m) => ({
-            role: m.role,
-            content: m.content,
-          })),
+          messages: payloadMessages,
         }),
       });
 

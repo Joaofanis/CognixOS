@@ -5,21 +5,44 @@ import type { Database } from './types';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
 
-if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
-  console.warn("Supabase URL or Key is missing. Check your .env file.");
-}
+// Defensive check for initialization
+const createSafeClient = () => {
+  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY || SUPABASE_URL === 'https://placeholder.supabase.co') {
+    console.error("CRITICAL: Supabase URL/Key missing! UI will load in offline/mock mode.");
+    
+    // Return a proxy that prevents crashes but logs errors on access
+    return new Proxy({} as any, {
+      get: (_, prop) => {
+        if (prop === 'auth') {
+          return new Proxy({} as any, {
+            get: (_, authProp) => {
+              return () => {
+                console.warn(`Supabase unavailable: auth.${String(authProp)} called but no URL configured.`);
+                return Promise.resolve({ data: { user: null, session: null }, error: null });
+              };
+            }
+          });
+        }
+        if (prop === 'from') {
+          return () => ({
+            select: () => Promise.resolve({ data: [], error: null }),
+            insert: () => Promise.resolve({ data: null, error: null }),
+            update: () => Promise.resolve({ data: null, error: null }),
+            delete: () => Promise.resolve({ data: null, error: null }),
+          });
+        }
+        return () => console.warn(`Supabase unavailable: ${String(prop)} called.`);
+      }
+    });
+  }
 
-// Import the supabase client like this:
-// import { supabase } from "@/integrations/supabase/client";
-
-export const supabase = createClient<Database>(
-  SUPABASE_URL || 'https://placeholder.supabase.co', 
-  SUPABASE_PUBLISHABLE_KEY || 'placeholder_key', 
-  {
+  return createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     auth: {
       storage: localStorage,
       persistSession: true,
       autoRefreshToken: true,
     }
-  }
-);
+  });
+};
+
+export const supabase = createSafeClient();

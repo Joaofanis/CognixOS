@@ -15,6 +15,8 @@ import {
   ChevronRight,
   Loader2,
   Square,
+  Wrench,
+  Minimize2,
 } from "lucide-react";
 
 interface Props {
@@ -77,6 +79,11 @@ export default function AgentSquadView({
                 {m.name}
               </Badge>
             ))}
+            {squadFormedEvent.routed_model && (
+              <Badge variant="secondary" className="text-[10px] bg-indigo-500/10 text-indigo-400 border-indigo-500/20 ml-2">
+                Roteado para: {squadFormedEvent.routed_model}
+              </Badge>
+            )}
           </div>
         </div>
       )}
@@ -141,6 +148,14 @@ export default function AgentSquadView({
                     </span>
                     <div className="flex-1 h-px bg-border/50" />
                   </div>
+
+                  {/* Context Compression Event */}
+                  {events.find((e) => e.type === "context_compression" && e.iteration === iter) && (
+                    <div className="flex items-center gap-2 text-xs text-indigo-400 bg-indigo-500/10 p-2 rounded-lg border border-indigo-500/20 animate-in fade-in duration-300">
+                      <Minimize2 className="h-3.5 w-3.5" />
+                      Arquiteto comprimiu o contexto anterior para otimizar tokens da API.
+                    </div>
+                  )}
 
                   {iterResponses.map((r, idx) => (
                     <div
@@ -208,6 +223,25 @@ export default function AgentSquadView({
                 </div>
               );
             })}
+
+          {/* Tool execution */}
+          {events
+            .filter((e) => e.type === "tool_execution")
+            .slice(-2) // Show only the last 2 tool executions to not clutter
+            .map((e, idx) => (
+              <div
+                key={`tool-${idx}`}
+                className="flex items-start gap-2 animate-in fade-in duration-300 rounded-lg bg-orange-500/10 border border-orange-500/20 p-2"
+              >
+                <Wrench className="h-3.5 w-3.5 text-orange-400 shrink-0 mt-0.5" />
+                <div className="flex flex-col">
+                  <span className="text-xs font-semibold text-orange-400">
+                    {e.agentName} usando ferramenta '{e.tool}'
+                  </span>
+                  {e.query && <span className="text-[10px] text-muted-foreground italic">Query: {e.query}</span>}
+                </div>
+              </div>
+            ))}
 
           {/* Thinking agents (no response yet) */}
           {events

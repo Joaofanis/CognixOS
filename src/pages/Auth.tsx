@@ -142,8 +142,10 @@ export default function Auth() {
               disabled={loading}
               className="w-full h-12 rounded-2xl gradient-jewel text-white font-bold shadow-lg shadow-primary/25 hover:opacity-90 hover:shadow-primary/40 active:scale-[0.98] transition-all mt-2 gap-2"
             >
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              {isLogin ? t("auth.login") : t("auth.signup")}
+              <div key={String(loading)} className="flex items-center gap-2 animate-in fade-in duration-300">
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                <span>{isLogin ? t("auth.login") : t("auth.signup")}</span>
+              </div>
             </Button>
           </form>
         </div>

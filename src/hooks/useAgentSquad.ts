@@ -5,9 +5,11 @@ export interface AgentMessage {
   type:
     | "admin_thinking"
     | "squad_formed"
+    | "context_compression"
     | "iteration_start"
     | "agent_thinking"
     | "agent_response"
+    | "tool_execution"
     | "admin_evaluation"
     | "synthesizing"
     | "synthesis_start"
@@ -20,6 +22,7 @@ export interface AgentMessage {
   squad?: { id: string; name: string; type: string }[];
   reasoning?: string;
   strategy?: string;
+  routed_model?: string;
   // iteration
   iteration?: number;
   maxIterations?: number;
@@ -28,6 +31,9 @@ export interface AgentMessage {
   agentName?: string;
   agentType?: string;
   content?: string;
+  // tool_execution
+  tool?: string;
+  query?: string;
   // admin_evaluation
   satisfied?: boolean;
   reason?: string;
