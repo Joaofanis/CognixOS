@@ -155,9 +155,15 @@ serve(async (req) => {
       .order("created_at", { ascending: false })
       .limit(50);
 
-    const contextParts: string[] = [];
+    let contextTexts = "";
+    let opmeMetadata = "";
+    
     if (texts) {
       for (const t of texts) {
+        if (t.file_name?.includes("Metadata OPME Scanner")) {
+          opmeMetadata = t.content;
+          continue;
+        }
         if (t.rag_processed && t.rag_summary) {
           const keywords = t.rag_keywords ? `[Palavras-chave: ${(t.rag_keywords as string[]).join(", ")}]` : "";
           const cat = t.category ? `[Categoria: ${t.category}]` : "";
@@ -168,9 +174,14 @@ serve(async (req) => {
       }
     }
 
-    let contextTexts = contextParts.join("\n\n---\n\n");
+    contextTexts = contextParts.join("\n\n---\n\n");
     if (contextTexts.length > MAX_CONTEXT_CHARS) {
       contextTexts = contextTexts.slice(0, MAX_CONTEXT_CHARS) + "\n\n[...contexto truncado]";
+    }
+
+    // Boost: Inject OPME Metadata into System Prompt if exists
+    if (opmeMetadata) {
+       brain.system_prompt = (brain.system_prompt || "") + `\n\n## ANALYTIC DNA (OPME v2.0)\nUtilize as seguintes métricas determinísticas para guiar sua sintaxe e reações: \n${opmeMetadata}\n\n`;
     }
 
     const chatMode = mode === "thinking" ? "thinking" : mode === "fast" ? "fast" : "default";

@@ -12,15 +12,15 @@ const CONTEXT_LIMIT_CHARS = 4000;
 
 // Model Router definitions - Empowered by User's selections
 const MODELS = {
-  architect: "google/gemini-2.5-flash-lite", // Reliable JSON planner
-  complex: "meta-llama/llama-3.3-70b-instruct:free", // Heavy Programming/Logic
-  reasoning: "qwen/qwen3.6-plus:free", // Complex Reasoning / Multilingual
-  creative: "minimax/minimax-m2.5:free", // RP, Creative, Long Generation
-  fast: "sourceful/riverflow-v2-fast", // Very fast routing/simple replies
-  summarizing: "stepfun/step-3.5-flash:fre", // Quick Summarization
-  rag: "arcee-ai/trinity-large-preview:free", // Deep Reading & Retrieval
-  thinking: "liquid/lfm-2.5-1.2b-thinking:free", // Chain-of-thought analysis
-  instruction: "google/gemma-3-4b-it:free", // Direct simple instruction following
+  architect: "google/gemini-2.0-flash-lite-preview-02-05:free", // Modern & Free JSON planner
+  complex: "meta-llama/llama-3.3-70b-instruct:free", // Industry Standard Logic
+  reasoning: "qwen/qwen3.6-plus:free", // Best-in-class Reasoning & coding
+  creative: "minimax/minimax-m2.5:free", // Superior RP & Creativity 
+  fast: "google/gemini-2.0-flash-lite-preview-02-05:free", // Rapid responses
+  summarizing: "stepfun/step-3.5-flash:free", // Fast summarization
+  rag: "arcee-ai/trinity-large-preview:free", // Specialized for Retrieval
+  thinking: "liquid/lfm-2.5-1.2b-thinking:free", // Deep Chain-of-Thought
+  instruction: "google/gemma-3-4b-it:free", // Small but precise
 };
 
 function getModelForCategory(category: string): string {
@@ -138,25 +138,33 @@ serve(async (req) => {
           // --- STEP 1: Admin Routing & Multi-Provider ---
           send({ type: "admin_thinking", message: "Arquiteto mapeando complexidade matemática, criativa e alocando provedores..." });
 
-          const adminSystemPrompt = `Sua tarefa é analisar a requisição e montar o esquadrão ideal de IAs.
-Subagentes: ${JSON.stringify(subagents.map(a => ({id: a.id, role: a.role})))}
-Skills: ${JSON.stringify(skills?.map(s => ({id:s.id, desc:s.description})) || [])}
-
-Retorne JSON EXATO:
+          const adminSystemPrompt = `### ORCHESTRATOR_INSTRUCTIONS
+\`\`\`json
 {
-  "selected_skill_id": "id ou null",
-  "selected_agent_ids": ["id1", "id2"],
-  "task_category": "complex|reasoning|creative|fast|rag|thinking|instruction",
-  "reasoning": "Sua lógica"
+  "ROLE": "Elite Multi-Provider Agent Router",
+  "TASK": "Analyze user query and form the ideal Agent Squad with specific skills.",
+  "INPUT_ASSETS": {
+    "SUBAGENTS": ${JSON.stringify(subagents.map(a => ({id: a.id, role: a.role})))},
+    "SKILLS": ${JSON.stringify(skills?.map(s => ({id:s.id, desc:s.description})) || [])}
+  },
+  "CATEGORIES": {
+    "complex": "Heavy logic, advanced coding",
+    "reasoning": "Complex analysis and multilingual reasoning",
+    "creative": "Roleplay, long-form creative generation",
+    "fast": "Direct and rapid responses",
+    "rag": "Deep reading of large provided context",
+    "thinking": "Chain-of-thought, mathematical/philosophical deduction",
+    "instruction": "Strict adherence to simple direct instructions"
+  },
+  "OUTPUT_FORMAT": {
+    "selected_skill_id": "string | null",
+    "selected_agent_ids": "string[]",
+    "task_category": "enum(CATEGORIES)",
+    "reasoning": "brief string"
+  },
+  "STRICT_RULE": "Return ONLY JSON."
 }
-Categories:
-- complex: Lógica brutal, código pesado.
-- reasoning: Análise complexa e multilíngue.
-- creative: RP, longa geração criativa.
-- fast: Respostas diretas e velozes.
-- rag: Leitura profunda de grandes textos fornecidos.
-- thinking: Cadeia de pensamento, deduções matemáticas/filosóficas.
-- instruction: Seguir instrução ao pé da letra de forma simples.`;
+\`\`\``;
           
           let planData = { selected_agent_ids: subagents.slice(0, 2).map(a => a.id), selected_skill_id: null, task_category: "fast", reasoning: "Fallback" };
           try {
@@ -275,7 +283,20 @@ Aguarde o retorno da ferramenta antes de formular a resposta para o usuário. Se
               send({ type: "agent_response", agentId: agent.id, agentName: agent.name, agentType: agent.role, content: agentResp, iteration });
             }
 
-            const gateSystemPrompt = `Quality Gate. Avalie se a resposta supre: "${query}". Responda JSON: { "satisfied": true/false, "reason": "motivo", "improvements_needed": "faltou algo" }`;
+            const gateSystemPrompt = `### QUALITY_GATE_INSTRUCTIONS
+\`\`\`json
+{
+  "ROLE": "Autonomous Quality Auditor",
+  "TASK": "Evaluate if the squad's collective work satisfies the user query.",
+  "QUERY": "${query}",
+  "OUTPUT_FORMAT": {
+    "satisfied": "boolean",
+    "reason": "brief explanation",
+    "improvements_needed": "specific instructions for next iteration if satisfied=false"
+  },
+  "STRICT_RULE": "Return ONLY JSON."
+}
+\`\`\``;
             const fullWork = squadHistory.map(h => `[${h.agentName}]: ${h.content}`).join("\n");
             
             let evalData = { satisfied: true, reason: "Aprovado" };

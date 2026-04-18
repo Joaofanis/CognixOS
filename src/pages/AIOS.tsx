@@ -148,7 +148,7 @@ export default function AIOS() {
                 <Factory className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <h1 className="font-black text-xl italic tracking-tighter uppercase leading-none">AIOS Factory Line</h1>
+                <h1 className="font-black text-xl italic tracking-tighter uppercase leading-none">CognixOS Intelligence Factory</h1>
                 <p className="text-[10px] text-muted-foreground font-mono tracking-widest uppercase">Autonomous Industrial OS</p>
               </div>
             </div>

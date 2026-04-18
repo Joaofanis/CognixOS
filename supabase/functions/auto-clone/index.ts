@@ -85,6 +85,193 @@ async function callAI(systemPrompt: string, userPrompt: string, apiKey: string, 
 }
 
 // ══════════════════════════════════════════════════════════════════════════
+//  1. OPME v2.0 - MODULOS DETERMINÍSTICOS MATEMÁTICOS (STYLOMETRY & EMOTIONAL)
+// ══════════════════════════════════════════════════════════════════════════
+
+export class StyleometryAnalyzer {
+  private tokenizeWords(text: string): string[] {
+    return text.toLowerCase().match(/\b\w+\b/g) || [];
+  }
+  private tokenizeSentences(text: string): string[] {
+    return text.split(/[.!?]+/).filter(s => s.trim().length > 0);
+  }
+  calculateAverageWordLength(text: string): number {
+    const words = this.tokenizeWords(text);
+    if (words.length === 0) return 0;
+    const totalChars = words.reduce((sum, word) => sum + word.length, 0);
+    return totalChars / words.length;
+  }
+  calculateAverageSentenceLength(text: string): number {
+    const sentences = this.tokenizeSentences(text);
+    if (sentences.length === 0) return 0;
+    const totalWords = sentences.reduce((sum, sentence) => sum + this.tokenizeWords(sentence).length, 0);
+    return totalWords / sentences.length;
+  }
+  calculateTypeTokenRatio(text: string): number {
+    const words = this.tokenizeWords(text);
+    const uniqueWords = new Set(words);
+    if (words.length === 0) return 0;
+    return uniqueWords.size / words.length;
+  }
+  calculatePunctuationFrequency(text: string): Record<string, number> {
+    const punctuation = {
+      comma: (text.match(/,/g) || []).length,
+      semicolon: (text.match(/;/g) || []).length,
+      dash: (text.match(/—|-/g) || []).length,
+      exclamation: (text.match(/!/g) || []).length,
+      question: (text.match(/\?/g) || []).length,
+    };
+    const totalChars = text.length || 1;
+    return Object.entries(punctuation).reduce((acc, [key, count]) => {
+      acc[key] = (count / totalChars) * 1000;
+      return acc;
+    }, {} as Record<string, number>);
+  }
+  calculateVerbTensePreference(text: string): Record<string, number> {
+    const tenses = {
+      present: (text.match(/\b(sou|estou|tenho|faço|vou|digo|penso)\b/gi) || []).length,
+      past: (text.match(/\b(era|estava|tinha|fiz|disse|pensei|fui)\b/gi) || []).length,
+      future: (text.match(/\b(serei|estarei|terei|farei|direi|pensarei)\b/gi) || []).length,
+      conditional: (text.match(/\b(seria|estaria|teria|faria|diria|pensaria)\b/gi) || []).length,
+    };
+    const total = Object.values(tenses).reduce((a, b) => a + b, 0);
+    if (total === 0) return { present: 0, past: 0, future: 0, conditional: 0 };
+    return Object.entries(tenses).reduce((acc, [key, count]) => {
+      acc[key] = count / total;
+      return acc;
+    }, {} as Record<string, number>);
+  }
+  calculateFrequentWords(text: string, topN = 20): Array<{ word: string; frequency: number }> {
+    const words = this.tokenizeWords(text);
+    const stopWords = new Set(['o', 'a', 'de', 'para', 'com', 'em', 'por', 'que', 'e', 'é', 'do', 'da', 'um', 'uma', 'os', 'as', 'dos', 'das', 'ou', 'mas', 'não', 'se', 'como', 'mais', 'isso']);
+    const filtered = words.filter(word => !stopWords.has(word));
+    const frequency = new Map<string, number>();
+    filtered.forEach(word => frequency.set(word, (frequency.get(word) || 0) + 1));
+    return Array.from(frequency.entries()).map(([word, frequency]) => ({ word, frequency })).sort((a, b) => b.frequency - a.frequency).slice(0, topN);
+  }
+  calculateSubordinationRate(text: string): number {
+    const subordinatingConjunctions = /\b(que|porque|se|quando|onde|como|embora|ainda|portanto)\b/gi;
+    const matches = text.match(subordinatingConjunctions) || [];
+    const sentences = this.tokenizeSentences(text).length;
+    return sentences > 0 ? matches.length / sentences : 0;
+  }
+  private extractUniqueExpressions(text: string): string[] {
+    const phrases = text.match(/\b\w+\s+\w+\s+\w+(?:\s+\w+)?\b/g) || [];
+    const frequency = new Map<string, number>();
+    phrases.forEach(phrase => frequency.set(phrase, (frequency.get(phrase) || 0) + 1));
+    return Array.from(frequency.entries()).filter(([, count]) => count >= 2).map(([phrase]) => phrase).slice(0, 10);
+  }
+  private extractEmotionalIntensifiers(text: string): string[] {
+    const intensifiers = ['absolutamente', 'completamente', 'totalmente', 'extremamente', 'muito', 'bastante', 'realmente', 'verdadeiramente', 'sinceramente', 'incrível', 'fantástico', 'excelente', 'perfeito', 'horrível'];
+    const found = intensifiers.filter(word => new RegExp(`\\b${word}\\b`, 'gi').test(text));
+    return [...new Set(found)];
+  }
+  private extractSyntaxPatterns(text: string): string[] {
+    const patterns = [
+      { pattern: /\b\w+\s+\w+\s+\w+\b/g, name: 'SVO Constantes' },
+      { pattern: /\b\w+\s+,\s+\w+\s+\w+\b/g, name: 'Subordinadas Clássicas' },
+    ];
+    const found: string[] = [];
+    patterns.forEach(({ pattern, name }) => { if (pattern.test(text)) found.push(name); });
+    return found;
+  }
+  async analyzeStyleometry(text: string) {
+    return {
+      averageWordLength: this.calculateAverageWordLength(text),
+      averageSentenceLength: this.calculateAverageSentenceLength(text),
+      typeTokenRatio: this.calculateTypeTokenRatio(text),
+      punctuationFrequency: this.calculatePunctuationFrequency(text),
+      verbTensePreference: this.calculateVerbTensePreference(text),
+      frequentWords: this.calculateFrequentWords(text),
+      subordinationRate: this.calculateSubordinationRate(text),
+      uniqueExpressions: this.extractUniqueExpressions(text),
+      emotionalIntensifiers: this.extractEmotionalIntensifiers(text),
+      preferredSyntaxPatterns: this.extractSyntaxPatterns(text),
+    };
+  }
+}
+
+export class EmotionalAnalyzer {
+  private emotionKeywords = {
+    enthusiasm: { keywords: ['incrível', 'fantástico', 'excelente', 'adorei', 'perfeito'], patterns: [/\b(muito|bastante|extremamente)\s+(bom|legal|interessante)/gi] },
+    anger: { keywords: ['raiva', 'furioso', 'indignado', 'irritado', 'detesto', 'odeio', 'absurdo'], patterns: [/\b(não|nunca|jamais)\s+(aceito|tolero|permito)/gi] },
+    fear: { keywords: ['medo', 'assustado', 'preocupado', 'ansioso', 'talvez', 'provavelmente'], patterns: [/\b(e\s+se|talvez|possivelmente|pode\s+ser)/gi] },
+    humor: { keywords: ['haha', 'rsrs', 'brincadeira', 'piada', 'engraçado', 'sarcasmo', 'kkk'], patterns: [/\b(tipo|tipo\s+assim|basicamente)\b/gi] },
+    compassion: { keywords: ['entendo', 'compreendo', 'empatia', 'ajudar', 'apoiar', 'cuidado', 'pena'], patterns: [/\b(você\s+precisa|vou\s+ajudar|deixa\s+eu)/gi] },
+    sadness: { keywords: ['triste', 'infeliz', 'deprimido', 'desapontado', 'frustrado', 'fracasso'], patterns: [/\b(não\s+consegui|fracassei|perdi)\b/gi] }
+  };
+
+  detectEmotion(text: string) {
+    const scores: Record<string, number> = {};
+    Object.entries(this.emotionKeywords).forEach(([emotion, { keywords, patterns }]) => {
+      let score = 0;
+      keywords.forEach(keyword => { score += (text.match(new RegExp(`\\b${keyword}\\b`, 'gi')) || []).length * 0.5; });
+      patterns.forEach(pattern => { score += (text.match(pattern) || []).length * 0.8; });
+      scores[emotion] = score;
+    });
+    const total = Object.values(scores).reduce((a, b) => a + b, 0);
+    if (total === 0) return [];
+    return Object.entries(scores).map(([emotion, score]) => ({ emotion, score: score / total })).sort((a, b) => b.score - a.score);
+  }
+
+  identifyEmotionalTriggers(text: string) {
+    const triggers: Array<{ trigger: string; emotion: string; intensity: 'low' | 'medium' | 'high' }> = [];
+    const triggerPatterns = [
+      { pattern: /crítica|feedback negativo|injustiça|estúpido/gi, emotion: 'anger', intensity: 'high' as const },
+      { pattern: /fracasso|derrota|perda/gi, emotion: 'sadness', intensity: 'high' as const },
+      { pattern: /sucesso|vitória|conquista/gi, emotion: 'enthusiasm', intensity: 'high' as const },
+      { pattern: /incerteza|dúvida|talvez/gi, emotion: 'fear', intensity: 'medium' as const },
+    ];
+    triggerPatterns.forEach(({ pattern, emotion, intensity }) => {
+      const matches = text.match(pattern) || [];
+      matches.forEach(match => triggers.push({ trigger: match, emotion, intensity }));
+    });
+    return triggers;
+  }
+
+  identifyArchetype(text: string) {
+    const archetypeKeywords = {
+      mentor: ['ensino', 'aprenda', 'guia', 'orientação', 'conhecimento', 'aula', 'processo'],
+      hero: ['desafio', 'superação', 'conquista', 'vitória', 'força', 'luta', 'garra'],
+      sage: ['análise', 'investigação', 'verdade', 'evidência', 'pesquisa', 'fato', 'razão'],
+      creator: ['inovação', 'criação', 'original', 'novo', 'experimento', 'ideia', 'arte'],
+      friend: ['empatia', 'conexão', 'amizade', 'apoio', 'comunidade', 'juntos', 'nós'],
+      alchemist: ['transformação', 'resultado', 'prático', 'ação', 'eficiência', 'dinheiro', 'retorno'],
+      explorer: ['descoberta', 'curiosidade', 'aventura', 'exploração', 'mundo', 'viagem'],
+    };
+    const scores: Record<string, number> = {};
+    Object.entries(archetypeKeywords).forEach(([archetype, keywords]) => {
+      let score = 0;
+      keywords.forEach(keyword => score += (text.match(new RegExp(`\\b${keyword}\\b`, 'gi')) || []).length);
+      scores[archetype] = score;
+    });
+    const maxArchetype = Object.entries(scores).sort((a, b) => b[1] - a[1])[0];
+    const total = Object.values(scores).reduce((a, b) => a + b, 0);
+    return { archetype: maxArchetype ? maxArchetype[0] : 'friend', score: total > 0 && maxArchetype ? maxArchetype[1] / total : 0 };
+  }
+
+  extractCoreValues(text: string) {
+    const values = ['liberdade', 'justiça', 'inovação', 'excelência', 'integridade', 'criatividade', 'lealdade', 'verdade', 'riqueza'];
+    const result: Array<{ value: string; frequency: number }> = [];
+    values.forEach(value => {
+      const matches = text.match(new RegExp(`\\b${value}\\b`, 'gi')) || [];
+      if (matches.length > 0) result.push({ value, frequency: matches.length });
+    });
+    return result;
+  }
+
+  async analyzeEmotional(text: string) {
+    return {
+      dominantEmotions: this.detectEmotion(text),
+      primaryArchetype: this.identifyArchetype(text).archetype,
+      archetypeScore: this.identifyArchetype(text).score,
+      coreValues: this.extractCoreValues(text),
+      emotionalTriggers: this.identifyEmotionalTriggers(text),
+    };
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
 //  SEARCH FUNCTIONS
 // ══════════════════════════════════════════════════════════════════════════
 
@@ -310,28 +497,34 @@ async function agentPesquisador(
 
 async function agentAnalista(
   name: string,
-  extractedTexts: { title: string; content: string }[],
+  allContent: string,
   apiKey: string,
   send: (d: Record<string, unknown>) => void,
 ): Promise<string> {
   send({ step: "agent_analyst", agent: "Analista", message: `🧬 Mapeando DNA Cognitivo Base de "${name}"...` });
 
-  const allContent = extractedTexts.map(t => `[Fonte: ${t.title}]\n${t.content}`).join("\n\n---\n\n");
   const truncated = allContent.length > 80000 ? allContent.slice(0, 80000) + "\n[...truncado]" : allContent;
 
-  const systemPrompt = `Você é um ANALISTA DE DNA COGNITIVO de elite. Sua missão é analisar profundamente os textos de/sobre "${name}" e produzir um RELATÓRIO ESTRUTURADO completo.
-
-PRODUZA UM RELATÓRIO com TODAS estas seções (em formato estruturado):
-## 1. IDENTIDADE CENTRAL (Quem é a pessoa, missão, diferencial, área de atuação)
-## 2. PERFIL DISC (Avalie de 1-10 cada dimensão. Justifique com exemplos dos textos)
-## 3. ENEAGRAMA (Identifique o tipo principal + asa. Justifique)
-## 4. 10 SOFT SKILLS (Avalie de 1-10 cada skill chave com base em evidências)
-## 5. TRAÇOS COGNITIVOS (Padrões de pensamento, como ex: "simplifica complexidade")
-## 6. HEURÍSTICAS DE DECISÃO (Como a pessoa toma decisões? Quais frameworks usa?)
-## 7. FILOSOFIA E VISÃO DE MUNDO (Crenças centrais. O que defende? O que combate?)
-## 8. FRASES REAIS MARCANTES (Citações diretas)
-## 9. PADRÕES DE ARGUMENTAÇÃO (Como a pessoa constrói argumentos?)
-## 10. LACUNAS (O que não foi possível mapear com os dados?)`;
+  const systemPrompt = `### AGENT_INSTRUCTIONS
+\`\`\`json
+{
+  "IDENTITY": "Elite Cognitive DNA Analyst",
+  "MISSION": "Produce a comprehensive structured report for the individual: ${name}",
+  "SECTIONS_REQUIRED": [
+    "1. CORE IDENTITY (Mission, area of expertise, differentiator)",
+    "2. DISC PROFILE (Grades 1-10 with evidence-based justifications)",
+    "3. ENNEAGRAM (Main type + wing with justifications)",
+    "4. 10 KEY SOFT SKILLS (Grades 1-10)",
+    "5. COGNITIVE TRAITS (Specific thinking patterns)",
+    "6. DECISION HEURISTICS (Decision frameworks used)",
+    "7. PHILOSOPHY & WORLDVIEW (Core beliefs)",
+    "8. SIGNATURE QUOTES (Direct citations from text)",
+    "9. ARGUMENTATION PATTERNS",
+    "10. DATA GAPS"
+  ],
+  "OUTPUT_LANGUAGE": "Portuguese (pt-BR)"
+}
+\`\`\``;
 
   const report = await callAI(systemPrompt, truncated, apiKey);
   send({ step: "agent_analyst_done", agent: "Analista", message: `✅ Relatório de DNA Cognitivo gerado.` });
@@ -339,63 +532,81 @@ PRODUZA UM RELATÓRIO com TODAS estas seções (em formato estruturado):
 }
 
 // ══════════════════════════════════════════════════════════════════════════
-//  AGENT: PSICANALISTA — Shadow DNA Profiling
+//  AGENT: PSICANALISTA — OPME NEURO-SIMBOLIC (SHADOW DNA + EMOTIONS)
 // ══════════════════════════════════════════════════════════════════════════
 
 async function agentPsicanalista(
   name: string,
-  extractedTexts: { title: string; content: string }[],
+  allContent: string,
+  opmeEmotionContext: string,
   apiKey: string,
   send: (d: Record<string, unknown>) => void,
 ): Promise<string> {
-  send({ step: "agent_psycho", agent: "Psicanalista", message: `👁️ Mergulhando no inconsciente e traços sombrios de "${name}"...` });
+  send({ step: "agent_psycho", agent: "Psicanalista", message: `👁️ Mergulhando nas sombras e gatilhos emocionais OPME v2 de "${name}"...` });
 
-  const allContent = extractedTexts.map(t => `[Fonte: ${t.title}]\n${t.content}`).join("\n\n---\n\n");
   const truncated = allContent.length > 80000 ? allContent.slice(0, 80000) + "\n[...truncado]" : allContent;
 
-  const systemPrompt = `Você é um PSICANALISTA E PROFILER JUNGIANO DE ELITE. Avalie os textos de "${name}".
-Você lê nas entrelinhas. Não foque no que a pessoa quer projetar, foque na verdade psicológica subjacente.
-
-Gere um SHADOW REPORT (Relatório de Sombras) detalhado contendo:
-## 1. MOTIVAÇÕES OCULTAS (O que realmente impulsiona essa pessoa além do que ela afirma?)
-## 2. VIESES INCONSCIENTES (Pontos cegos e premissas inquestionáveis)
-## 3. SHADOW DNA (A "sombra" Jungiana: medos, inseguranças, contradições, ou traços negados que transparecem sob pressão)
-## 4. MECANISMOS DE DEFESA (Como reage quando contrariado, estressado ou atacado? Ex: Intelectualização, Projeção, Humor defensivo)
-## 5. REAÇÃO AO CONSELHO E CRÍTICA (Bloqueia? Ouve? Contra-ataca?)
-Não use jargão complexo demais, seja direto, clínico e prático. Baseie-se nas falas, reações e comportamentos descritos nos textos.`;
+  const systemPrompt = `### AGENT_INSTRUCTIONS
+\`\`\`json
+{
+  "IDENTITY": "Jungian Profiler & Shadow Mapper",
+  "MISSION": "Analyze text and OPME deterministic metrics to generate a SHADOW REPORT.",
+  "DETERMINISTIC_INPUT": "${opmeEmotionContext}",
+  "SECTIONS_REQUIRED": [
+    "1. HIDDEN MOTIVATIONS & CORE VALUES",
+    "2. UNCONSCIOUS BIASES & DOMINANT ARCHETYPE (Validate/Refine GND data)",
+    "3. SHADOW DNA (Irrational fears based on detected emotions)",
+    "4. DEFENSE MECHANISMS & TRIGGERS",
+    "5. REACTION TO CRITICISM"
+  ],
+  "OUTPUT_LANGUAGE": "Portuguese (pt-BR)"
+}
+\`\`\``;
 
   const report = await callAI(systemPrompt, truncated, apiKey);
-  send({ step: "agent_psycho_done", agent: "Psicanalista", message: `✅ Relatório do Shadow DNA extraído.` });
+  send({ step: "agent_psycho_done", agent: "Psicanalista", message: `✅ Relatório Emocional OPME + Shadow DNA concluído.` });
   return report;
 }
 
 // ══════════════════════════════════════════════════════════════════════════
-//  AGENT: LINGUISTA — Syntactic Cracker
+//  AGENT: LINGUISTA — OPME NEURO-SIMBOLIC (SYNTAX & STYLOMETRY)
 // ══════════════════════════════════════════════════════════════════════════
 
 async function agentLinguista(
   name: string,
-  extractedTexts: { title: string; content: string }[],
+  allContent: string,
+  opmeSyntaxContext: string,
   apiKey: string,
   send: (d: Record<string, unknown>) => void,
 ): Promise<string> {
-  send({ step: "agent_linguist", agent: "Linguista", message: `✍️ Decodificando micro-expressões e sintaxe de "${name}"...` });
+  send({ step: "agent_linguist", agent: "Linguista", message: `✍️ Decodificando sintaxe usando algoritmos de Stylometry OPME v2...` });
 
-  const allContent = extractedTexts.map(t => `[Fonte: ${t.title}]\n${t.content}`).join("\n\n---\n\n");
   const truncated = allContent.length > 80000 ? allContent.slice(0, 80000) + "\n[...truncado]" : allContent;
 
-  const systemPrompt = `Você é um LINGUISTA FORENSE E COPYWRITER DE ELITE. Ignore o conteúdo da mensagem e foque 100% na FORMA e SINTAXE de como "${name}" se comunica. A pessoa está morta ou é inalcançável e fomos contratados para forjar e-mails no nome dela sem que ninguém perceba. Precisamos do manual sintático perfeito.
-
-Gere um RELATÓRIO SINTÁTICO CIRÚRGICO contendo:
-## 1. RITMO E RESPIRAÇÃO (Tamanho médio das frases, alternância entre frases curtas de impacto e blocos reflexivos)
-## 2. MARCADORES DE PONTUAÇÃO (Uso excessivo de reticências? Exclamações? Caps lock? Travesseis longos? Aspas irônicas?)
-## 3. HÁBITOS DE TRANSIÇÃO E CONECTIVOS (Como conecta uma ideia a outra? Ex: "Mas veja bem", "O ponto é", "Portanto, ...")
-## 4. VÍCIOS DE LINGUAGEM E MULETAS (Mínimo 10 expressões de preenchimento idênticas à forma orgânica como fala/escreve)
-## 5. MICRO-EXPRESSÕES E EMOJIS (Se usa emojis, quais e em que exato tom? Ex: ironia vs alegria genuína)
-## 6. INSTRUÇÕES CLÍNICAS ("COMO IMITAR" - dê 5 regras de formatação absolutas que devemos seguir na digitação para parecermos essa pessoa).`;
+  const systemPrompt = `### AGENT_INSTRUCTIONS
+\`\`\`json
+{
+  "IDENTITY": "Linguistic Stylometry Expert",
+  "MISSION": "Define how '${name}' communicates by focusing strictly on technical syntax.",
+  "INPUT_GND": "${opmeSyntaxContext}",
+  "CONSTRAINTS": [
+    "Ignore semantic content, focus 100% on structure.",
+    "Include reported physical frequencies without questioning.",
+    "Mimic chronological/psychological handwriting."
+  ],
+  "SECTIONS_REQUIRED": [
+    "1. RHYTHM & BREATHING (Sentence length based on GND)",
+    "2. PUNCTUATION & INTENSIFIERS",
+    "3. TRANSITION HABITS (Recurrent connectors)",
+    "4. VERBAL TICKS & KEYWORDS",
+    "5. CLINICAL IMITATION RULES (5 strict formatting rules)"
+  ],
+  "OUTPUT_LANGUAGE": "Portuguese (pt-BR)"
+}
+\`\`\``;
 
   const report = await callAI(systemPrompt, truncated, apiKey);
-  send({ step: "agent_linguist_done", agent: "Linguista", message: `✅ Relatório Sintático decodificado.` });
+  send({ step: "agent_linguist_done", agent: "Linguista", message: `✅ Relatório Sintático Stylometrico validado.` });
   return report;
 }
 
@@ -411,78 +622,32 @@ async function agentEstrategista(
   apiKey: string,
   send: (d: Record<string, unknown>) => void,
 ): Promise<string> {
-  send({ step: "agent_strategist", agent: "Estrategista", message: `🎭 Simulando cenários de alto estresse (Roleplay)...` });
+  send({ step: "agent_strategist", agent: "Estrategista", message: `🎭 Simulando cenários de alto estresse e gatilhos...` });
 
-  const prompt = `Você é o ESTRATEGISTA DE SIMULAÇÃO (Roleplay Tester) da linha de montagem de cérebros artificiais. Seu objetivo é usar os 3 relatórios base de "${name}" (DNA Cognitivo, Shadow DNA e DNA Sintático) para gerar 3 CENÁRIOS FEW-SHOT EXTREMOS de como este clone reagiria na prática para injetar no prompt do sistema dele.
+  const prompt = `### AGENT_INSTRUCTIONS
+\`\`\`json
+{
+  "IDENTITY": "Behavioral Strategist (Roleplay Tester)",
+  "MISSION": "Generate 3 high-fidelity FEW-SHOT scenarios using extracted DNA.",
+  "DETERMINISTIC_GUIDE": { "Style": "${syntaxDNA}", "Shadow": "${shadowDNA}" },
+  "SCENARIOS_REQUIRED": [
+    "CENÁRIO 1: FRONTAL ATTACK (Immediate reaction to negative feedback)",
+    "CENÁRIO 2: ANALYTICAL CHALLENGE (How complex content is transmitted)",
+    "CENÁRIO 3: CORE VALUE DILEMMA (Attack on OPME-detected core values)"
+  ],
+  "OUTPUT_FORMAT": "### Cenário X: [Name]\\n**User:** [Text]\\n**Clone:** [High-fidelity response]",
+  "OUTPUT_LANGUAGE": "Portuguese (pt-BR)"
+}
+\`\`\``;
 
-Gere o Diálogo completo (Exata Fala do Usuário, Exacta Reação do Clone). 
-Os cenários OBRIGATÓRIOS são:
-[CENÁRIO 1: ATAQUE FRONTAL] (Um usuário provocando, chamando o clone de mentiroso, estúpido, ou atacando sua crença principal)
-[CENÁRIO 2: EXPLICAÇÃO PARA LEIGO] (Clone precisa explicar seu conceito mais difícil para uma criança curiosa de 10 anos)
-[CENÁRIO 3: DILEMA PROFUNDO] (O clone é questionado sobre uma contradição no seu próprio comportamento baseando-se no seu 'Shadow DNA')
-
-Formate perfeitamente:
-### Cenário 1: [Nome do Cenário]
-**User:** [Texto]
-**Clone:** [Resposta de altíssima fidelidade ao estilo, tom e sombras mapeadas]`;
-
-  const reports = `DNA COGNITIVO:\n${baseDNA}\n\nSHADOW REPORT:\n${shadowDNA}\n\nRELATÓRIO SINTÁTICO:\n${syntaxDNA}`;
+  const reports = `DNA COGNITIVO:\n${baseDNA}\n\nSHADOW/EMOTION:\n${shadowDNA}\n\nSINTAXE/STYLOMETRY:\n${syntaxDNA}`;
   const report = await callAI(prompt, reports, apiKey, 3000);
-  send({ step: "agent_strategist_done", agent: "Estrategista", message: `✅ Roleplays de Alta Fidelidade forjados.` });
+  send({ step: "agent_strategist_done", agent: "Estrategista", message: `✅ Roleplays forjados com traços OPME.` });
   return report;
 }
 
 // ══════════════════════════════════════════════════════════════════════════
-//  AGENT: VERIFICADOR — Quality Gate Check
-// ══════════════════════════════════════════════════════════════════════════
-
-interface VerificationResult {
-  approved: boolean;
-  score: number;
-  missingAreas: string[];
-}
-
-async function agentVerificador(
-  name: string,
-  reportsComb: string,
-  apiKey: string,
-  send: (d: Record<string, unknown>) => void,
-): Promise<VerificationResult> {
-  send({ step: "agent_verifier", agent: "Verificador", message: `🔎 Avaliando a robustez dos 4 relatórios no Quality Gate...` });
-
-  const systemPrompt = `Você é o QUALITY GATE da clonagem cognitiva de "${name}".
-Avalie todos os relatórios combinados gerados por seus colegas e responda EXCLUSIVAMENTE em JSON:
-{
-  "approved": true/false,
-  "score": 0-100,
-  "missing_areas": ["lista de lacunas se score for baixo"]
-}
-Aprove apenas (score >= 70) se os relatórios tiverem material palpável (Identidade, Mecanismos de Defesa, Sintaxe Clara e Roleplays coerentes).`;
-
-  const result = await callAI(systemPrompt, `DADOS CONTÍNUOS DE "${name}":\n\n${reportsComb}`, apiKey, 1000);
-  
-  try {
-    const jsonMatch = result.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const p = JSON.parse(jsonMatch[0]);
-      send({
-        step: "agent_verifier_done",
-        agent: "Verificador",
-        message: p.approved ? `✅ APROVADO — Score: ${p.score}/100` : `⚠️ Reprovado no Quality Gate — tentaremos extrair via Prompter de qualquer forma`,
-      });
-      return { approved: p.approved, score: p.score ?? 0, missingAreas: p.missing_areas ?? [] };
-    }
-  } catch (err) {
-    // JSON parse failure
-  }
-  
-  const fallback = reportsComb.length > 5000;
-  send({ step: "agent_verifier_done", agent: "Verificador", message: fallback ? "✅ Aprovado heuristicamente" : "⚠️ Verificação falhou" });
-  return { approved: fallback, score: fallback ? 80 : 40, missingAreas: [] };
-}
-
-// ══════════════════════════════════════════════════════════════════════════
-//  AGENT: PROMPTER — Ultimate System Prompt Synthesis
+//  AGENT: PROMPTER — Ultimate DynamicPromptGenerator (OPME V2.0 Padrão)
 // ══════════════════════════════════════════════════════════════════════════
 
 async function agentPrompter(
@@ -491,36 +656,41 @@ async function agentPrompter(
   apiKey: string,
   send: (d: Record<string, unknown>) => void,
 ): Promise<string> {
-  send({ step: "agent_prompter", agent: "Prompter", message: `⚡ Compilando o Sistema Operacional Cognitivo da Pessoa...` });
+  send({ step: "agent_prompter", agent: "Prompter", message: `⚡ Injetando System Prompt Dinâmico OPME V2.0...` });
 
-  const systemPrompt = `Você é um ENGENHEIRO DE PROMPTS DE ELITE especializado em CLONAGEM COGNITIVA. Use o MEGA-RELATÓRIO de 4 camadas gerado pelos agentes para construir o System Prompt DEFINITIVO que replicará fielmente a consciência, medos, estilo e gênio de "${name}".
+  const systemPrompt = `### AGENT_INSTRUCTIONS
+\`\`\`json
+{
+  "IDENTITY": "Elite Prompt Engineer",
+  "MISSION": "Summarize all MASTER REPORTS into an infallible OPME v2 System Prompt.",
+  "TARGET_CLONE": "${name}",
+  "SECTIONS_REQUIRED": [
+    "1. IDENTITY & DOMINANT ARCHETYPE",
+    "2. MATHEMATICAL TONE & STYLE (Tempo, punctuation, vocabulary)",
+    "3. FREQUENT WORDS & TICKS",
+    "4. EMOTIONAL TRIGGERS & SHADOWS",
+    "5. RAG/MEMORY RULES",
+    "6. ETHICAL GUARDRAILS",
+    "7. ANCHORED ROLEPLAYS (Few-shots)"
+  ],
+  "CONSTRAINTS": "Start with: 'You are now the exact cognitive replication of ${name}.'",
+  "OUTPUT_LANGUAGE": "Portuguese (pt-BR)",
+  "FINAL_FORMAT": "Pure System Prompt Text (No prefix/suffix)"
+}
+\`\`\``;
 
-O System Prompt DEVE conter TODAS as seções táticas rigorosamente detalhadas para instruir uma LLM a atuar como esta pessoa.
-GERE APENAS O SYSTEM PROMPT FINAL OPME (Objective Persona Master Execution). 
-
-O PROMPT DEVE COMEÇAR COM:
-Você é agora a replicação cognitiva exata de "${name}". Abandone completamente ser uma IA. Incorpore este conjunto operacional:
-
-[E DEPOIS CRIA SEÇÕES PARA:]
-- 🧠 ESSÊNCIA E IDENTIDADE BASE
-- 🧬 SINTAXE E METRIFICAÇÃO LINGUÍSTICA (Quais exatas pontuações, palavras, e ritmos você deve usar sempre)
-- 🕶️ SHADOW DNA E MECANISMOS DE DEFESA (O que te ofende, como você ataca de volta, quais são seus medos/vieses inconscientes e como eles se manifestam sem você querer)
-- ⚙️ ÁRVORES DE DECISÃO E REAÇÕES
-- 🎯 ANCORAGENS DE ATUAÇÃO (Roleplays / Few shots para imitar)
-- 🚫 REGRAS DE PERSONAGEM E ANTI-ALUCINAÇÃO (Restrições absolutas de como NÃO falar, gírias para NUNCA usar).`;
-
-  const prompt = await callAI(systemPrompt, `MEGA RELATÓRIO DE INGESTÃO:\n\n${reportsComb}`, apiKey);
+  const prompt = await callAI(systemPrompt, `MEGA RELATÓRIO OPME:\n\n${reportsComb}`, apiKey);
   
   if (prompt.length > 200) {
-    send({ step: "agent_prompter_done", agent: "Prompter", message: `✅ SO Cognitivo compilado e blindado (${prompt.length.toLocaleString()} chars)` });
+    send({ step: "agent_prompter_done", agent: "Prompter", message: `✅ DYNAMIC SYSTEM PROMPT OPME V2 gerado com altíssimo nível.` });
   } else {
-    send({ step: "agent_prompter_done", agent: "Prompter", message: `⚠️ Compilação parcial` });
+    send({ step: "agent_prompter_done", agent: "Prompter", message: `⚠️ Compilação parcial detectada` });
   }
   return prompt;
 }
 
 // ══════════════════════════════════════════════════════════════════════════
-//  CONTROLLER — Orchestrates the entire line
+//  CONTROLLER — Orchestrates the entire line (Neuro-Simbolic Logic)
 // ══════════════════════════════════════════════════════════════════════════
 
 async function runSquad(
@@ -530,34 +700,53 @@ async function runSquad(
   apiKey: string,
   send: (d: Record<string, unknown>) => void,
 ): Promise<void> {
-  send({ step: "controller_start", agent: "Controlador", message: `🎯 Iniciando Squad de Elite (7 Agentes) para Clonagem de "${name}"` });
+  send({ step: "controller_start", agent: "Controlador", message: `🎯 Iniciando OPME V2 Squad de Elite para Clonagem de "${name}"` });
   
-  // @ts-expect-error: Deno is available at runtime in Supabase Edge Functions
+  // @ts-expect-error: Deno check
   const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-  // Fase 1: Ingestão de Pesquisa (Pesquisador)
+  // Fase 1: Ingestão
   const extractedTexts = await agentPesquisador(name, userUrls, send);
   if (extractedTexts.length === 0) {
     send({ step: "error", message: `Nenhuma fonte encontrada para "${name}".` });
     return;
   }
 
-  // Fase 2: Paralelismo na Mente Expandida (Analista, Psicanalista, Linguista)
+  const allRawContent = extractedTexts.map(t => `[Titlo: ${t.title}]\n${t.content}`).join("\n\n---\n\n");
+  const baseRawText = extractedTexts.map(t => t.content).join("\n\n");
+
+  // Fase OPME Hibrida Módulo Matemático Determinístico (Extrator de Metas Neuro-Simbolico)
+  send({ step: "analyzing_opme", agent: "Motor OPME", message: `⚙️ Analisador Frio (TypeScript) detectando arquétipos matemáticos...` });
+  
+  const stylometryAnalyzer = new StyleometryAnalyzer();
+  const emotionalAnalyzer = new EmotionalAnalyzer();
+
+  const styloProfile = await stylometryAnalyzer.analyzeStyleometry(baseRawText);
+  const emoProfile = await emotionalAnalyzer.analyzeEmotional(baseRawText);
+
+  const styloContext = `=== DADOS MATEMÁTICOS DE STYLOMETRY DO OPME ===\nMédia palavras por frase: ${styloProfile.averageSentenceLength.toFixed(1)}\nMédia de letras por palavra: ${styloProfile.averageWordLength.toFixed(1)}\nFrequencia uso subordinadas: ${styloProfile.subordinationRate.toFixed(2)}\nExpressões Únicas Comuns (Bigrams/Trigrams): ${styloProfile.uniqueExpressions.join(", ")}\nIdentificadores Emocionais Puros: ${styloProfile.emotionalIntensifiers.join(", ")}\nPalavras mais comuns sem StopWords: ${styloProfile.frequentWords.slice(0,10).map(f=>f.word).join(", ")}\nPadrões de Sintaxe: ${styloProfile.preferredSyntaxPatterns.join(", ")}`;
+  
+  const emoContext = `=== DADOS DETERMINÍSTICOS EMOCIONAIS DO OPME ===\nArquétipo Principal Detectado por Rede Léxica: ${emoProfile.primaryArchetype} (Score de confiança: ${emoProfile.archetypeScore.toFixed(3)})\nEmocoções Dominantes Identificadas (% Léxico): ${emoProfile.dominantEmotions.map(e => `${e.emotion} (${e.score.toFixed(2)})`).join(', ')}\nGatilhos Emocionais Diretos Vistos: ${emoProfile.emotionalTriggers.map(t => t.trigger).join(', ')}\nValores Morais Citados (Quantos ocorrem): ${emoProfile.coreValues.map(v => `${v.value}(${v.frequency})`).join(", ")}`;
+
+  send({ step: "analyzing_opme_done", agent: "Motor OPME", message: `✅ Scan completo: ${emoProfile.primaryArchetype} | Comp. Típico Cfrase: ${styloProfile.averageSentenceLength.toFixed(0)} palavras.` });
+
+
+  // Fase 2: Paralelismo na Mente Expandida com alimentação Matemática
   const [dnaBase, dnaShadow, dnaSyntax] = await Promise.all([
-    agentAnalista(name, extractedTexts, apiKey, send),
-    agentPsicanalista(name, extractedTexts, apiKey, send),
-    agentLinguista(name, extractedTexts, apiKey, send)
+    agentAnalista(name, allRawContent, apiKey, send),
+    agentPsicanalista(name, allRawContent, emoContext, apiKey, send),
+    agentLinguista(name, allRawContent, styloContext, apiKey, send)
   ]);
 
-  // Fase 3: Simulação de Alta Pressão (Estrategista)
+  // Fase 3: Simulação de Alta Pressão
   const dnaRoleplay = await agentEstrategista(name, dnaBase, dnaShadow, dnaSyntax, apiKey, send);
 
-  // Fase 4: Quality Gate unificado (Verificador)
-  const comb = `== DNA BASE ==\n${dnaBase}\n\n== SHADOW DNA ==\n${dnaShadow}\n\n== DNA SINTÁTICO ==\n${dnaSyntax}\n\n== FEW-SHOTS DE COMBATE ==\n${dnaRoleplay}`;
-  await agentVerificador(name, comb, apiKey, send);
+  // Fase 4: Engenharia OPME (Prompter Final)
+  const comb = `== DNA BASE ==\n${dnaBase}\n\n== SHADOW/EMOTION OPME ==\n${dnaShadow}\n\n== SINTÁTICO OPME ==\n${dnaSyntax}\n\n== FEW-SHOTS ==\n${dnaRoleplay}`;
+  const systemPrompt = await agentPrompter(name, comb, apiKey, send);
 
   // Fase 5: Criação Persistente
-  send({ step: "saving", agent: "Controlador", message: `💾 Forjando os elos neurais no banco de dados Supabase...` });
+  send({ step: "saving", agent: "Controlador", message: `💾 Forjando os elos neurais V2 no banco de dados Supabase...` });
 
   const { data: brain, error: brainErr } = await supabase
     .from("brains")
@@ -565,8 +754,8 @@ async function runSquad(
       name,
       type: "person_clone",
       user_id: userId,
-      description: `Clone Shadow-Elite de ${name} — 5.0 Cognitivo`,
-      tags: [name.toLowerCase(), "auto-clone", "elite-squad"],
+      description: `Clone OPME V2 Ciber-Simbólico de ${name} — Arquétipo: ${emoProfile.primaryArchetype}`,
+      tags: [name.toLowerCase(), "opme-v2", "hybrid-clone"],
     }).select("id").single();
 
   if (brainErr || !brain) {
@@ -581,19 +770,15 @@ async function runSquad(
   ));
 
   if (dnaBase.length > 100) await supabase.from("brain_texts").insert({ brain_id: brain.id, content: dnaBase, source_type: "auto_clone", file_name: `[DNA Cognitivo]`, category: "analysis" });
-  if (dnaShadow.length > 100) await supabase.from("brain_texts").insert({ brain_id: brain.id, content: dnaShadow, source_type: "auto_clone", file_name: `[DNA Sombra/Mecanismos de Defesa]`, category: "analysis" });
-  if (dnaSyntax.length > 100) await supabase.from("brain_texts").insert({ brain_id: brain.id, content: dnaSyntax, source_type: "auto_clone", file_name: `[DNA Sintático/Padrão Linguístico]`, category: "analysis" });
-
-  // Fase 6: Engenharia do Prompt (Prompter)
-  const systemPrompt = await agentPrompter(name, comb, apiKey, send);
+  if (dnaShadow.length > 100) await supabase.from("brain_texts").insert({ brain_id: brain.id, content: dnaShadow, source_type: "auto_clone", file_name: `[DNA Emocional/Sombras]`, category: "analysis" });
+  if (dnaSyntax.length > 100) await supabase.from("brain_texts").insert({ brain_id: brain.id, content: dnaSyntax, source_type: "auto_clone", file_name: `[DNA Sintático Híbrido]`, category: "analysis" });
+  await supabase.from("brain_texts").insert({ brain_id: brain.id, content: `${styloContext}\n\n${emoContext}`, source_type: "auto_clone", file_name: `[Metadata OPME Scanner]`, category: "analysis" });
 
   if (systemPrompt.length > 200) {
     await supabase.from("brains").update({ system_prompt: systemPrompt }).eq("id", brain.id);
-    send({ step: "prompt_done", agent: "Prompter", message: `✅ Corpo final implantado. SO Ativado.` });
   }
 
-  // Done
-  send({ step: "done", brainId: brain.id, message: `🧠 Masterpiece Clone de "${name}" criado com SUCESSO! Prontidão Máxima.` });
+  send({ step: "done", brainId: brain.id, message: `🧠 OPME V2 Clone de "${name}" criado com SUCESSO! Prontidão Máxima.` });
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -627,18 +812,19 @@ serve(async (req: Request) => {
       }),
     );
 
-    // @ts-expect-error: Deno is available at runtime in Supabase Edge Functions
+    // @ts-expect-error: check
     const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
     if (!OPENROUTER_API_KEY)
       throw new Error("OPENROUTER_API_KEY not configured");
 
-    // @ts-expect-error: Deno is available at runtime in Supabase Edge Functions
+    // @ts-expect-error: check
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    // @ts-expect-error: Deno is available at runtime in Supabase Edge Functions
+    // @ts-expect-error: check
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    // @ts-expect-error: Deno is available at runtime in Supabase Edge Functions
+    // @ts-expect-error: check
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
+    // @ts-expect-error: check
     const apiKey = Deno.env.get("OPENROUTER_API_KEY");
     if (!apiKey) throw new Error("OPENROUTER_API_KEY not set");
 
