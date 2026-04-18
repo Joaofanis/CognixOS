@@ -28,6 +28,7 @@ export function useCloneSummon() {
   const [isSummoning, setIsSummoning] = useState(false);
   const [pendingSummon, setPendingSummon] = useState<SummonRequest | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const isRunningRef = useRef(false); // ref to prevent stale closure zombie streams
 
   /**
    * Scan streamed text for AI-triggered summon tags.
@@ -52,7 +53,8 @@ export function useCloneSummon() {
     userProfileSummary?: string,
     mode?: "fast" | "thinking" | "default",
   ) => {
-    if (isSummoning) return;
+    if (isRunningRef.current) return; // use ref, not state, to prevent stale closure
+    isRunningRef.current = true;
     setIsSummoning(true);
     setPendingSummon(null);
 
@@ -98,15 +100,16 @@ export function useCloneSummon() {
       let buffer = "";
       let accumulated = "";
 
-      // Placeholder message
-      const msgId = Date.now();
+      // Use a unique ID to correctly track this specific summon message during streaming
+      const msgId = `${cloneId}-${Date.now()}`;
       setSummonedMessages(prev => [...prev, {
         role: "assistant",
         content: "",
         cloneId,
         cloneName: "Clone convocado",
         isSummoned: true,
-      }]);
+        id: msgId,
+      } as SummonedMessage & { id: string }]);
 
       while (true) {
         const { done, value } = await reader.read();
@@ -127,10 +130,10 @@ export function useCloneSummon() {
               accumulated += chunk;
               setSummonedMessages(prev => {
                 const newPrev = [...prev];
-                // Update the last summoned message for this clone
-                const lastIdx = newPrev.map((m, i) => m.cloneId === cloneId ? i : -1).filter(i => i >= 0).pop();
-                if (lastIdx !== undefined) {
-                  newPrev[lastIdx] = { ...newPrev[lastIdx], content: accumulated };
+                // Find by unique msgId to prevent updating wrong clone message
+                const targetIdx = newPrev.findIndex((m: any) => m.id === msgId);
+                if (targetIdx !== -1) {
+                  newPrev[targetIdx] = { ...newPrev[targetIdx], content: accumulated };
                 }
                 return newPrev;
               });
@@ -148,9 +151,10 @@ export function useCloneSummon() {
         isSummoned: true,
       }]);
     } finally {
+      isRunningRef.current = false;
       setIsSummoning(false);
     }
-  }, [isSummoning]);
+  }, []); // stable ref — running state managed via isRunningRef
 
   /**
    * Update clone name on a summoned message once we know it.

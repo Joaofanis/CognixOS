@@ -54,9 +54,11 @@ export function useAgentSquad({ onDone }: UseAgentSquadProps = {}) {
   const [finalAnswer, setFinalAnswer] = useState<string | null>(null);
   const [synthesisSoFar, setSynthesisSoFar] = useState("");
   const abortRef = useRef<AbortController | null>(null);
+  const isRunningRef = useRef(false); // ref guard to prevent race condition on double-click
 
   const reset = () => {
     abortRef.current?.abort();
+    isRunningRef.current = false;
     setEvents([]);
     setFinalAnswer(null);
     setSynthesisSoFar("");
@@ -65,14 +67,17 @@ export function useAgentSquad({ onDone }: UseAgentSquadProps = {}) {
 
   const stop = useCallback(() => {
     abortRef.current?.abort();
+    isRunningRef.current = false;
     setIsRunning(false);
   }, []);
 
   const runSquad = useCallback(
     async (query: string, brainIds?: string[]) => {
-      if (!query.trim() || isRunning) return;
+      // Guard via ref to prevent race condition from rapid double-clicks
+      if (!query.trim() || isRunningRef.current) return;
 
       reset();
+      isRunningRef.current = true;
       setIsRunning(true);
 
       const controller = new AbortController();
@@ -138,6 +143,7 @@ export function useAgentSquad({ onDone }: UseAgentSquadProps = {}) {
           { type: "error", message: err.message || "Falha no squad" },
         ]);
       } finally {
+        isRunningRef.current = false;
         setIsRunning(false);
       }
     },

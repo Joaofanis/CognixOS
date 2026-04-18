@@ -42,7 +42,8 @@ Se não houver detalhes úteis (mensagens como "ok", "obrigado", "oi"), retorne 
     const aiData = await aiResponse.json();
     const rawText = aiData.choices?.[0]?.message?.content || "[]";
     
-    const match = rawText.match(/\[([\s\S]*)\]/);
+    // Non-greedy, bounded regex to prevent ReDoS on malformed AI output
+    const match = rawText.match(/\[([^\]]{0,5000})\]/);
     if (!match) return;
     
     const parsed = JSON.parse(`[${match[1]}]`);
@@ -153,8 +154,12 @@ async function verifyHmac(payload: string, timestamp: string, signature: string)
     ["verify", "sign"]
   );
 
+  if (!signature) return false;
+  const matches = signature.match(/.{1,2}/g);
+  if (!matches) return false;
+
   const signatureBytes = new Uint8Array(
-    signature.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16))
+    matches.map(byte => parseInt(byte, 16))
   );
 
   return await crypto.subtle.verify("HMAC", key, signatureBytes, data);
@@ -205,6 +210,18 @@ serve(async (req: Request) => {
         },
       );
     }
+
+    // @ts-expect-error: Deno is available at runtime in Supabase Edge Functions
+    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
+    if (!OPENROUTER_API_KEY)
+      throw new Error("OPENROUTER_API_KEY not configured");
+
+    // @ts-expect-error: Deno is available at runtime in Supabase Edge Functions
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    // @ts-expect-error: Deno is available at runtime in Supabase Edge Functions
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    // @ts-expect-error: Deno is available at runtime in Supabase Edge Functions
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
     const { brainId, messages, mode } = body as {
       brainId: unknown;
@@ -350,17 +367,7 @@ serve(async (req: Request) => {
       );
     }
     
-    // @ts-expect-error: Deno is available at runtime in Supabase Edge Functions
-    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
-    if (!OPENROUTER_API_KEY)
-      throw new Error("OPENROUTER_API_KEY not configured");
 
-    // @ts-expect-error: Deno is available at runtime in Supabase Edge Functions
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    // @ts-expect-error: Deno is available at runtime in Supabase Edge Functions
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    // @ts-expect-error: Deno is available at runtime in Supabase Edge Functions
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
     // Verify User JWT
     const userClient = createClient(supabaseUrl, supabaseAnonKey, {
