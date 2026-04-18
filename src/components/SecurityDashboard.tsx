@@ -93,7 +93,7 @@ export default function SecurityDashboard() {
               <ShieldCheck className="h-6 w-6 text-green-500" />
               <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 rounded-lg text-[9px] font-black uppercase tracking-widest">Ativo</Badge>
             </div>
-            <CardTitle className="mt-2 text-lg font-black italic tracking-tighter uppercase italic">Neural Shield v3.0</部長>
+            <CardTitle className="mt-2 text-lg font-black italic tracking-tighter uppercase italic">Neural Shield v3.0</CardTitle>
             <CardDescription className="text-[10px] font-mono tracking-widest uppercase">Firewall de Prompt Ativo</CardDescription>
           </CardHeader>
           <CardContent>
