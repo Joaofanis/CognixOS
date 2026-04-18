@@ -16,6 +16,13 @@ const createSafeClient = () => {
         if (prop === 'auth') {
           return new Proxy({} as any, {
             get: (_, authProp) => {
+              if (authProp === 'onAuthStateChange') {
+                return (callback: any) => {
+                  // Call immediately to prevent UI loading hangs
+                  setTimeout(() => callback('SIGNED_OUT', null), 0);
+                  return { data: { subscription: { unsubscribe: () => {} } } };
+                };
+              }
               return () => {
                 console.warn(`Supabase unavailable: auth.${String(authProp)} called but no URL configured.`);
                 return Promise.resolve({ data: { user: null, session: null }, error: null });
