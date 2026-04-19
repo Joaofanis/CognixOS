@@ -415,8 +415,10 @@ serve(async (req: Request) => {
 
     const contextParts: string[] = [];
     let systemPrompt = "";
+    let chronicleContext = "";
 
     if (hasBrain) {
+      // 1. Fetch Knowledge Texts (RAG)
       const { data: texts } = await supabase
         .from("brain_texts")
         .select("content, rag_summary, rag_keywords, category, rag_processed")
@@ -432,6 +434,43 @@ serve(async (req: Request) => {
             if (t.rag_summary) contextParts.push(`${cat} ${keywords}\nResumo: ${t.rag_summary}`);
           } else if (t.content) {
             contextParts.push(t.content);
+          }
+        }
+      }
+
+      // 2. Fetch Identity Chronicle (ID-RAG Graph)
+      const { data: analysis } = await supabase
+        .from("brain_analysis")
+        .select("identity_chronicle")
+        .eq("brain_id", brainId)
+        .maybeSingle();
+
+      if (analysis?.identity_chronicle) {
+        const cron = analysis.identity_chronicle as any;
+        const nodes = cron.nodes || [];
+        const edges = cron.edges || [];
+
+        if (nodes.length > 0) {
+          chronicleContext = "\n[CRÔNICA DE IDENTIDADE - AXIOMAS & ASSOCIAÇÕES MENTAIS]\n";
+          chronicleContext += "Você deve ancorar suas respostas nestes pilares fundamentais:\n";
+          
+          // Inject Nodes by Type
+          const beliefs = nodes.filter((n: any) => n.type === 'belief').map((n: any) => n.label);
+          const values = nodes.filter((n: any) => n.type === 'value').map((n: any) => n.label);
+          const heuristics = nodes.filter((n: any) => n.type === 'heuristic').map((n: any) => n.label);
+
+          if (beliefs.length > 0) chronicleContext += `- CRENÇAS CENTRAIS: ${beliefs.join(", ")}\n`;
+          if (values.length > 0) chronicleContext += `- VALORES INEGOCIÁVEIS: ${values.join(", ")}\n`;
+          if (heuristics.length > 0) chronicleContext += `- HEURÍSTICAS DE DECISÃO: ${heuristics.join(", ")}\n`;
+
+          // Inject key associations (Edges)
+          const keyEdges = edges.slice(0, 10).map((e: any) => {
+            const src = nodes.find((n: any) => n.id === e.source)?.label || e.source;
+            const tgt = nodes.find((n: any) => n.id === e.target)?.label || e.target;
+            return `${src} -> [${e.label}] -> ${tgt}`;
+          });
+          if (keyEdges.length > 0) {
+            chronicleContext += "\nAssociações Semânticas Prioritárias:\n" + keyEdges.join("\n") + "\n";
           }
         }
       }
@@ -465,6 +504,7 @@ serve(async (req: Request) => {
     if (hasBrain && brain) {
       if (brain.system_prompt && brain.system_prompt.trim()) {
         systemPrompt = brain.system_prompt.trim();
+        systemPrompt += chronicleContext; // Inject graph anchors
         systemPrompt += `\n\nContexto de Conhecimento de "${brain.name}":\n${contextTexts}`;
       } else {
         const baseInstruction =
@@ -486,6 +526,7 @@ serve(async (req: Request) => {
           default:
             systemPrompt = `Você é um assistente de IA. ${baseInstruction}`;
         }
+        systemPrompt += chronicleContext; // Inject graph anchors
         systemPrompt += `\n\nContexto de Conhecimento de "${brain.name}":\n${contextTexts}`;
       }
     } else {

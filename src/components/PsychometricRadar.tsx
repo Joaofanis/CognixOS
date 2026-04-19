@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
 import {
   Radar,
   RadarChart,
@@ -30,6 +31,7 @@ const COLORS = ["#3b82f6", "#8b5cf6", "#10b981", "#f59e0b", "#ef4444", "#06b6d4"
 export default function PsychometricRadar({ brainId }: PsychometricRadarProps) {
   const queryClient = useQueryClient();
   const [isUpgrading, setIsUpgrading] = useState(false);
+  const [activeModel, setActiveModel] = useState<'ocean' | 'hexaco'>('ocean');
 
   const { data: analysis, isLoading, refetch } = useQuery({
     queryKey: ["brain_analysis", brainId],
@@ -110,6 +112,33 @@ export default function PsychometricRadar({ brainId }: PsychometricRadarProps) {
     { name: "Emoção", value: (commStyle.expressividade_emocional || 5) * 10 }
   ];
 
+  const hexaco = analysis.hexaco as Record<string, number> || {};
+  const hexacoData = [
+    { name: "H-Humildade", value: (hexaco.honesty_humility || 5) * 10 },
+    { name: "Emocionalidade", value: (hexaco.emotionality || 5) * 10 },
+    { name: "Extroversão", value: (hexaco.extraversion || 5) * 10 },
+    { name: "Afabilidade", value: (hexaco.agreeableness || 5) * 10 },
+    { name: "Escrupulosidade", value: (hexaco.conscientiousness || 5) * 10 },
+    { name: "Abertura", value: (hexaco.openness || 5) * 10 }
+  ];
+
+  const handleRecalculate = async () => {
+    setIsUpgrading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      await supabase.functions.invoke("analyze-brain", {
+        body: { brainId, brainType: "person_clone" },
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      queryClient.invalidateQueries({ queryKey: ["brain_analysis", brainId] });
+      refetch();
+    } catch (error) {
+      console.error("Failed to manual upgrade clone:", error);
+    } finally {
+      setIsUpgrading(false);
+    }
+  };
+
   const disc = analysis.disc_profile as Record<string, string | number | boolean | null>;
   const dna = analysis.cognitive_dna as Record<string, string | number | boolean | null>;
   const voice = analysis.voice_patterns as Record<string, string | string[] | number | null>;
@@ -163,6 +192,16 @@ export default function PsychometricRadar({ brainId }: PsychometricRadarProps) {
             DISC: {disc.dominant}
           </div>
         )}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleRecalculate}
+          disabled={isUpgrading}
+          className="ml-auto h-8 gap-2 rounded-xl border border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 text-[10px] font-black uppercase tracking-widest"
+        >
+          <RefreshCw className={cn("h-3 w-3", isUpgrading && "animate-spin")} />
+          Recalcular DNA (OPME v2.0)
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -202,26 +241,40 @@ export default function PsychometricRadar({ brainId }: PsychometricRadarProps) {
           </CardContent>
         </Card>
 
-        {/* Big Five (OCEAN) Mapping */}
+        {/* Big Five (OCEAN) / HEXACO Mapping */}
         <Card className="lg:col-span-2 bg-gradient-to-br from-[#121214] to-[#0a0a0c] border-white/5 shadow-2xl rounded-3xl overflow-hidden group">
-          <CardHeader className="pb-0 border-b border-white/5 bg-white/[0.01]">
+          <CardHeader className="pb-0 border-b border-white/5 bg-white/[0.01] flex-row items-center justify-between">
             <CardTitle className="text-sm font-black tracking-widest uppercase flex items-center gap-2 text-muted-foreground group-hover:text-blue-400 transition-colors">
               <Network className="h-4 w-4" />
-              Arquitetura de Personalidade (Big Five)
+              Arquitetura de Personalidade ({activeModel === 'ocean' ? 'Big Five' : 'HEXACO'})
             </CardTitle>
+            <div className="flex gap-1 bg-white/5 p-1 rounded-lg">
+               <button 
+                 onClick={() => setActiveModel('ocean')}
+                 className={cn("px-2 py-1 text-[9px] font-black uppercase transition-all rounded-md", activeModel === 'ocean' ? "bg-primary text-white" : "text-muted-foreground hover:text-white")}
+               >
+                 OCEAN
+               </button>
+               <button 
+                 onClick={() => setActiveModel('hexaco')}
+                 className={cn("px-2 py-1 text-[9px] font-black uppercase transition-all rounded-md", activeModel === 'hexaco' ? "bg-primary text-white" : "text-muted-foreground hover:text-white")}
+               >
+                 HEXACO
+               </button>
+            </div>
           </CardHeader>
           <CardContent className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
               <div className="h-[240px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={oceanData} layout="vertical" margin={{ top: 0, right: 30, left: 40, bottom: 0 }}>
+                  <BarChart data={activeModel === 'ocean' ? oceanData : hexacoData} layout="vertical" margin={{ top: 0, right: 30, left: 40, bottom: 0 }}>
                     <XAxis type="number" domain={[0, 100]} hide />
                     <YAxis 
                       dataKey="name" 
                       type="category" 
                       axisLine={false} 
                       tickLine={false} 
-                      tick={{ fill: 'rgba(255,255,255,0.8)', fontSize: 11, fontWeight: 800 }} 
+                      tick={{ fill: 'rgba(255,255,255,0.8)', fontSize: 10, fontWeight: 800 }} 
                       width={100}
                     />
                     <Tooltip 
@@ -229,8 +282,8 @@ export default function PsychometricRadar({ brainId }: PsychometricRadarProps) {
                       contentStyle={{ backgroundColor: '#0c0c0d', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}
                     />
                     <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={22}>
-                      {oceanData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      {(activeModel === 'ocean' ? oceanData : hexacoData).map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Bar>
                   </BarChart>

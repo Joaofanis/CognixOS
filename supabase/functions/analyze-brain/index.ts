@@ -9,7 +9,7 @@ const corsHeaders = {
 };
 
 // ══════════════════════════════════════════════════════════════════════════
-//  OPME v2.0 - MODULOS DETERMINÍSTICOS (DUPLICADOS PARA CONSISTÊNCIA EDGE)
+//  OPME v2.0 - FORENSIC & COGNITIVE MODULES
 // ══════════════════════════════════════════════════════════════════════════
 
 class StyleometryAnalyzer {
@@ -22,19 +22,37 @@ class StyleometryAnalyzer {
     if (!words.length) return { averageSentenceLength: 0, typeTokenRatio: 0, frequentWords: [] };
 
     const uniqueWords = new Set(words);
+    const ttr = uniqueWords.size / words.length;
+    const hapax = words.filter(w => words.filter(x => x === w).length === 1).length;
+    
     const subRate = (text.match(/\b(que|porque|se|quando|embora|como|pois|portanto)\b/gi) || []).length / (sentences.length || 1);
+    
+    // Forensic metrics
+    const charNGrams = this.getCharNGrams(text, 3);
     
     return {
       averageSentenceLength: words.length / (sentences.length || 1),
-      typeTokenRatio: uniqueWords.size / words.length,
+      typeTokenRatio: ttr,
+      lexicalRichness: (hapax / words.length) * 100,
       subordinationRate: subRate,
       frequentWords: this.getFrequent(words),
-      intensifiers: ['absolutamente', 'completamente', 'totalmente', 'extremamente', 'muito', 'realmente'].filter(w => new RegExp(`\\b${w}\\b`, 'gi').test(text))
+      charNGrams,
+      intensifiers: ['absolutamente', 'completamente', 'totalmente', 'extremamente', 'muito', 'realmente', 'sinceramente'].filter(w => new RegExp(`\\b${w}\\b`, 'gi').test(text))
     };
   }
 
+  private getCharNGrams(text: string, n: number) {
+    const clean = text.toLowerCase().replace(/\s+/g, ' ');
+    const grams = {};
+    for (let i = 0; i <= clean.length - n; i++) {
+        const gram = clean.substring(i, i + n);
+        grams[gram] = (grams[gram] || 0) + 1;
+    }
+    return Object.entries(grams).sort((a,b) => b[1] - a[1]).slice(0, 10).map(e => ({ gram: e[0], count: e[1] }));
+  }
+
   private getFrequent(words: string[]) {
-    const stopLines = new Set(['o', 'a', 'de', 'para', 'com', 'em', 'por', 'que', 'e', 'é', 'do', 'da', 'um', 'uma', 'os', 'as', 'ou', 'mas', 'não', 'se', 'mais', 'isso']);
+    const stopLines = new Set(['o', 'a', 'de', 'para', 'com', 'em', 'por', 'que', 'e', 'é', 'do', 'da', 'um', 'uma', 'os', 'as', 'ou', 'mas', 'não', 'se', 'mais', 'isso', 'este', 'esta', 'está']);
     const freq = {};
     words.filter(w => w.length > 3 && !stopLines.has(w)).forEach(w => freq[w] = (freq[w] || 0) + 1);
     return Object.entries(freq).sort((a,b) => b[1] - a[1]).slice(0, 15).map(e => e[0]);
@@ -44,12 +62,12 @@ class StyleometryAnalyzer {
 class EmotionalAnalyzer {
   analyze(text: string) {
     const keys = {
-      enthusiasm: /incrível|excelente|bora|vamos|show|perfeito/gi,
-      anger: /raiva|absurdo|indignado|detesto|injustiça|basta/gi,
-      fear: /medo|preocupado|receio|talvez|perigo/gi,
-      humor: /haha|rsrs|brincadeira|piada|engraçado|sarcasmo/gi,
-      determination: /foco|meta|objetivo|resultado|disciplina/gi,
-      compassion: /entendo|empatia|ajudar|apoiar|cuidado/gi
+      enthusiasm: /incrível|excelente|bora|vamos|show|perfeito|fantástico/gi,
+      anger: /raiva|absurdo|indignado|detesto|injustiça|basta|ridículo/gi,
+      fear: /medo|preocupado|receio|talvez|perigo|risco/gi,
+      humor: /haha|rsrs|brincadeira|piada|engraçado|sarcasmo|kkk/gi,
+      determination: /foco|meta|objetivo|resultado|disciplina|estratégia/gi,
+      compassion: /entendo|empatia|ajudar|apoiar|cuidado|solidário/gi
     };
     const results = {};
     Object.entries(keys).forEach(([k, reg]) => {
@@ -57,14 +75,16 @@ class EmotionalAnalyzer {
     });
     
     const archetypes = {
-      mentor: /ensino|aprenda|guia|orientação|conhecimento/gi,
-      hero: /desafio|superação|vencer|força|garra/gi,
-      sage: /análise|fato|evidência|lógica|razão/gi,
-      sovereign: /ordem|controle|liderança|regra|sistema/gi
+      mentor: /ensino|aprenda|guia|orientação|conhecimento|mestre/gi,
+      hero: /desafio|superação|vencer|força|garra|vitória/gi,
+      sage: /análise|fato|evidência|lógica|razão|ciência/gi,
+      sovereign: /ordem|controle|liderança|regra|sistema|poder/gi,
+      explorer: /novo|descoberta|viagem|explorar|curiosidade/gi
     };
     const archScores = {};
     Object.entries(archetypes).forEach(([k, reg]) => { archScores[k] = (text.match(reg) || []).length; });
 
+    const totalEmo = Object.values(results).reduce((a,b)=>a+b,0) || 1;
     const topEmotion = Object.entries(results).sort((a,b) => b[1]-a[1])[0];
     const topArch = Object.entries(archScores).sort((a,b) => b[1]-a[1])[0];
 
@@ -72,7 +92,7 @@ class EmotionalAnalyzer {
       dominant: topEmotion[0], 
       archetype: topArch[0],
       scores: results,
-      mapping: Object.entries(results).map(([emotion, score]) => ({ emotion, score: score / (Object.values(results).reduce((a,b)=>a+b,0) || 1) }))
+      mapping: Object.entries(results).map(([emotion, score]) => ({ emotion, score: score / totalEmo }))
     };
   }
 }
@@ -97,22 +117,40 @@ function extractJSON(text: string): Record<string, unknown> | null {
 function getPrompts(brainType: string, allText: string, opmeContext: string) {
   let radarField = brainType === "person_clone" ? "personality_traits" : "knowledge_areas";
   
-  const systemPrompt = `Você é um Analista de DNA Cognitivo OPME v2.0 (Sistema Alan Nicolas). Examine os dados abaixo:
+  const systemPrompt = `Você é um Analista de DNA Cognitivo Forense OPME v2.0. Examine os dados reais abaixo:
   
 ${opmeContext}
 
-Sua missão é gerar um perfil psicométrico de ALTA FIDELIDADE.
+Sua missão é gerar um perfil de ALTA FIDELIDADE baseado na Hipótese Lexical Fundamental.
 Retorne APENAS um objeto JSON com:
 - "${radarField}": { "traço": nota 0-10 }
-- "disc_profile": { "dominant": "D|I|S|C", "logic": "explicação breve" }
-- "mbti": "Tipo (ex: INTJ)",
-- "enneagram": "Tipo (ex: 5w6)",
-- "cognitive_dna": { 
-    "pillars": { "lexicon": [], "cadence": "descrição", "rhythm": "" },
-    "heuristics": "principais regras de decisão",
-    "shadow": "traços de sombra emocional"
-  },
-- "skills": { "habilidade": nota 0-10 },
+- "hexaco": { 
+    "honesty_humility": 0-10, 
+    "emotionality": 0-10, 
+    "extraversion": 0-10, 
+    "agreeableness": 0-10, 
+    "conscientiousness": 0-10, 
+    "openness": 0-10 
+  }
+- "forensic_stylometry": {
+    "hapax_legomena_ratio": 0-100,
+    "syntax_complexity": "baixa|media|alta",
+    "signature_patterns": ["n-gram de estilo"],
+    "modal_preference": "preferência verbal"
+  }
+- "identity_chronicle": {
+    "core_beliefs": [],
+    "value_hierarchy": [],
+    "archetypal_narrative": "descrição do papel social"
+  }
+- "fidelity_scores": {
+    "adherence": 0-100,
+    "consistency": 0-100,
+    "naturalness": 0-100
+  }
+- "disc_profile": { "dominant": "D|I|S|C", "logic": "explicação" }
+- "mbti": "Tipo",
+- "enneagram": "Tipo",
 - "communication_style": { "formalidade": 0-10, "humor": 0-10, "diretividade": 0-10 },
 - "voice_patterns": { "aberturas": [], "expressoes": [] },
 - "signature_phrases": [],
@@ -146,15 +184,16 @@ serve(async (req: Request) => {
 
     let allText = texts.map(t => t.content).join("\n\n").slice(0, 45000);
 
-    // --- OPME Scan ---
+    // --- OPME Forensic Scan ---
     const stylo = new StyleometryAnalyzer().analyze(allText);
     const emo = new EmotionalAnalyzer().analyze(allText);
-    const opmeContext = `[MÉTRICAS DETERMINÍSTICAS] 
-Média Frase: ${stylo.averageSentenceLength.toFixed(1)}
-Diversidade (TTR): ${stylo.typeTokenRatio.toFixed(3)}
-Arquétipo Emoção: ${emo.dominant}
+    const opmeContext = `[MÉTRICAS FORENSES DETERMINÍSTICAS] 
+Riqueza Lexical (TTR): ${stylo.typeTokenRatio.toFixed(3)}
+Hapax Ratio: ${stylo.lexicalRichness.toFixed(2)}%
+Comprimento Frase Médio: ${stylo.averageSentenceLength.toFixed(1)}
 Arquétipo Persona: ${emo.archetype}
-Palavras-Chave Frias: ${stylo.frequentWords.join(", ")}`;
+Top Character N-Grams: ${stylo.charNGrams.map(g => g.gram).join(", ")}
+Intensificadores: ${stylo.intensifiers.join(", ")}`;
 
     const { systemPrompt, userPrompt, radarField } = getPrompts(brainType, allText, opmeContext);
 
@@ -174,7 +213,7 @@ Palavras-Chave Frias: ${stylo.frequentWords.join(", ")}`;
       }
     }
 
-    if (!analysisData) throw new Error("IA falhou na análise");
+    if (!analysisData) throw new Error("IA falhou na análise forense");
 
     // Process and Upsert
     const radarData = analysisData[radarField] || {};
@@ -193,6 +232,10 @@ Palavras-Chave Frias: ${stylo.frequentWords.join(", ")}`;
       mbti: analysisData.mbti,
       enneagram: analysisData.enneagram,
       cognitive_dna: analysisData.cognitive_dna,
+      hexaco: analysisData.hexaco,
+      forensic_stylometry: analysisData.forensic_stylometry,
+      identity_chronicle: analysisData.identity_chronicle,
+      fidelity_scores: analysisData.fidelity_scores,
       updated_at: new Date().toISOString(),
     };
 
@@ -202,6 +245,8 @@ Palavras-Chave Frias: ${stylo.frequentWords.join(", ")}`;
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e: any) {
+    console.error("Analysis Error:", e);
     return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });
+

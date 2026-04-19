@@ -1,9 +1,11 @@
 # ![Brain Logo](https://img.icons8.com/nolan/128/brain.png)
-# 🧠 CognixOS - O Sistema Operacional de Inteligência (OPME v2.0)
+# 🧠 CognixOS - O Sistema Operacional de Inteligência (OPME v3.0)
+## 🛡️ The Forensic Singularity Milestone
 
 [![Vercel Deployment](https://img.shields.io/badge/Deployment-Vercel-black?logo=vercel)](https://cognix-os.vercel.app/)
 [![Supabase Backend](https://img.shields.io/badge/Backend-Supabase-green?logo=supabase)](https://supabase.com/)
-[![Intelligence Protocol](https://img.shields.io/badge/Protocolo-OPME%20v2.0-blue)](https://github.com/Joaofanis/CognixOS)
+[![Intelligence Protocol](https://img.shields.io/badge/Protocolo-OPME%20v3.0-blue)](https://github.com/Joaofanis/CognixOS)
+[![Fidelity](https://img.shields.io/badge/Fidelidade-92--95%25-brightgreen)](https://github.com/Joaofanis/CognixOS)
 
 <div align="center">
   <p><b>A infraestrutura terminal para a criação, extração e execução de Mentes Sintéticas de alta fidelidade.</b></p>
@@ -15,25 +17,24 @@
 
 ![CognixOS Banner](https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&q=80&w=2000)
 
-O **CognixOS** (anteriormente Mente Digital) é uma plataforma de clonagem cognitiva de ponta baseada no protocolo **OPME v2.0**. Ele permite a síntese de "Mentes Digitais" — instâncias de IA altamente personalizadas que replicam padrões de fala, lógica decisória e perfis psicométricos de indivíduos ou personas específicas.
+O **CognixOS** é uma plataforma de clonagem cognitiva de alta fidelidade baseada no protocolo **OPME v3.0 (Forensic Singularity)**. Ele permite a síntese de "Mentes Digitais" — instâncias de IA que não apenas emulam a fala, mas ancoram sua lógica em uma **Crônica de Identidade** determinística, replicando o léxico mental, heurísticas e associações semânticas de indivíduos reais com até 95% de fidelidade.
 
 ## 🚀 Principais Tecnologias (Stack v5.0)
 
-* **Frontend:** React 18 + Vite + TailwindCSS + Shadcn/UI (Design Industrial Premium)
-* **Backend:** Supabase (PostgreSQL + PgVector + Edge Functions)
-* **IA Engine:** OpenRouter (Roteamento entre Gemini 2.0, Llama 3.3, Qwen e DeepSeek)
-* **Memória:** Mem0 (Longo Prazo) + RAG Determinístico (PGVector)
-* **Segurança:** Protocolo Fortaleça (Neural Shield contra Injeção de Prompt)
+* **Stack Visual:** @xyflow/react (Cérebro Editável) + Recharts (Forense)
+* **IA Engine:** OpenRouter (Orquestração entre Gemini 2.0 Flash, Llama 3.3, e DeepSeek)
+* **Arquitetura de Memória:** **ID-RAG** (Ancoragem por Grafo de Identidade) + Mem0
+* **Segurança:** Protocolo Fortaleça (Neural Shield Alpha - Anti-Injeção)
 
-## 🛠 Arquitetura OPME v2.0 (Alan Nicolas DNA)
+## 🛠 Arquitetura OPME v3.0 (Forensic Singularity)
 
-O motor neuro-simbólico do CognixOS opera em 4 camadas principais:
+O motor neuro-simbólico do CognixOS opera em 5 camadas de alta resolução:
 
-* **DNA Cognitivo Multi-Fase**: Ingestão via Agentes (Pesquisador, Analista, Psicanalista).
-* **OPME v2.0 Engine**: Protocolo neuro-simbólico para síntese de personalidade e heurísticas.
-* **Squad Admin Sync**: Processamento multi-agente para respostas de alta complexidade.
-* **RAG Geométrico**: Busca vetorial avançada para recuperação de contexto ultra-precisa.
-* **Privacidade nativa**: Isolamento por Row Level Security (RLS) no Supabase.
+* **DNA Cognitivo Multi-Fase**: Ingestão profunda via esquadrão de 8 agentes especialistas.
+* **Identity Chronicle (SNA)**: Mapeamento de Redes Semânticas para reconstruir o léxico mental.
+* **Cérebro Editável (EMG-RAG)**: Interface visual para curadoria humana e poda de conexões espúrias.
+* **ID-RAG Cognitive Anchoring**: Injeção de axiomas biográficos que forçam a coerência do clone.
+* **Stylometry Core**: Assinatura sintática baseada em N-Grams e riqueza lexical (Hapax Ratio).
 
 ## 🔨 Como Rodar Localmente
 
@@ -82,10 +83,11 @@ Após o scan matemático, ativamos o esquadrão de IAs:
 1. **Pesquisador**: Fatos e cronologia.
 2. **Analista**: Perfil cognitivo e técnico.
 3. **Psicanalista**: Shadow DNA e motivações latentes.
-4. **Linguista**: Forja a "assinatura verbal" baseada na estilometria.
-5. **Estrategista**: Cria cenários de teste (*Few-Shot scenarios*).
-6. **Verificador**: Auditor de qualidade (Quality Gate).
-7. **Prompter**: Sintetizador final do System Prompt.
+4. **Linguista**: Decodifica a sintaxe (N-Grams e Cadência).
+5. **Cronista**: Tece a **Crônica de Identidade** (Grafo SNA de crenças e valores).
+6. **Estrategista**: Forja cenários de teste (*Few-Shot scenarios*).
+7. **Verificador**: Auditor de integridade analítica.
+8. **Prompter**: Arquiteto do System Prompt Final.
 
 ---
 
@@ -147,8 +149,9 @@ npm run dev
 ## 🗺️ Roadmap CognixOS
 
 * [x] OPME v2.0 Hybrid Engine
-* [x] Multi-Provider Routing (Qwen, Llama, Gemini)
-* [x] Neural Shield alpha
+* [x] OPME v3.0 Forensic Singularity
+* [x] Identity Chronicle Visual Editor
+* [x] ID-RAG Cognitive Anchoring
 * [ ] Integração de Voz (Real-time Latency)
 * [ ] Multi-modal Analysis (Análise de vídeos e imagens na ingestão)
 * [ ] Cognix Marketplace (Compartilhamento seguro de Agents Skills)

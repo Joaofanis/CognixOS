@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -381,6 +382,11 @@ export default function CreateBrainDialog({ open, onOpenChange }: Props) {
           <DialogTitle>
             {autoCloneMode ? "Auto-Criar Clone" : "Criar Novo Ativo de IA"}
           </DialogTitle>
+          <DialogDescription className="text-xs text-muted-foreground">
+            {autoCloneMode
+              ? "O sistema buscará informações e criará o clone automaticamente."
+              : "Siga os passos para criar um novo cérebro digital."}
+          </DialogDescription>
         </DialogHeader>
 
         {/* ── AUTO-CLONE MODE ── */}

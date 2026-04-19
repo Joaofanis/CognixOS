@@ -11,11 +11,14 @@ import {
   ArrowLeft, MessageSquare, FileText, BarChart3, MoreVertical,
   Pencil, Trash2, PlusCircle, Brain as BrainIcon, Sparkles,
   PanelLeftClose, PanelLeft, Menu, Settings, Check, X,
+  Fingerprint,
 } from "lucide-react";
 import FeedTexts from "@/components/FeedTexts";
 import ChatInterface from "@/components/ChatInterface";
 import PsychometricRadar from "@/components/PsychometricRadar";
+import ForensicDashboard from "@/components/ForensicDashboard";
 import BrainPromptEditor from "@/components/BrainPromptEditor";
+import IdentityGraphEditor from "@/components/IdentityGraphEditor";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -365,6 +368,12 @@ export default function BrainDetail() {
                 <TabsTrigger value="analysis" className="gap-1.5 px-1 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none font-semibold transition-all text-xs text-muted-foreground">
                   <BarChart3 className="h-3.5 w-3.5" /> {t("brainDetail.analysis")}
                 </TabsTrigger>
+                <TabsTrigger value="forensic" className="gap-1.5 px-1 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none font-semibold transition-all text-xs text-muted-foreground">
+                  <Fingerprint className="h-3.5 w-3.5" /> Forense
+                </TabsTrigger>
+                <TabsTrigger value="chronicle" className="gap-1.5 px-1 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none font-semibold transition-all text-xs text-muted-foreground">
+                  <GitBranch className="h-3.5 w-3.5" /> Crônica
+                </TabsTrigger>
                 <TabsTrigger value="prompt" className="gap-1.5 px-1 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none font-semibold transition-all text-xs text-muted-foreground">
                   <Sparkles className="h-3.5 w-3.5" /> {t("brainDetail.prompt")}
                 </TabsTrigger>
@@ -373,8 +382,14 @@ export default function BrainDetail() {
             <TabsContent value="texts" className="m-0 bg-background/50 flex-1 overflow-y-auto">
               <FeedTexts brainId={brain.id} />
             </TabsContent>
-            <TabsContent value="analysis" className="m-0 bg-background/50 flex-1 overflow-y-auto pt-6 px-4">
+            <TabsContent value="analysis" className="m-0 bg-background/50 flex-1 overflow-y-auto pt-6 px-4 text-left">
               <PsychometricRadar brainId={brain.id} />
+            </TabsContent>
+            <TabsContent value="forensic" className="m-0 bg-background/50 flex-1 overflow-y-auto pt-6 px-4 text-left">
+              <ForensicDashboard brainId={brain.id} />
+            </TabsContent>
+            <TabsContent value="chronicle" className="m-0 bg-background/50 flex-1 overflow-y-hidden pt-6 px-4 text-left">
+              <IdentityGraphEditor brainId={brain.id} />
             </TabsContent>
             <TabsContent value="prompt" className="m-0 bg-background/50 flex-1 overflow-y-auto">
               <BrainPromptEditor brainId={brain.id} />
