@@ -133,6 +133,8 @@ export default function CreateBrainDialog({ open, onOpenChange }: Props) {
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${session.access_token}`,
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            "X-Client-Info": "supabase-js-v2",
           },
           body: JSON.stringify({
             name: name.trim(),
@@ -377,7 +379,7 @@ export default function CreateBrainDialog({ open, onOpenChange }: Props) {
       <DialogContent className="max-w-lg max-h-[92vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {autoCloneMode ? "Auto-Criar Clone" : "Criar Novo Cérebro"}
+            {autoCloneMode ? "Auto-Criar Clone" : "Criar Novo Ativo de IA"}
           </DialogTitle>
         </DialogHeader>
 

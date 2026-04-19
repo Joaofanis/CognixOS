@@ -24,9 +24,9 @@ export default defineConfig(({ mode }) => ({
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
       },
       manifest: {
-        name: 'AI Second Brain',
-        short_name: 'Second Brain',
-        description: 'Seu clone digital inteligente com IA',
+        name: 'CognixOS',
+        short_name: 'CognixOS',
+        description: 'Seu clone digital inteligente CognixOS',
         theme_color: '#DBA827', // The gold accent color
         background_color: '#0A0C10',
         display: 'standalone',
@@ -55,5 +55,17 @@ export default defineConfig(({ mode }) => ({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-supabase': ['@supabase/supabase-js'],
+          'vendor-ui': ['@radix-ui/react-tabs', '@radix-ui/react-dialog', '@radix-ui/react-select', 'lucide-react'],
+          'vendor-react': ['react', 'react-dom', 'react-router-dom', '@tanstack/react-query'],
+        }
+      }
+    },
+    chunkSizeWarningLimit: 1000,
   },
 }));

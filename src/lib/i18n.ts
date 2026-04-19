@@ -29,7 +29,7 @@ const translations = {
   "common.shiftEnter": { "pt-BR": "Shift+Enter para nova linha", "en-US": "Shift+Enter for new line", "es-ES": "Shift+Enter para nueva línea" },
 
   // ── Auth ──────────────────────────────────────────────
-  "auth.title": { "pt-BR": "Segundo Cérebro", "en-US": "Second Brain", "es-ES": "Segundo Cerebro" },
+  "auth.title": { "pt-BR": "CognixOS", "en-US": "CognixOS", "es-ES": "CognixOS" },
   "auth.loginSubtitle": { "pt-BR": "Entre na sua conta para continuar", "en-US": "Sign in to continue", "es-ES": "Inicia sesión para continuar" },
   "auth.signupSubtitle": { "pt-BR": "Crie sua conta e comece agora", "en-US": "Create your account and get started", "es-ES": "Crea tu cuenta y empieza ahora" },
   "auth.login": { "pt-BR": "Entrar", "en-US": "Sign In", "es-ES": "Iniciar sesión" },
@@ -44,13 +44,13 @@ const translations = {
 
   // ── Dashboard ────────────────────────────────────────────
   "dashboard.greeting": { "pt-BR": "Olá,", "en-US": "Hello,", "es-ES": "¡Hola," },
-  "dashboard.brainsCount": { "pt-BR": "cérebro(s) no seu segundo cérebro.", "en-US": "brain(s) in your second brain.", "es-ES": "cerebro(s) en tu segundo cerebro." },
-  "dashboard.brainsWaiting": { "pt-BR": "Seus cérebros estão à sua espera.", "en-US": "Your brains are waiting for you.", "es-ES": "Tus cerebros te están esperando." },
+  "dashboard.brainsCount": { "pt-BR": "mentes em seu CognixOS.", "en-US": "minds in your CognixOS.", "es-ES": "mentes en tu CognixOS." },
+  "dashboard.brainsWaiting": { "pt-BR": "Suas mentes estão à sua espera.", "en-US": "Your minds are waiting for you.", "es-ES": "Tus mentes te están esperando." },
   "dashboard.searchPlaceholder": { "pt-BR": "Buscar mentes...", "en-US": "Search brains...", "es-ES": "Buscar cerebros..." },
   "dashboard.generalChat": { "pt-BR": "Chat Geral", "en-US": "General Chat", "es-ES": "Chat General" },
   "dashboard.aiProfile": { "pt-BR": "Perfil IA", "en-US": "AI Profile", "es-ES": "Perfil IA" },
   "dashboard.compare": { "pt-BR": "Comparar", "en-US": "Compare", "es-ES": "Comparar" },
-  "dashboard.createBrain": { "pt-BR": "Criar Cérebro", "en-US": "Create Brain", "es-ES": "Crear Cerebro" },
+  "dashboard.createBrain": { "pt-BR": "Criar Mente", "en-US": "Create Mind", "es-ES": "Crear Mente" },
   "dashboard.emptyTitle": { "pt-BR": "Sua mente está calma demais...", "en-US": "Your mind is too quiet...", "es-ES": "Tu mente está demasiado tranquila..." },
   "dashboard.emptyDesc": { "pt-BR": "Crie seu primeiro cérebro para começar a alimentar seu conhecimento!", "en-US": "Create your first brain to start building your knowledge!", "es-ES": "¡Crea tu primer cerebro para empezar a alimentar tu conocimiento!" },
   "dashboard.startNow": { "pt-BR": "Começar Agora", "en-US": "Start Now", "es-ES": "Empezar Ahora" },
@@ -178,7 +178,7 @@ const translations = {
   "promptEditor.saved": { "pt-BR": "Prompt salvo com sucesso!", "en-US": "Prompt saved successfully!", "es-ES": "¡Prompt guardado con éxito!" },
 
   // ── Create Brain Dialog ──────────────────────────────────
-  "createBrain.title": { "pt-BR": "Criar Novo Cérebro", "en-US": "Create New Brain", "es-ES": "Crear Nuevo Cerebro" },
+  "createBrain.title": { "pt-BR": "Criar Nova Mente", "en-US": "Create New Mind", "es-ES": "Crear Nueva Mente" },
   "createBrain.step1": { "pt-BR": "Identidade", "en-US": "Identity", "es-ES": "Identidad" },
   "createBrain.step2": { "pt-BR": "Base", "en-US": "Base", "es-ES": "Base" },
   "createBrain.step3": { "pt-BR": "Prompt", "en-US": "Prompt", "es-ES": "Prompt" },
@@ -286,7 +286,7 @@ const translations = {
 
   // ── Not Found ──────────────────────────────────────
   "notFound.title": { "pt-BR": "Página não encontrada", "en-US": "Page not found", "es-ES": "Página no encontrada" },
-  "notFound.desc": { "pt-BR": "Este caminho não existe no seu segundo cérebro. Que tal voltar para o início?", "en-US": "This path doesn't exist in your second brain. How about going back to the start?", "es-ES": "Esta ruta no existe en tu segundo cerebro. ¿Qué tal volver al inicio?" },
+  "notFound.desc": { "pt-BR": "Este caminho não existe no seu CognixOS. Que tal voltar para o início?", "en-US": "This path doesn't exist in your CognixOS. How about going back to the start?", "es-ES": "Esta ruta no existe en tu CognixOS. ¿Qué tal volver al inicio?" },
   "notFound.goHome": { "pt-BR": "Ir para o início", "en-US": "Go to home", "es-ES": "Ir al inicio" },
 
   // ── General Chat ──────────────────────────────────────

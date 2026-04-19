@@ -136,6 +136,7 @@ export default function VirtualOffice() {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session?.access_token}`,
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         },
         body: JSON.stringify({ challenge }),
       });
@@ -208,7 +209,7 @@ export default function VirtualOffice() {
               <Building className="h-4 w-4 text-primary" />
             </div>
             <div>
-              <h1 className="text-sm font-black tracking-tighter uppercase">Virtual Office AIOS</h1>
+              <h1 className="text-sm font-black tracking-tighter uppercase">Virtual Office CognixOS</h1>
               <p className="text-[10px] text-muted-foreground font-mono">STATUS: {isWorking ? 'MISSION_ACTIVE' : 'IDLE'}</p>
             </div>
           </div>
@@ -238,7 +239,7 @@ export default function VirtualOffice() {
           <div className="h-full flex items-center justify-center p-6 relative">
             <div className="max-w-2xl w-full space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-1000">
               <div className="text-center space-y-4">
-                <Badge variant="outline" className="px-4 py-1 rounded-full border-primary/30 text-primary animate-pulse font-mono tracking-widest text-[10px]">COGNITIVE OPERATIONS CENTER</Badge>
+                <Badge variant="outline" className="px-4 py-1 rounded-full border-primary/30 text-primary animate-pulse font-mono tracking-widest text-[10px]">COGNIXOS OPERATIONS CENTER</Badge>
                 <h2 className="text-5xl font-black tracking-tight leading-none">Qual a missão do <br/><span className="text-primary italic underline underline-offset-8 decoration-primary/20">seu escritório?</span></h2>
                 <p className="text-muted-foreground text-lg">Defina o desafio. O CEO montará o time ideal em segundos.</p>
               </div>

@@ -8,56 +8,72 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const VALID_BRAIN_TYPES = ["person_clone", "knowledge_base", "philosophy", "practical_guide"];
-
 // ══════════════════════════════════════════════════════════════════════════
 //  OPME v2.0 - MODULOS DETERMINÍSTICOS (DUPLICADOS PARA CONSISTÊNCIA EDGE)
 // ══════════════════════════════════════════════════════════════════════════
 
 class StyleometryAnalyzer {
-  private tokenizeWords(t: string) { return t.toLowerCase().match(/\b\w+\b/g) || []; }
-  private tokenizeSentences(t: string) { return t.split(/[.!?]+/).filter(s => s.trim().length > 0); }
+  private tokenizeWords(text: string): string[] { return text.toLowerCase().match(/\b\w+\b/g) || []; }
+  private tokenizeSentences(text: string): string[] { return text.split(/[.!?]+/).filter(s => s.trim().length > 0); }
   
   analyze(text: string) {
     const words = this.tokenizeWords(text);
     const sentences = this.tokenizeSentences(text);
-    if (!words.length) return {};
+    if (!words.length) return { averageSentenceLength: 0, typeTokenRatio: 0, frequentWords: [] };
 
-    const avgWordsPerSentence = words.length / (sentences.length || 1);
-    const avgCharsPerWord = words.reduce((a, b) => a + b.length, 0) / words.length;
-    const subRate = (text.match(/\b(que|porque|se|quando|embora)\b/gi) || []).length / (sentences.length || 1);
+    const uniqueWords = new Set(words);
+    const subRate = (text.match(/\b(que|porque|se|quando|embora|como|pois|portanto)\b/gi) || []).length / (sentences.length || 1);
     
     return {
-      avgSentenceLength: avgWordsPerSentence.toFixed(1),
-      avgWordLength: avgCharsPerWord.toFixed(1),
-      subordinationRate: subRate.toFixed(2),
-      frequentKeywords: this.getKeywords(words)
+      averageSentenceLength: words.length / (sentences.length || 1),
+      typeTokenRatio: uniqueWords.size / words.length,
+      subordinationRate: subRate,
+      frequentWords: this.getFrequent(words),
+      intensifiers: ['absolutamente', 'completamente', 'totalmente', 'extremamente', 'muito', 'realmente'].filter(w => new RegExp(`\\b${w}\\b`, 'gi').test(text))
     };
   }
 
-  private getKeywords(words: string[]) {
-    const stopLines = new Set(['o', 'a', 'de', 'para', 'com', 'em', 'por', 'que', 'e', 'é', 'do', 'da', 'um', 'uma', 'os', 'as', 'ou', 'mas', 'não', 'se']);
+  private getFrequent(words: string[]) {
+    const stopLines = new Set(['o', 'a', 'de', 'para', 'com', 'em', 'por', 'que', 'e', 'é', 'do', 'da', 'um', 'uma', 'os', 'as', 'ou', 'mas', 'não', 'se', 'mais', 'isso']);
     const freq = {};
     words.filter(w => w.length > 3 && !stopLines.has(w)).forEach(w => freq[w] = (freq[w] || 0) + 1);
-    return Object.entries(freq).sort((a,b) => b[1] - a[1]).slice(0, 10).map(e => e[0]);
+    return Object.entries(freq).sort((a,b) => b[1] - a[1]).slice(0, 15).map(e => e[0]);
   }
 }
 
 class EmotionalAnalyzer {
   analyze(text: string) {
     const keys = {
-      enthusiasm: /incrível|excelente|ótimo|fantástico|adorei/gi,
-      anger: /raiva|absurdo|irritado|detesto|injustiça/gi,
-      sage: /análise|fato|evidência|lógica|investigação/gi,
-      creator: /inovação|novo|experimento|criação|ideia/gi
+      enthusiasm: /incrível|excelente|bora|vamos|show|perfeito/gi,
+      anger: /raiva|absurdo|indignado|detesto|injustiça|basta/gi,
+      fear: /medo|preocupado|receio|talvez|perigo/gi,
+      humor: /haha|rsrs|brincadeira|piada|engraçado|sarcasmo/gi,
+      determination: /foco|meta|objetivo|resultado|disciplina/gi,
+      compassion: /entendo|empatia|ajudar|apoiar|cuidado/gi
     };
     const results = {};
     Object.entries(keys).forEach(([k, reg]) => {
       results[k] = (text.match(reg) || []).length;
     });
-    const top = Object.entries(results).sort((a,b) => b[1]-a[1])[0];
-    return { dominant: top[0], scores: results };
+    
+    const archetypes = {
+      mentor: /ensino|aprenda|guia|orientação|conhecimento/gi,
+      hero: /desafio|superação|vencer|força|garra/gi,
+      sage: /análise|fato|evidência|lógica|razão/gi,
+      sovereign: /ordem|controle|liderança|regra|sistema/gi
+    };
+    const archScores = {};
+    Object.entries(archetypes).forEach(([k, reg]) => { archScores[k] = (text.match(reg) || []).length; });
+
+    const topEmotion = Object.entries(results).sort((a,b) => b[1]-a[1])[0];
+    const topArch = Object.entries(archScores).sort((a,b) => b[1]-a[1])[0];
+
+    return { 
+      dominant: topEmotion[0], 
+      archetype: topArch[0],
+      scores: results,
+      mapping: Object.entries(results).map(([emotion, score]) => ({ emotion, score: score / (Object.values(results).reduce((a,b)=>a+b,0) || 1) }))
+    };
   }
 }
 
@@ -78,22 +94,28 @@ function extractJSON(text: string): Record<string, unknown> | null {
   return null;
 }
 
-const SKILLS_INSTRUCTION_TEXT = `Instruções: Avalie habilidades ESPECÍFICAS (ex: "storytelling de dados", "persuasão de vendas") e dê nota 0-10 baseada em evidência.`;
-
 function getPrompts(brainType: string, allText: string, opmeContext: string) {
   let radarField = brainType === "person_clone" ? "personality_traits" : "knowledge_areas";
   
-  const systemPrompt = `Você é um Analista de DNA Cognitivo OPME v2.0. Examine o texto e as METRIFICAÇÕES DETERMINÍSTICAS abaixo:
+  const systemPrompt = `Você é um Analista de DNA Cognitivo OPME v2.0 (Sistema Alan Nicolas). Examine os dados abaixo:
   
 ${opmeContext}
 
+Sua missão é gerar um perfil psicométrico de ALTA FIDELIDADE.
 Retorne APENAS um objeto JSON com:
 - "${radarField}": { "traço": nota 0-10 }
-- "skills": { "habilidade_especifica": nota 0-10 }
-- "skills_evaluation": "justificativa"
-- "communication_style": { "formalidade": 0-10, "humor": 0-10, "diretividade": 0-10 }
-- "voice_patterns": { "aberturas_tipicas": [], "expressoes_recorrentes": [] }
-- "signature_phrases": ["frase 1", "frase 2"]
+- "disc_profile": { "dominant": "D|I|S|C", "logic": "explicação breve" }
+- "mbti": "Tipo (ex: INTJ)",
+- "enneagram": "Tipo (ex: 5w6)",
+- "cognitive_dna": { 
+    "pillars": { "lexicon": [], "cadence": "descrição", "rhythm": "" },
+    "heuristics": "principais regras de decisão",
+    "shadow": "traços de sombra emocional"
+  },
+- "skills": { "habilidade": nota 0-10 },
+- "communication_style": { "formalidade": 0-10, "humor": 0-10, "diretividade": 0-10 },
+- "voice_patterns": { "aberturas": [], "expressoes": [] },
+- "signature_phrases": [],
 - "frequent_themes": [{"name": "tema", "count": X}]`;
 
   const userPrompt = `Baseado nos dados reais: ${allText}`;
@@ -122,12 +144,17 @@ serve(async (req: Request) => {
     const { data: texts } = await supabase.from("brain_texts").select("content").eq("brain_id", brainId);
     if (!texts?.length) throw new Error("Nenhum texto para análise");
 
-    let allText = texts.map(t => t.content).join("\n\n").slice(0, 50000);
+    let allText = texts.map(t => t.content).join("\n\n").slice(0, 45000);
 
     // --- OPME Scan ---
     const stylo = new StyleometryAnalyzer().analyze(allText);
     const emo = new EmotionalAnalyzer().analyze(allText);
-    const opmeContext = `[DADOS OPME] Média Sentença: ${stylo.avgSentenceLength}. Arquétipo Emoção: ${emo.dominant}. Vocabulário Chave: ${stylo.frequentKeywords.join(", ")}`;
+    const opmeContext = `[MÉTRICAS DETERMINÍSTICAS] 
+Média Frase: ${stylo.averageSentenceLength.toFixed(1)}
+Diversidade (TTR): ${stylo.typeTokenRatio.toFixed(3)}
+Arquétipo Emoção: ${emo.dominant}
+Arquétipo Persona: ${emo.archetype}
+Palavras-Chave Frias: ${stylo.frequentWords.join(", ")}`;
 
     const { systemPrompt, userPrompt, radarField } = getPrompts(brainType, allText, opmeContext);
 
@@ -151,19 +178,21 @@ serve(async (req: Request) => {
 
     // Process and Upsert
     const radarData = analysisData[radarField] || {};
-    const skills = analysisData.skills || {};
     const themes = (analysisData.frequent_themes || []).slice(0, 10);
 
     const upsertData = {
       brain_id: brainId,
       frequent_themes: themes,
-      skills,
-      skills_evaluation: analysisData.skills_evaluation,
+      skills: analysisData.skills || {},
       personality_traits: brainType === "person_clone" ? radarData : null,
       knowledge_areas: brainType !== "person_clone" ? radarData : null,
       communication_style: analysisData.communication_style,
       voice_patterns: analysisData.voice_patterns,
       signature_phrases: (analysisData.signature_phrases || []).slice(0, 10),
+      disc_profile: analysisData.disc_profile,
+      mbti: analysisData.mbti,
+      enneagram: analysisData.enneagram,
+      cognitive_dna: analysisData.cognitive_dna,
       updated_at: new Date().toISOString(),
     };
 

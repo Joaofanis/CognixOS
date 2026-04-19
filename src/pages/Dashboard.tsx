@@ -229,7 +229,7 @@ export default function Dashboard() {
               <div className="absolute -top-0.5 -right-0.5 h-3 w-3 bg-gradient-to-br from-primary to-accent rounded-full" />
             </div>
             <span className="font-extrabold text-xl tracking-tight text-gradient">
-              Segundo Cérebro
+              CognixOS
             </span>
           </div>
           <div className="flex items-center gap-2">

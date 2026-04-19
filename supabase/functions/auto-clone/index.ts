@@ -55,8 +55,8 @@ async function callAI(systemPrompt: string, userPrompt: string, apiKey: string, 
         headers: {
           Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
-          "HTTP-Referer": "https://ai-second-brain.app",
-          "X-Title": "AI Second Brain",
+          "HTTP-Referer": "https://cognixos.app",
+          "X-Title": "CognixOS",
         },
         body: JSON.stringify({
           model,
@@ -129,10 +129,10 @@ export class StyleometryAnalyzer {
   }
   calculateVerbTensePreference(text: string): Record<string, number> {
     const tenses = {
-      present: (text.match(/\b(sou|estou|tenho|faço|vou|digo|penso)\b/gi) || []).length,
-      past: (text.match(/\b(era|estava|tinha|fiz|disse|pensei|fui)\b/gi) || []).length,
-      future: (text.match(/\b(serei|estarei|terei|farei|direi|pensarei)\b/gi) || []).length,
-      conditional: (text.match(/\b(seria|estaria|teria|faria|diria|pensaria)\b/gi) || []).length,
+      present: (text.match(/\b(sou|estou|tenho|faço|vou|digo|penso|falo|quer)\b/gi) || []).length,
+      past: (text.match(/\b(era|estava|tinha|fiz|disse|pensei|fui|falou|quis)\b/gi) || []).length,
+      future: (text.match(/\b(serei|estarei|terei|farei|direi|pensarei|falarei|quererá)\b/gi) || []).length,
+      conditional: (text.match(/\b(seria|estaria|teria|faria|diria|pensaria|falaria|quisera)\b/gi) || []).length,
     };
     const total = Object.values(tenses).reduce((a, b) => a + b, 0);
     if (total === 0) return { present: 0, past: 0, future: 0, conditional: 0 };
@@ -141,16 +141,16 @@ export class StyleometryAnalyzer {
       return acc;
     }, {} as Record<string, number>);
   }
-  calculateFrequentWords(text: string, topN = 20): Array<{ word: string; frequency: number }> {
+  calculateFrequentWords(text: string, topN = 30): Array<{ word: string; frequency: number }> {
     const words = this.tokenizeWords(text);
-    const stopWords = new Set(['o', 'a', 'de', 'para', 'com', 'em', 'por', 'que', 'e', 'é', 'do', 'da', 'um', 'uma', 'os', 'as', 'dos', 'das', 'ou', 'mas', 'não', 'se', 'como', 'mais', 'isso']);
-    const filtered = words.filter(word => !stopWords.has(word));
+    const stopWords = new Set(['o', 'a', 'de', 'para', 'com', 'em', 'por', 'que', 'e', 'é', 'do', 'da', 'um', 'uma', 'os', 'as', 'dos', 'das', 'ou', 'mas', 'não', 'se', 'como', 'mais', 'isso', 'vcs', 'você', 'também', 'pra', 'pela', 'pelo']);
+    const filtered = words.filter(word => !stopWords.has(word) && word.length > 2);
     const frequency = new Map<string, number>();
     filtered.forEach(word => frequency.set(word, (frequency.get(word) || 0) + 1));
     return Array.from(frequency.entries()).map(([word, frequency]) => ({ word, frequency })).sort((a, b) => b.frequency - a.frequency).slice(0, topN);
   }
   calculateSubordinationRate(text: string): number {
-    const subordinatingConjunctions = /\b(que|porque|se|quando|onde|como|embora|ainda|portanto)\b/gi;
+    const subordinatingConjunctions = /\b(que|porque|se|quando|onde|como|embora|ainda|portanto|pois|contudo|entretanto|assim)\b/gi;
     const matches = text.match(subordinatingConjunctions) || [];
     const sentences = this.tokenizeSentences(text).length;
     return sentences > 0 ? matches.length / sentences : 0;
@@ -159,10 +159,10 @@ export class StyleometryAnalyzer {
     const phrases = text.match(/\b\w+\s+\w+\s+\w+(?:\s+\w+)?\b/g) || [];
     const frequency = new Map<string, number>();
     phrases.forEach(phrase => frequency.set(phrase, (frequency.get(phrase) || 0) + 1));
-    return Array.from(frequency.entries()).filter(([, count]) => count >= 2).map(([phrase]) => phrase).slice(0, 10);
+    return Array.from(frequency.entries()).filter(([, count]) => count >= 2).map(([phrase]) => phrase).slice(0, 15);
   }
   private extractEmotionalIntensifiers(text: string): string[] {
-    const intensifiers = ['absolutamente', 'completamente', 'totalmente', 'extremamente', 'muito', 'bastante', 'realmente', 'verdadeiramente', 'sinceramente', 'incrível', 'fantástico', 'excelente', 'perfeito', 'horrível'];
+    const intensifiers = ['absolutamente', 'completamente', 'totalmente', 'extremamente', 'muito', 'bastante', 'realmente', 'verdadeiramente', 'sinceramente', 'incrível', 'fantástico', 'excelente', 'perfeito', 'horrível', 'bizarro', 'surreal', 'genial'];
     const found = intensifiers.filter(word => new RegExp(`\\b${word}\\b`, 'gi').test(text));
     return [...new Set(found)];
   }
@@ -170,6 +170,7 @@ export class StyleometryAnalyzer {
     const patterns = [
       { pattern: /\b\w+\s+\w+\s+\w+\b/g, name: 'SVO Constantes' },
       { pattern: /\b\w+\s+,\s+\w+\s+\w+\b/g, name: 'Subordinadas Clássicas' },
+      { pattern: /\b(se|caso)\s+\w+\s+,\s+\w+\b/gi, name: 'Condicionais Diretas' },
     ];
     const found: string[] = [];
     patterns.forEach(({ pattern, name }) => { if (pattern.test(text)) found.push(name); });
@@ -193,12 +194,13 @@ export class StyleometryAnalyzer {
 
 export class EmotionalAnalyzer {
   private emotionKeywords = {
-    enthusiasm: { keywords: ['incrível', 'fantástico', 'excelente', 'adorei', 'perfeito'], patterns: [/\b(muito|bastante|extremamente)\s+(bom|legal|interessante)/gi] },
-    anger: { keywords: ['raiva', 'furioso', 'indignado', 'irritado', 'detesto', 'odeio', 'absurdo'], patterns: [/\b(não|nunca|jamais)\s+(aceito|tolero|permito)/gi] },
-    fear: { keywords: ['medo', 'assustado', 'preocupado', 'ansioso', 'talvez', 'provavelmente'], patterns: [/\b(e\s+se|talvez|possivelmente|pode\s+ser)/gi] },
-    humor: { keywords: ['haha', 'rsrs', 'brincadeira', 'piada', 'engraçado', 'sarcasmo', 'kkk'], patterns: [/\b(tipo|tipo\s+assim|basicamente)\b/gi] },
-    compassion: { keywords: ['entendo', 'compreendo', 'empatia', 'ajudar', 'apoiar', 'cuidado', 'pena'], patterns: [/\b(você\s+precisa|vou\s+ajudar|deixa\s+eu)/gi] },
-    sadness: { keywords: ['triste', 'infeliz', 'deprimido', 'desapontado', 'frustrado', 'fracasso'], patterns: [/\b(não\s+consegui|fracassei|perdi)\b/gi] }
+    enthusiasm: { keywords: ['incrível', 'fantástico', 'excelente', 'adorei', 'perfeito', 'bora', 'vamos', 'show'], patterns: [/\b(muito|bastante|extremamente)\s+(bom|legal|interessante)/gi] },
+    anger: { keywords: ['raiva', 'furioso', 'indignado', 'irritado', 'detesto', 'odeio', 'absurdo', 'basta'], patterns: [/\b(não|nunca|jamais)\s+(aceito|tolero|permito)/gi] },
+    fear: { keywords: ['medo', 'assustado', 'preocupado', 'ansioso', 'talvez', 'provavelmente', 'receio'], patterns: [/\b(e\s+se|talvez|possivelmente|pode\s+ser)/gi] },
+    humor: { keywords: ['haha', 'rsrs', 'brincadeira', 'piada', 'engraçado', 'sarcasmo', 'kkk', 'top'], patterns: [/\b(tipo|tipo\s+assim|basicamente)\b/gi] },
+    compassion: { keywords: ['entendo', 'compreendo', 'empatia', 'ajudar', 'apoiar', 'cuidado', 'pena', 'apoio'], patterns: [/\b(você\s+precisa|vou\s+ajudar|deixa\s+eu)/gi] },
+    sadness: { keywords: ['triste', 'infeliz', 'deprimido', 'desapontado', 'frustrado', 'fracasso', 'pena'], patterns: [/\b(não\s+consegui|fracassei|perdi)\b/gi] },
+    determination: { keywords: ['foco', 'meta', 'objetivo', 'resultado', 'execução', 'entrega', 'disciplina'], patterns: [/\b(temos\s+que|precisamos\s+de|foco\s+no)/gi] }
   };
 
   detectEmotion(text: string) {
@@ -217,10 +219,10 @@ export class EmotionalAnalyzer {
   identifyEmotionalTriggers(text: string) {
     const triggers: Array<{ trigger: string; emotion: string; intensity: 'low' | 'medium' | 'high' }> = [];
     const triggerPatterns = [
-      { pattern: /crítica|feedback negativo|injustiça|estúpido/gi, emotion: 'anger', intensity: 'high' as const },
-      { pattern: /fracasso|derrota|perda/gi, emotion: 'sadness', intensity: 'high' as const },
-      { pattern: /sucesso|vitória|conquista/gi, emotion: 'enthusiasm', intensity: 'high' as const },
-      { pattern: /incerteza|dúvida|talvez/gi, emotion: 'fear', intensity: 'medium' as const },
+      { pattern: /crítica|feedback negativo|injustiça|estúpido|burro/gi, emotion: 'anger', intensity: 'high' as const },
+      { pattern: /fracasso|derrota|perda|acabou/gi, emotion: 'sadness', intensity: 'high' as const },
+      { pattern: /sucesso|vitória|conquista|ganhou/gi, emotion: 'enthusiasm', intensity: 'high' as const },
+      { pattern: /incerteza|dúvida|talvez|não sei/gi, emotion: 'fear', intensity: 'medium' as const },
     ];
     triggerPatterns.forEach(({ pattern, emotion, intensity }) => {
       const matches = text.match(pattern) || [];
@@ -232,12 +234,13 @@ export class EmotionalAnalyzer {
   identifyArchetype(text: string) {
     const archetypeKeywords = {
       mentor: ['ensino', 'aprenda', 'guia', 'orientação', 'conhecimento', 'aula', 'processo'],
-      hero: ['desafio', 'superação', 'conquista', 'vitória', 'força', 'luta', 'garra'],
-      sage: ['análise', 'investigação', 'verdade', 'evidência', 'pesquisa', 'fato', 'razão'],
-      creator: ['inovação', 'criação', 'original', 'novo', 'experimento', 'ideia', 'arte'],
-      friend: ['empatia', 'conexão', 'amizade', 'apoio', 'comunidade', 'juntos', 'nós'],
-      alchemist: ['transformação', 'resultado', 'prático', 'ação', 'eficiência', 'dinheiro', 'retorno'],
-      explorer: ['descoberta', 'curiosidade', 'aventura', 'exploração', 'mundo', 'viagem'],
+      hero: ['desafio', 'superação', 'conquista', 'vitória', 'força', 'luta', 'garra', 'vencer'],
+      sage: ['análise', 'investigação', 'verdade', 'evidência', 'pesquisa', 'fato', 'razão', 'lógica'],
+      creator: ['inovação', 'criação', 'original', 'novo', 'experimento', 'ideia', 'arte', 'design'],
+      friend: ['empatia', 'conexão', 'amizade', 'apoio', 'comunidade', 'juntos', 'nós', 'pessoal'],
+      alchemist: ['transformação', 'resultado', 'prático', 'ação', 'eficiência', 'dinheiro', 'retorno', 'lucro'],
+      explorer: ['descoberta', 'curiosidade', 'aventura', 'exploração', 'mundo', 'viagem', 'novo'],
+      sovereign: ['ordem', 'controle', 'liderança', 'regra', 'governo', 'direção', 'sistema'],
     };
     const scores: Record<string, number> = {};
     Object.entries(archetypeKeywords).forEach(([archetype, keywords]) => {
@@ -245,13 +248,14 @@ export class EmotionalAnalyzer {
       keywords.forEach(keyword => score += (text.match(new RegExp(`\\b${keyword}\\b`, 'gi')) || []).length);
       scores[archetype] = score;
     });
-    const maxArchetype = Object.entries(scores).sort((a, b) => b[1] - a[1])[0];
+    const entries = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+    const maxArchetype = entries[0];
     const total = Object.values(scores).reduce((a, b) => a + b, 0);
-    return { archetype: maxArchetype ? maxArchetype[0] : 'friend', score: total > 0 && maxArchetype ? maxArchetype[1] / total : 0 };
+    return { archetype: maxArchetype && maxArchetype[1] > 0 ? maxArchetype[0] : 'sage', score: total > 0 && maxArchetype ? maxArchetype[1] / total : 0 };
   }
 
   extractCoreValues(text: string) {
-    const values = ['liberdade', 'justiça', 'inovação', 'excelência', 'integridade', 'criatividade', 'lealdade', 'verdade', 'riqueza'];
+    const values = ['liberdade', 'justiça', 'inovação', 'excelência', 'integridade', 'criatividade', 'lealdade', 'verdade', 'riqueza', 'segurança', 'conhecimento', 'poder'];
     const result: Array<{ value: string; frequency: number }> = [];
     values.forEach(value => {
       const matches = text.match(new RegExp(`\\b${value}\\b`, 'gi')) || [];
@@ -270,7 +274,6 @@ export class EmotionalAnalyzer {
     };
   }
 }
-
 // ══════════════════════════════════════════════════════════════════════════
 //  SEARCH FUNCTIONS
 // ══════════════════════════════════════════════════════════════════════════
@@ -656,33 +659,31 @@ async function agentPrompter(
   apiKey: string,
   send: (d: Record<string, unknown>) => void,
 ): Promise<string> {
-  send({ step: "agent_prompter", agent: "Prompter", message: `⚡ Injetando System Prompt Dinâmico OPME V2.0...` });
+  send({ step: "agent_prompter", agent: "Prompter", message: `⚡ Construindo System Prompt Neuro-Simbólico OPME V2.0 de "${name}"...` });
 
   const systemPrompt = `### AGENT_INSTRUCTIONS
 \`\`\`json
 {
-  "IDENTITY": "Elite Prompt Engineer",
-  "MISSION": "Summarize all MASTER REPORTS into an infallible OPME v2 System Prompt.",
+  "IDENTITY": "Elite Prompt Engineer & Cognitive Architect",
+  "MISSION": "Synthesize MASTER REPORTS into an infallible System Prompt based on the ALAN NICOLAS DNA structure.",
   "TARGET_CLONE": "${name}",
   "SECTIONS_REQUIRED": [
-    "1. IDENTITY & DOMINANT ARCHETYPE",
-    "2. MATHEMATICAL TONE & STYLE (Tempo, punctuation, vocabulary)",
-    "3. FREQUENT WORDS & TICKS",
-    "4. EMOTIONAL TRIGGERS & SHADOWS",
-    "5. RAG/MEMORY RULES",
-    "6. ETHICAL GUARDRAILS",
-    "7. ANCHORED ROLEPLAYS (Few-shots)"
+    "1. PSYCHOMETRIC_PROFILE (MBTI, DISC, Enneagram - strictly based on analytical data)",
+    "2. DNA_PILLARS (Detailed Lexicon, Cadence, Tone, and Linguistic Rhythm)",
+    "3. COGNITIVE_ENGINE (Decision heuristics, world view, and pop culture references used as analogies)",
+    "4. EMOTIONAL_MAP (Core values, shadow DNA, and shadow triggers)",
+    "5. OPERATIONAL_RULES (RAG integration, roleplay few-shots, and ethical guardrails)"
   ],
   "CONSTRAINTS": "Start with: 'You are now the exact cognitive replication of ${name}.'",
   "OUTPUT_LANGUAGE": "Portuguese (pt-BR)",
-  "FINAL_FORMAT": "Pure System Prompt Text (No prefix/suffix)"
+  "FINAL_FORMAT": "Extremely detailed System Prompt Text (No generic text, only the prompt body)"
 }
 \`\`\``;
 
   const prompt = await callAI(systemPrompt, `MEGA RELATÓRIO OPME:\n\n${reportsComb}`, apiKey);
   
   if (prompt.length > 200) {
-    send({ step: "agent_prompter_done", agent: "Prompter", message: `✅ DYNAMIC SYSTEM PROMPT OPME V2 gerado com altíssimo nível.` });
+    send({ step: "agent_prompter_done", agent: "Prompter", message: `✅ SYSTEM PROMPT ALAN NICOLAS DNA gerado com sucesso.` });
   } else {
     send({ step: "agent_prompter_done", agent: "Prompter", message: `⚠️ Compilação parcial detectada` });
   }
@@ -712,26 +713,25 @@ async function runSquad(
     return;
   }
 
-  const allRawContent = extractedTexts.map(t => `[Titlo: ${t.title}]\n${t.content}`).join("\n\n---\n\n");
+  const allRawContent = extractedTexts.map(t => `[Titulo: ${t.title}]\n${t.content}`).join("\n\n---\n\n");
   const baseRawText = extractedTexts.map(t => t.content).join("\n\n");
 
-  // Fase OPME Hibrida Módulo Matemático Determinístico (Extrator de Metas Neuro-Simbolico)
-  send({ step: "analyzing_opme", agent: "Motor OPME", message: `⚙️ Analisador Frio (TypeScript) detectando arquétipos matemáticos...` });
+  // Fase OPME Hibrida Módulo Matemático Determinístico
+  send({ step: "analyzing_opme", agent: "Motor OPME", message: `⚙️ Analisador Frio detectando padrões determinísticos...` });
   
-  const stylometryAnalyzer = new StyleometryAnalyzer();
+  const styleAnalyzer = new StyleometryAnalyzer();
   const emotionalAnalyzer = new EmotionalAnalyzer();
 
-  const styloProfile = await stylometryAnalyzer.analyzeStyleometry(baseRawText);
-  const emoProfile = await emotionalAnalyzer.analyzeEmotional(baseRawText);
+  const stylo = await styleAnalyzer.analyzeStyleometry(baseRawText);
+  const emo = await emotionalAnalyzer.analyzeEmotional(baseRawText);
 
-  const styloContext = `=== DADOS MATEMÁTICOS DE STYLOMETRY DO OPME ===\nMédia palavras por frase: ${styloProfile.averageSentenceLength.toFixed(1)}\nMédia de letras por palavra: ${styloProfile.averageWordLength.toFixed(1)}\nFrequencia uso subordinadas: ${styloProfile.subordinationRate.toFixed(2)}\nExpressões Únicas Comuns (Bigrams/Trigrams): ${styloProfile.uniqueExpressions.join(", ")}\nIdentificadores Emocionais Puros: ${styloProfile.emotionalIntensifiers.join(", ")}\nPalavras mais comuns sem StopWords: ${styloProfile.frequentWords.slice(0,10).map(f=>f.word).join(", ")}\nPadrões de Sintaxe: ${styloProfile.preferredSyntaxPatterns.join(", ")}`;
+  const styloContext = `=== STYLOMETRY GND ===\nMédia Frase: ${stylo.averageSentenceLength.toFixed(1)}\nTTR (Diversidade): ${stylo.typeTokenRatio.toFixed(3)}\nIntensificadores: ${stylo.emotionalIntensifiers.join(", ")}\nPadão de Sintaxe: ${stylo.preferredSyntaxPatterns.join(", ")}\nKeywords: ${stylo.frequentWords.slice(0,15).map(f=>f.word).join(", ")}`;
   
-  const emoContext = `=== DADOS DETERMINÍSTICOS EMOCIONAIS DO OPME ===\nArquétipo Principal Detectado por Rede Léxica: ${emoProfile.primaryArchetype} (Score de confiança: ${emoProfile.archetypeScore.toFixed(3)})\nEmocoções Dominantes Identificadas (% Léxico): ${emoProfile.dominantEmotions.map(e => `${e.emotion} (${e.score.toFixed(2)})`).join(', ')}\nGatilhos Emocionais Diretos Vistos: ${emoProfile.emotionalTriggers.map(t => t.trigger).join(', ')}\nValores Morais Citados (Quantos ocorrem): ${emoProfile.coreValues.map(v => `${v.value}(${v.frequency})`).join(", ")}`;
+  const emoContext = `=== EMOTIONAL GND ===\nArquétipo: ${emo.primaryArchetype}\nEmoções: ${emo.dominantEmotions.map(e => `${e.emotion}(${e.score.toFixed(2)})`).join(', ')}\nValores: ${emo.coreValues.map(v => v.value).join(", ")}`;
 
-  send({ step: "analyzing_opme_done", agent: "Motor OPME", message: `✅ Scan completo: ${emoProfile.primaryArchetype} | Comp. Típico Cfrase: ${styloProfile.averageSentenceLength.toFixed(0)} palavras.` });
+  send({ step: "analyzing_opme_done", agent: "Motor OPME", message: `✅ Scan completo: ${emo.primaryArchetype} detectado.` });
 
-
-  // Fase 2: Paralelismo na Mente Expandida com alimentação Matemática
+  // Fase 2: Mente Expandida (Paralelismo)
   const [dnaBase, dnaShadow, dnaSyntax] = await Promise.all([
     agentAnalista(name, allRawContent, apiKey, send),
     agentPsicanalista(name, allRawContent, emoContext, apiKey, send),
@@ -745,8 +745,8 @@ async function runSquad(
   const comb = `== DNA BASE ==\n${dnaBase}\n\n== SHADOW/EMOTION OPME ==\n${dnaShadow}\n\n== SINTÁTICO OPME ==\n${dnaSyntax}\n\n== FEW-SHOTS ==\n${dnaRoleplay}`;
   const systemPrompt = await agentPrompter(name, comb, apiKey, send);
 
-  // Fase 5: Criação Persistente
-  send({ step: "saving", agent: "Controlador", message: `💾 Forjando os elos neurais V2 no banco de dados Supabase...` });
+  // Fase 5: Persistência OPME V2.0
+  send({ step: "saving", agent: "Controlador", message: `💾 Forjando os elos neurais V2 no Supabase...` });
 
   const { data: brain, error: brainErr } = await supabase
     .from("brains")
@@ -754,8 +754,9 @@ async function runSquad(
       name,
       type: "person_clone",
       user_id: userId,
-      description: `Clone OPME V2 Ciber-Simbólico de ${name} — Arquétipo: ${emoProfile.primaryArchetype}`,
-      tags: [name.toLowerCase(), "opme-v2", "hybrid-clone"],
+      description: `Clone OPME V2 (Alan Nicolas DNA) de ${name} — Arquétipo: ${emo.primaryArchetype}`,
+      tags: [name.toLowerCase(), "opme-v2", "alan-nicolas-dna"],
+      system_prompt: systemPrompt
     }).select("id").single();
 
   if (brainErr || !brain) {
@@ -763,22 +764,31 @@ async function runSquad(
     return;
   }
 
+  // Save texts and analysis
   await Promise.all(extractedTexts.map(t =>
     supabase.from("brain_texts").insert({
       brain_id: brain.id, content: t.content, source_type: "auto_clone", file_name: t.title,
     })
   ));
 
-  if (dnaBase.length > 100) await supabase.from("brain_texts").insert({ brain_id: brain.id, content: dnaBase, source_type: "auto_clone", file_name: `[DNA Cognitivo]`, category: "analysis" });
-  if (dnaShadow.length > 100) await supabase.from("brain_texts").insert({ brain_id: brain.id, content: dnaShadow, source_type: "auto_clone", file_name: `[DNA Emocional/Sombras]`, category: "analysis" });
-  if (dnaSyntax.length > 100) await supabase.from("brain_texts").insert({ brain_id: brain.id, content: dnaSyntax, source_type: "auto_clone", file_name: `[DNA Sintático Híbrido]`, category: "analysis" });
-  await supabase.from("brain_texts").insert({ brain_id: brain.id, content: `${styloContext}\n\n${emoContext}`, source_type: "auto_clone", file_name: `[Metadata OPME Scanner]`, category: "analysis" });
+  // Upsert into brain_analysis with new profile data
+  const { error: analysisErr } = await supabase.from("brain_analysis").insert({
+    brain_id: brain.id,
+    personality_traits: emo.dominantEmotions.reduce((acc, e) => ({ ...acc, [e.emotion]: Math.round(e.score * 100) }), {}),
+    disc_profile: { dominant: emo.primaryArchetype.toUpperCase(), mapping: emo.dominantEmotions },
+    cognitive_dna: {
+      pillars: { lexicon: stylo.frequentWords, cadence: stylo.averageSentenceLength, style: stylo.preferredSyntaxPatterns },
+      heuristics: dnaBase,
+      shadow: dnaShadow
+    },
+    communication_style: { tempo: stylo.averageSentenceLength, complexity: stylo.subordinationRate, rhythm: stylo.typeTokenRatio },
+    voice_patterns: { patterns: stylo.preferredSyntaxPatterns, intensifiers: stylo.emotionalIntensifiers },
+    signature_phrases: stylo.uniqueExpressions
+  });
 
-  if (systemPrompt.length > 200) {
-    await supabase.from("brains").update({ system_prompt: systemPrompt }).eq("id", brain.id);
-  }
+  if (analysisErr) console.error("Error saving brain_analysis:", analysisErr);
 
-  send({ step: "done", brainId: brain.id, message: `🧠 OPME V2 Clone de "${name}" criado com SUCESSO! Prontidão Máxima.` });
+  send({ step: "done", brainId: brain.id, message: `🧠 OPME V2 Clone de "${name}" criado com SUCESSO! DNA persistido.` });
 }
 
 // ══════════════════════════════════════════════════════════════════════════

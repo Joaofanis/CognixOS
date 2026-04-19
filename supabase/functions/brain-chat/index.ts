@@ -341,6 +341,19 @@ serve(async (req: Request) => {
       }),
     );
 
+    // Verify User JWT
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: { user }, error: authError } = await userClient.auth.getUser();
+
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // --- Protocol Alpha Deployment ---
     if (isPromptInjection(sanitizedMessages)) {
       console.warn("[Neural Shield] Prompt Injection detected. Blocking request.");
@@ -367,21 +380,6 @@ serve(async (req: Request) => {
       );
     }
     
-
-
-    // Verify User JWT
-    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: { user }, error: authError } = await userClient.auth.getUser();
-
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     const userId = user.id;
 
     // Use service role for data operations
@@ -492,7 +490,7 @@ serve(async (req: Request) => {
       }
     } else {
       // MODE: GENERAL ASSISTANT (no brainId)
-      systemPrompt = `Você é o "AIOS Assistant", um assistente de IA geral poderoso, prestativo e inteligente. Você ajuda o usuário a gerenciar seu Segundo Cérebro, criar clones e analisar dados.`;
+      systemPrompt = `Você é o "CognixOS Assistant", um assistente de IA geral poderoso, prestativo e inteligente. Você ajuda o usuário a gerenciar seu CognixOS, criar clones e analisar dados.`;
       if (contextTexts) {
         systemPrompt += `\n\nInformações relevantes de memória de longo prazo do usuário:\n${contextTexts}`;
       }
@@ -539,7 +537,7 @@ serve(async (req: Request) => {
               Authorization: `Bearer ${OPENROUTER_API_KEY}`,
               "Content-Type": "application/json",
               "HTTP-Referer": "https://ai-second-brain.app",
-              "X-Title": "AI Second Brain",
+              "X-Title": "CognixOS",
             },
             body: JSON.stringify({
               model,

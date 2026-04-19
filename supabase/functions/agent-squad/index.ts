@@ -70,7 +70,7 @@ async function callAI(
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
         "HTTP-Referer": "https://ai-second-brain.app",
-        "X-Title": "AI Second Brain",
+        "X-Title": "CognixOS",
       },
       body: JSON.stringify({
         model: targetModel,

@@ -16,7 +16,6 @@ import {
   Trash2, 
   Wrench, 
   Building, 
-  Factory, 
   Terminal, 
   CheckCircle2, 
   Loader2, 
@@ -28,7 +27,8 @@ import {
   ShieldCheck,
   Target,
   ShieldAlert,
-  Shield
+  Shield,
+  Fingerprint
 } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -39,6 +39,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSquadSync } from "@/contexts/SquadSyncContext";
 import { cn } from "@/lib/utils";
+import PsychometricRadar from "@/components/PsychometricRadar";
 
 const SQUAD_STATIONS = [
   { id: "RAG", name: "Fonte de Conhecimento", icon: Box, color: "text-blue-500", bg: "bg-blue-500/10" },
@@ -124,6 +125,8 @@ export default function AIOS() {
     } catch (e) { toast.error(e instanceof Error ? e.message : "Erro interno"); }
   };
 
+  const [selectedBrainId, setSelectedBrainId] = useState<string | null>(null);
+
   // Auto-switch to production if syncing
   useEffect(() => {
     if (isSyncing) setActiveTab("production");
@@ -167,16 +170,16 @@ export default function AIOS() {
       </header>
 
       <main className="container max-w-6xl py-8 px-4 sm:px-8 flex-1 relative z-10 flex flex-col">
-        <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-6">
-          <div className="space-y-1">
-            <h2 className="text-3xl font-black italic tracking-tighter">ESTEIRA DE PRODUÇÃO</h2>
-            <p className="text-muted-foreground max-w-xl text-sm font-medium">
-              A arquitetura determinística para clonagem de especialistas. Transformando dados brutos em DNA sintético de alta fidelidade.
-            </p>
-          </div>
-          
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="shrink-0 bg-white/5 p-1 rounded-2xl border border-white/5">
-            <TabsList className="bg-transparent border-0 gap-1 h-auto">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col w-full" translate="no">
+          <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-6">
+            <div className="space-y-1">
+              <h2 className="text-3xl font-black italic tracking-tighter">ESTEIRA DE PRODUÇÃO</h2>
+              <p className="text-muted-foreground max-w-xl text-sm font-medium">
+                A arquitetura determinística para clonagem de especialistas. Transformando dados brutos em DNA sintético de alta fidelidade.
+              </p>
+            </div>
+            
+            <TabsList className="shrink-0 bg-white/5 p-1 rounded-2xl border border-white/5 border-0 gap-1 h-auto">
               <TabsTrigger value="production" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-white font-bold text-xs uppercase tracking-wider transition-all">
                 <Activity className="h-3.5 w-3.5 mr-2" /> Live Line
               </TabsTrigger>
@@ -186,12 +189,14 @@ export default function AIOS() {
               <TabsTrigger value="skills" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-white font-bold text-xs uppercase tracking-wider transition-all">
                 <Wrench className="h-3.5 w-3.5 mr-2" /> Playbooks
               </TabsTrigger>
+              <TabsTrigger value="dna" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-white font-bold text-xs uppercase tracking-wider transition-all">
+                <Fingerprint className="h-3.5 w-3.5 mr-2" /> DNA Hub
+              </TabsTrigger>
               <TabsTrigger value="security" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-red-500 data-[state=active]:text-white font-bold text-xs uppercase tracking-wider transition-all">
                 <Shield className="h-3.5 w-3.5 mr-2" /> Segurança
               </TabsTrigger>
             </TabsList>
-          </Tabs>
-        </div>
+          </div>
 
         <TabsContent value="production" className="flex-1 flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
           {/* Industrial Factory Visualization */}
@@ -466,7 +471,35 @@ export default function AIOS() {
         <TabsContent value="security" className="space-y-6 animate-in fade-in duration-500">
           <SecurityDashboard />
         </TabsContent>
-      </main>
+
+        <TabsContent value="dna" className="space-y-6 animate-in fade-in duration-500">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 bg-white/5 p-6 rounded-3xl border border-white/5 gap-4">
+             <div>
+                <h2 className="text-2xl font-black italic tracking-tighter leading-none uppercase">DNA EXPLORER</h2>
+                <p className="text-muted-foreground text-xs font-medium uppercase tracking-tight mt-1">Selecione um ativo para visualizar sua biometria cognitiva OPME.</p>
+             </div>
+             <Select value={selectedBrainId || ""} onValueChange={setSelectedBrainId}>
+                <SelectTrigger className="w-full md:w-[250px] bg-white/5 border-white/10 rounded-xl">
+                  <SelectValue placeholder="Selecione um Clone" />
+                </SelectTrigger>
+                <SelectContent className="bg-[#0c0c0d] border-white/10 text-white">
+                   {subagents?.map(a => (
+                     <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                   ))}
+                </SelectContent>
+             </Select>
+          </div>
+
+          {selectedBrainId ? (
+            <PsychometricRadar brainId={selectedBrainId} />
+          ) : (
+            <div className="py-20 text-center text-muted-foreground border-2 border-dashed border-white/10 rounded-3xl">
+              Nenhum clone selecionado para análise.
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+    </main>
     </div>
   );
 }

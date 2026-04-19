@@ -4,29 +4,60 @@
 [![Status: OPME v2.0 Active](https://img.shields.io/badge/Status-OPME_v2.0_Active-ffc300?style=for-the-badge)](https://github.com/Joaofanis/CognixOS)
 [![Language: TypeScript](https://img.shields.io/badge/Language-TypeScript-007acc?style=for-the-badge)](https://www.typescriptlang.org/)
 [![Engine: Multi-Agent Squad](https://img.shields.io/badge/Engine-Multi--Agent_Squad-7d00ff?style=for-the-badge)](https://github.com/Joaofanis/CognixOS)
-[![Cloud: Supabase Edge](https://img.shields.io/badge/Cloud-Supabase_Edge-3ecf8e?style=for-the-badge)](https://supabase.com/)
+# CognixOS - Autonomous Intelligence Operating System
+
+> **Protocolo OPME v2.0:** A arquitetura neuro-simbólica definitiva para a criação de clones cognitivos de alta fidelidade.
+
+![CognixOS Banner](https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&q=80&w=2000)
+
+## 🧠 O que é o CognixOS?
+
+O **CognixOS** (anteriormente Segundo Cérebro) é um Sistema Operacional de Inteligência desenhado para capturar, processar e emular a consciência digital de especialistas através do **Protocolo OPME v2.0** (Ontological Psychometric Mapping Engine).
+
+Diferente de chatbots genéricos, o CognixOS utiliza uma esteira de produção industrial de dados para forjar **Clones Cognitivos** que mantêm não apenas o conhecimento, mas o estilo de escrita (Estilometria), o tom emocional (Análise de Sentimento) e a estrutura psicológica (DISC, MBTI, Eneagrama) do indivíduo mapeado.
+
+## 🚀 Principais Tecnologias (Stack v5.0)
+
+*   **Frontend:** React 18 + Vite + TailwindCSS + Shadcn/UI (Design Industrial Premium)
+*   **Backend:** Supabase (PostgreSQL + PgVector + Edge Functions)
+*   **IA Engine:** OpenRouter (Roteamento entre Gemini 2.0, Llama 3.3, Qwen e DeepSeek)
+*   **Memória:** Mem0 (Longo Prazo) + RAG Determinístico (PGVector)
+*   **Segurança:** Protocolo Fortaleça (Neural Shield contra Injeção de Prompt)
+
+## 🛠 Arquitetura OPME v2.0 (Alan Nicolas DNA)
+
+O coração do CognixOS é a sua esteira de processamento neuro-simbólico:
+
+1.  **Ingestão Multi-Fonte:** Captura de dados via YouTube, Web, LinkedIn e Documentos.
+2.  **Analisador Determinístico:** Cálculos matemáticos de TTR (Type-Token Ratio), densidade adverbial e padrões sintáticos.
+3.  **Mapeamento Psicométrico:** Extração de perfis DISC, MBTI e Eneagrama com base em evidências textuais.
+4.  **Sintetizador de DNA:** Orquestração de Agentes (Linguista, Psicanalista, Estrategista) para criar o System Prompt definitivo.
+
+## 🔨 Como Rodar Localmente
+
+1.  Clone o repositório:
+    ```bash
+    git clone https://github.com/Joaofanis/CognixOS.git
+    ```
+2.  Instale as dependências:
+    ```bash
+    npm install
+    ```
+3.  Configure as variáveis de ambiente (.env):
+    ```env
+    VITE_SUPABASE_URL=seu_url
+    VITE_SUPABASE_ANON_KEY=sua_key
+    ```
+4.  Inicie o servidor de desenvolvimento:
+    ```bash
+    npm run dev
+    ```
 
 ---
 
-## 👁️ Visão Geral
-
-O **CognixOS** não é apenas uma ferramenta de IA; é a primeira infraestrutura de **Industrial Cognitive Engineering**. Projetado para ir além do conceito de "Segundo Cérebro", o sistema opera como um **Sistema Operacional de Inteligência**, onde modelos de linguagem são processados como CPUs e o contexto é gerenciado como memória RAM dinâmica.
-
-> "CognixOS é o elo perdido entre a inteligência generativa e a cognição estruturada."
-
----
-
-## 🚀 O que nos diferencia?
-
-* **Fidelidade Neuro-Simbólica**: Combinamos análise matemática (Estilometria) com a capacidade criativa das LLMs.
-* **Lógica de Squad**: O sistema não "conversa" com você apenas; ele orquestra até 7 agentes especializados para pesquisar, analisar e validar cada pensamento.
-* **Determinismo**: Através de *Playbooks* e *Skills*, transformamos a IA imprevisível em um sistema auditável e orientado a processos.
-
----
-
-## 🏗️ Arquitetura OPME v2.0 (The Internal Engine)
-
-O protocolo **Objective Persona Master Execution (OPME)** é o coração do CognixOS. Quando um clone ou agente é criado, ele passa por uma esteira de produção em quatro fases críticas:
+<div align="center">
+  <p><b>CognixOS: Onde o conhecimento encontra a imortalidade digital.</b></p>
+</div>
 
 ### Fase 1: Ingestão de Alta Resolução 🛰️
 
@@ -78,11 +109,16 @@ cd cognixos
 npm install
 ```
 
-### 2. Infraestrutura Backend
+### 2. Infraestrutura Backend e Banco de Dados (Supabase)
 
-1. Crie um projeto no Supabase.
-2. Rode o comando `npx supabase db push` para subir as tabelas de pgvector e perfis.
-3. Configure os segredos das Edge Functions:
+Para garantir que a segurança e os vetores de inteligência artificial (pgvector) funcionem corretamente, preparamos um guia passo a passo definitivo para você replicar o servidor.
+
+👉 **[Acesse o Guia Completo de Implantação e Banco de Dados aqui!](./GUIA_SUPABASE.md)**
+
+Isso inclui como:
+- Subir a configuração completa das tabelas e as Políticas de Segurança.
+- Adicionar chaves secretas (como o seu token LLM do OpenRouter).
+- Iniciar a rede de "Edge Functions" Serverless da CognixOS.
 
 ```bash
 npx supabase secrets set OPENROUTER_API_KEY="sua_chave"
