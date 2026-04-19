@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import FeedTexts from "@/components/FeedTexts";
 import ChatInterface from "@/components/ChatInterface";
-import BrainAnalysis from "@/components/BrainAnalysis";
+import PsychometricRadar from "@/components/PsychometricRadar";
 import BrainPromptEditor from "@/components/BrainPromptEditor";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -373,8 +373,8 @@ export default function BrainDetail() {
             <TabsContent value="texts" className="m-0 bg-background/50 flex-1 overflow-y-auto">
               <FeedTexts brainId={brain.id} />
             </TabsContent>
-            <TabsContent value="analysis" className="m-0 bg-background/50 flex-1 overflow-y-auto">
-              <BrainAnalysis brainId={brain.id} brainType={brain.type as BrainType} />
+            <TabsContent value="analysis" className="m-0 bg-background/50 flex-1 overflow-y-auto pt-6 px-4">
+              <PsychometricRadar brainId={brain.id} />
             </TabsContent>
             <TabsContent value="prompt" className="m-0 bg-background/50 flex-1 overflow-y-auto">
               <BrainPromptEditor brainId={brain.id} />

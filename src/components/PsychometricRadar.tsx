@@ -14,6 +14,8 @@ import {
   YAxis,
   Tooltip,
   Cell,
+  RadialBarChart,
+  RadialBar,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Fingerprint, Brain, Zap, MessageSquare, Activity, Waves, Network, RefreshCw } from "lucide-react";
@@ -94,15 +96,18 @@ export default function PsychometricRadar({ brainId }: PsychometricRadarProps) {
   const traitData = analysis.personality_traits
     ? Object.entries(analysis.personality_traits).map(([trait, value]) => ({
         trait: trait.charAt(0).toUpperCase() + trait.slice(1),
-        value: typeof value === 'number' ? value : 50,
+        // Normalize 0-10 to 0-100 for the radar domain
+        value: typeof value === 'number' ? (value <= 10 ? value * 10 : value) : 50,
       }))
     : [];
 
-  const commStyle = analysis.communication_style || {};
+  const commStyle = (analysis.communication_style || {}) as Record<string, number>;
   const commData = [
-    { name: "Cadência", value: commStyle.tempo || 50 },
-    { name: "Complexidade", value: commStyle.complexity || 50 },
-    { name: "Ritmo", value: commStyle.rhythm || 50 }
+    { name: "Formalidade", value: (commStyle.formalidade || 5) * 10 },
+    { name: "Humor", value: (commStyle.humor || 5) * 10 },
+    { name: "Vocabulário", value: (commStyle.riqueza_vocabular || 5) * 10 },
+    { name: "Diretividade", value: (commStyle.diretividade || 5) * 10 },
+    { name: "Emoção", value: (commStyle.expressividade_emocional || 5) * 10 }
   ];
 
   const disc = analysis.disc_profile as Record<string, string | number | boolean | null>;
@@ -110,6 +115,9 @@ export default function PsychometricRadar({ brainId }: PsychometricRadarProps) {
   const voice = analysis.voice_patterns as Record<string, string | string[] | number | null>;
   const phrases = analysis.signature_phrases as string[] || [];
   const ocean = analysis.big_five as Record<string, number> || {};
+  const themes = analysis.frequent_themes as Array<{ name: string; count: number }> || [];
+  const skillsRaw = analysis.skills as Record<string, number> || {};
+  const skillsEvaluation = analysis.skills_evaluation as string || "";
 
   const oceanData = [
     { name: "Abertura", value: ocean.openness || 50, color: "#3b82f6" },
@@ -118,6 +126,18 @@ export default function PsychometricRadar({ brainId }: PsychometricRadarProps) {
     { name: "Amabilidade", value: ocean.agreeableness || 50, color: "#f59e0b" },
     { name: "Neuroticismo", value: ocean.neuroticism || 50, color: "#ef4444" },
   ];
+
+  const skillsData = Object.entries(skillsRaw)
+    .slice(0, 10)
+    .map(([name, score]) => ({
+      name: name.charAt(0).toUpperCase() + name.slice(1),
+      value: Math.round((Number(score) || 0) * 10),
+      fill: COLORS[Math.floor(Math.random() * COLORS.length)],
+    }))
+    .sort((a, b) => b.value - a.value);
+
+  const sortedThemes = [...themes].sort((a, b) => b.count - a.count).slice(0, 8);
+  const maxThemeCount = sortedThemes[0]?.count || 1;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-700">
@@ -242,11 +262,11 @@ export default function PsychometricRadar({ brainId }: PsychometricRadarProps) {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6 grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="h-[180px]">
+            <div className="h-[220px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={commData} layout="vertical" margin={{ top: 0, right: 30, left: 20, bottom: 0 }}>
+                <BarChart data={commData} layout="vertical" margin={{ top: 0, right: 30, left: 30, bottom: 0 }}>
                   <XAxis type="number" domain={[0, 100]} hide />
-                  <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fill: 'rgba(255,255,255,0.6)', fontSize: 11, fontWeight: 700 }} width={80} />
+                  <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fill: 'rgba(255,255,255,0.6)', fontSize: 10, fontWeight: 700 }} width={90} />
                   <Tooltip 
                     cursor={{ fill: 'rgba(255,255,255,0.02)' }}
                     contentStyle={{ backgroundColor: '#0c0c0d', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}
@@ -321,6 +341,67 @@ export default function PsychometricRadar({ brainId }: PsychometricRadarProps) {
             {dna?.shadow || "Aspectos sombrios não identificados. O perfil apresenta baixa variância negativa no corpus atual."}
           </p>
         </div>
+      </div>
+
+      {/* Row: Skills & Themes */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Skills Radial */}
+        <Card className="bg-white/[0.02] border-white/5 shadow-2xl rounded-3xl overflow-hidden group">
+          <CardHeader className="pb-0 border-b border-white/5 bg-white/[0.01]">
+            <CardTitle className="text-sm font-black tracking-widest uppercase flex items-center gap-2 text-muted-foreground group-hover:text-primary transition-colors">
+              <Zap className="h-4 w-4 text-yellow-500" />
+              Mapeamento de Competências
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="h-[280px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <RadialBarChart cx="50%" cy="50%" innerRadius="25%" outerRadius="90%" data={skillsData} startAngle={90} endAngle={-270}>
+                  <RadialBar dataKey="value" cornerRadius={6} background={{ fill: "rgba(255,255,255,0.03)" }} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#0c0c0d', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}
+                    itemStyle={{ fontSize: 11, fontWeight: 800 }}
+                  />
+                </RadialBarChart>
+              </ResponsiveContainer>
+            </div>
+            {skillsEvaluation && (
+              <div className="mt-4 p-4 bg-primary/5 rounded-2xl border border-primary/10">
+                <p className="text-[11px] text-white/70 italic leading-relaxed">
+                  {skillsEvaluation}
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Frequent Themes */}
+        <Card className="bg-white/[0.02] border-white/5 shadow-2xl rounded-3xl overflow-hidden group">
+          <CardHeader className="pb-0 border-b border-white/5 bg-white/[0.01]">
+            <CardTitle className="text-sm font-black tracking-widest uppercase flex items-center gap-2 text-muted-foreground group-hover:text-primary transition-colors">
+              <Activity className="h-4 w-4 text-blue-400" />
+              Temas e Conceitos Recorrentes
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+             <div className="space-y-4">
+               {sortedThemes.map((theme, i) => (
+                 <div key={theme.name} className="space-y-1">
+                   <div className="flex justify-between text-[10px] font-bold uppercase tracking-tighter">
+                     <span className="text-white/80">{theme.name}</span>
+                     <span className="text-primary">{theme.count} ocorrências</span>
+                   </div>
+                   <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                     <div 
+                        className="h-full bg-primary/40 rounded-full" 
+                        style={{ width: `${(theme.count / maxThemeCount) * 100}%` }}
+                     />
+                   </div>
+                 </div>
+               ))}
+             </div>
+          </CardContent>
+        </Card>
       </div>
 
     </div>
