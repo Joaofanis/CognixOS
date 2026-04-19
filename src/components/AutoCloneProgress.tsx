@@ -78,18 +78,18 @@ export function AutoCloneProgress({
         </div>
         <div>
           <h3 className="font-semibold text-sm">
-            Squad de Clonagem Digital 5.0
+            Squad de Clonagem Digital 5.0 (OPME v2.0)
           </h3>
           <p className="text-xs text-muted-foreground">
             {isRunning
               ? currentAgent
-                ? `Agente ${currentAgent} ativo...`
-                : "Inicializando squad de elite..."
+                ? `Processo Real: Agente ${currentAgent} em execução...`
+                : "Inicializando squad de elite em tempo real..."
               : doneStep
-                ? "Clone de alta fidelidade criado!"
+                ? "Clone de alta fidelidade sintetizado com sucesso!"
                 : errorStep
-                  ? "Erro no processo"
-                  : "Aguardando..."}
+                  ? "Erro no processo de extração"
+                  : "Aguardando sincronização..."}
           </p>
         </div>
       </div>
@@ -144,7 +144,11 @@ export function AutoCloneProgress({
             ) : (
               <span className="h-3.5 w-3.5 mt-0.5 shrink-0 text-center">•</span>
             )}
-            <span className="break-all">{s.message}</span>
+            <span className="break-all">
+              {s.message.includes("Extraindo dados") 
+                ? `${s.message} (Fontes: Wikipedia, YouTube Transcripts, Redes Públicas)` 
+                : s.message}
+            </span>
           </div>
         ))}
       </div>

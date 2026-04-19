@@ -105,10 +105,19 @@ export default function PsychometricRadar({ brainId }: PsychometricRadarProps) {
     { name: "Ritmo", value: commStyle.rhythm || 50 }
   ];
 
-  const disc = analysis.disc_profile as Record<string, any>;
-  const dna = analysis.cognitive_dna as Record<string, any>;
-  const voice = analysis.voice_patterns as Record<string, any>;
+  const disc = analysis.disc_profile as Record<string, string | number | boolean | null>;
+  const dna = analysis.cognitive_dna as Record<string, string | number | boolean | null>;
+  const voice = analysis.voice_patterns as Record<string, string | string[] | number | null>;
   const phrases = analysis.signature_phrases as string[] || [];
+  const ocean = analysis.big_five as Record<string, number> || {};
+
+  const oceanData = [
+    { name: "Abertura", value: ocean.openness || 50, color: "#3b82f6" },
+    { name: "Conscienciosidade", value: ocean.conscientiousness || 50, color: "#8b5cf6" },
+    { name: "Extroversão", value: ocean.extraversion || 50, color: "#10b981" },
+    { name: "Amabilidade", value: ocean.agreeableness || 50, color: "#f59e0b" },
+    { name: "Neuroticismo", value: ocean.neuroticism || 50, color: "#ef4444" },
+  ];
 
   return (
     <div className="space-y-6 animate-in fade-in duration-700">
@@ -173,16 +182,67 @@ export default function PsychometricRadar({ brainId }: PsychometricRadarProps) {
           </CardContent>
         </Card>
 
-        {/* Communication & Voice Style */}
+        {/* Big Five (OCEAN) Mapping */}
         <Card className="lg:col-span-2 bg-gradient-to-br from-[#121214] to-[#0a0a0c] border-white/5 shadow-2xl rounded-3xl overflow-hidden group">
-          <CardHeader className="pb-0">
+          <CardHeader className="pb-0 border-b border-white/5 bg-white/[0.01]">
+            <CardTitle className="text-sm font-black tracking-widest uppercase flex items-center gap-2 text-muted-foreground group-hover:text-blue-400 transition-colors">
+              <Network className="h-4 w-4" />
+              Arquitetura de Personalidade (Big Five)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+              <div className="h-[240px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={oceanData} layout="vertical" margin={{ top: 0, right: 30, left: 40, bottom: 0 }}>
+                    <XAxis type="number" domain={[0, 100]} hide />
+                    <YAxis 
+                      dataKey="name" 
+                      type="category" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fill: 'rgba(255,255,255,0.8)', fontSize: 11, fontWeight: 800 }} 
+                      width={100}
+                    />
+                    <Tooltip 
+                      cursor={{ fill: 'rgba(255,255,255,0.02)' }}
+                      contentStyle={{ backgroundColor: '#0c0c0d', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}
+                    />
+                    <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={22}>
+                      {oceanData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="space-y-4">
+                <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
+                  <h4 className="text-[10px] uppercase tracking-widest text-primary mb-2 font-black">Meta-Análise Cognitiva</h4>
+                  <p className="text-[11px] text-white/80 leading-relaxed font-bold italic">
+                    {dna?.archetype || "Sintetizando arquétipo central do sujeito baseado no corpus extraído..."}
+                  </p>
+                </div>
+                <p className="text-[10px] text-muted-foreground leading-relaxed px-1">
+                  O modelo OCEAN fornece a base para a simulação de respostas comportamentais de alta fidelidade no OPME v2.0.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Communication & Voice Style - Re-adapted to occupy bottom row */}
+        <Card className="lg:col-span-3 bg-gradient-to-br from-[#121214] to-[#0a0a0c] border-white/5 shadow-2xl rounded-3xl overflow-hidden group">
+          <CardHeader className="pb-0 border-b border-white/5 bg-white/[0.01]">
             <CardTitle className="text-sm font-black tracking-widest uppercase flex items-center gap-2 text-muted-foreground group-hover:text-primary transition-colors">
               <Waves className="h-4 w-4" />
               Sintaxe & Ritmo de Comunicação
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="h-[220px]">
+          <CardContent className="p-6 grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="h-[180px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={commData} layout="vertical" margin={{ top: 0, right: 30, left: 20, bottom: 0 }}>
                   <XAxis type="number" domain={[0, 100]} hide />
@@ -203,13 +263,15 @@ export default function PsychometricRadar({ brainId }: PsychometricRadarProps) {
               <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
                 <h4 className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2 font-bold">Intensificadores Vocais</h4>
                 <div className="flex flex-wrap gap-1.5">
-                  {voice?.intensifiers?.slice(0, 5).map((w: string, i: number) => (
+                  {(voice?.intensifiers as string[] | undefined)?.slice(0, 5).map((w: string, i: number) => (
                     <span key={i} className="px-2 py-1 bg-white/5 rounded-md text-[10px] text-white/70 italic border border-white/5">
                       {w}
                     </span>
                   )) || <span className="text-xs text-white/30">Dados insuficientes</span>}
                 </div>
               </div>
+            </div>
+            <div className="space-y-4">
               <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
                 <h4 className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2 font-bold">Padrões Estruturais</h4>
                 <p className="text-[11px] text-white/70 leading-relaxed font-medium">

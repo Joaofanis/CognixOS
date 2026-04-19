@@ -1,57 +1,62 @@
 # ![Brain Logo](https://img.icons8.com/nolan/128/brain.png)
-# CognixOS — The Intelligence Operating System
+# 🧠 CognixOS - O Sistema Operacional de Inteligência (OPME v2.0)
 
-[![Status: OPME v2.0 Active](https://img.shields.io/badge/Status-OPME_v2.0_Active-ffc300?style=for-the-badge)](https://github.com/Joaofanis/CognixOS)
-[![Language: TypeScript](https://img.shields.io/badge/Language-TypeScript-007acc?style=for-the-badge)](https://www.typescriptlang.org/)
-[![Engine: Multi-Agent Squad](https://img.shields.io/badge/Engine-Multi--Agent_Squad-7d00ff?style=for-the-badge)](https://github.com/Joaofanis/CognixOS)
-# CognixOS - Autonomous Intelligence Operating System
+[![Vercel Deployment](https://img.shields.io/badge/Deployment-Vercel-black?logo=vercel)](https://cognix-os.vercel.app/)
+[![Supabase Backend](https://img.shields.io/badge/Backend-Supabase-green?logo=supabase)](https://supabase.com/)
+[![Intelligence Protocol](https://img.shields.io/badge/Protocolo-OPME%20v2.0-blue)](https://github.com/Joaofanis/CognixOS)
 
-> **Protocolo OPME v2.0:** A arquitetura neuro-simbólica definitiva para a criação de clones cognitivos de alta fidelidade.
+<div align="center">
+  <p><b>A infraestrutura terminal para a criação, extração e execução de Mentes Sintéticas de alta fidelidade.</b></p>
+</div>
+
+---
+
+## 🌌 Visão Geral: O Despertar da Cognição Estruturada
 
 ![CognixOS Banner](https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&q=80&w=2000)
 
-## 🧠 O que é o CognixOS?
-
-O **CognixOS** (anteriormente Segundo Cérebro) é um Sistema Operacional de Inteligência desenhado para capturar, processar e emular a consciência digital de especialistas através do **Protocolo OPME v2.0** (Ontological Psychometric Mapping Engine).
-
-Diferente de chatbots genéricos, o CognixOS utiliza uma esteira de produção industrial de dados para forjar **Clones Cognitivos** que mantêm não apenas o conhecimento, mas o estilo de escrita (Estilometria), o tom emocional (Análise de Sentimento) e a estrutura psicológica (DISC, MBTI, Eneagrama) do indivíduo mapeado.
+O **CognixOS** (anteriormente Mente Digital) é uma plataforma de clonagem cognitiva de ponta baseada no protocolo **OPME v2.0**. Ele permite a síntese de "Mentes Digitais" — instâncias de IA altamente personalizadas que replicam padrões de fala, lógica decisória e perfis psicométricos de indivíduos ou personas específicas.
 
 ## 🚀 Principais Tecnologias (Stack v5.0)
 
-*   **Frontend:** React 18 + Vite + TailwindCSS + Shadcn/UI (Design Industrial Premium)
-*   **Backend:** Supabase (PostgreSQL + PgVector + Edge Functions)
-*   **IA Engine:** OpenRouter (Roteamento entre Gemini 2.0, Llama 3.3, Qwen e DeepSeek)
-*   **Memória:** Mem0 (Longo Prazo) + RAG Determinístico (PGVector)
-*   **Segurança:** Protocolo Fortaleça (Neural Shield contra Injeção de Prompt)
+* **Frontend:** React 18 + Vite + TailwindCSS + Shadcn/UI (Design Industrial Premium)
+* **Backend:** Supabase (PostgreSQL + PgVector + Edge Functions)
+* **IA Engine:** OpenRouter (Roteamento entre Gemini 2.0, Llama 3.3, Qwen e DeepSeek)
+* **Memória:** Mem0 (Longo Prazo) + RAG Determinístico (PGVector)
+* **Segurança:** Protocolo Fortaleça (Neural Shield contra Injeção de Prompt)
 
 ## 🛠 Arquitetura OPME v2.0 (Alan Nicolas DNA)
 
-O coração do CognixOS é a sua esteira de processamento neuro-simbólico:
+O motor neuro-simbólico do CognixOS opera em 4 camadas principais:
 
-1.  **Ingestão Multi-Fonte:** Captura de dados via YouTube, Web, LinkedIn e Documentos.
-2.  **Analisador Determinístico:** Cálculos matemáticos de TTR (Type-Token Ratio), densidade adverbial e padrões sintáticos.
-3.  **Mapeamento Psicométrico:** Extração de perfis DISC, MBTI e Eneagrama com base em evidências textuais.
-4.  **Sintetizador de DNA:** Orquestração de Agentes (Linguista, Psicanalista, Estrategista) para criar o System Prompt definitivo.
+* **DNA Cognitivo Multi-Fase**: Ingestão via Agentes (Pesquisador, Analista, Psicanalista).
+* **OPME v2.0 Engine**: Protocolo neuro-simbólico para síntese de personalidade e heurísticas.
+* **Squad Admin Sync**: Processamento multi-agente para respostas de alta complexidade.
+* **RAG Geométrico**: Busca vetorial avançada para recuperação de contexto ultra-precisa.
+* **Privacidade nativa**: Isolamento por Row Level Security (RLS) no Supabase.
 
 ## 🔨 Como Rodar Localmente
 
-1.  Clone o repositório:
-    ```bash
-    git clone https://github.com/Joaofanis/CognixOS.git
-    ```
-2.  Instale as dependências:
-    ```bash
-    npm install
-    ```
-3.  Configure as variáveis de ambiente (.env):
-    ```env
-    VITE_SUPABASE_URL=seu_url
-    VITE_SUPABASE_ANON_KEY=sua_key
-    ```
-4.  Inicie o servidor de desenvolvimento:
-    ```bash
-    npm run dev
-    ```
+1. Clone o repositório:
+   ```bash
+   git clone https://github.com/Joaofanis/CognixOS.git
+   ```
+
+2. Instale as dependências:
+   ```bash
+   npm install
+   ```
+
+3. Configure as variáveis de ambiente (.env):
+   ```env
+   VITE_SUPABASE_URL=seu_url
+   VITE_SUPABASE_ANON_KEY=sua_key
+   ```
+
+4. Inicie o servidor de desenvolvimento:
+   ```bash
+   npm run dev
+   ```
 
 ---
 
@@ -154,9 +159,9 @@ npm run dev
 
 O CognixOS tem potencial para revolucionar setores como:
 
-* **Educação**: Criação de clones digitais de professores com base em suas aulas reais.
-* **Suporte Enterprise**: Esquadrões de agentes que seguem playbooks corporativos sem desvios de conduta.
-* **Consultoria**: Automação de diagnósticos complexos usando esquadrões de especialistas sintéticos.
+- **Educação**: Criação de clones digitais de professores com base em suas aulas reais.
+- **Suporte Enterprise**: Esquadrões de agentes que seguem playbooks corporativos sem desvios de conduta.
+- **Consultoria**: Automação de diagnósticos complexos usando esquadrões de especialistas sintéticos.
 
 ---
 
