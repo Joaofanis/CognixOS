@@ -205,7 +205,16 @@ export default function ChatInterface({
                     {msg.role === "user" ? <User className="h-4 w-4" /> : isError ? <AlertTriangle className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-foreground mb-1">{msg.role === "user" ? t("chat.you") : brainName}</p>
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="text-sm font-semibold text-foreground">{msg.role === "user" ? t("chat.you") : brainName}</p>
+                      {msg.role === "assistant" && chatMode !== "default" && (
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded-full border ${
+                          chatMode === "fast" ? "bg-amber-500/10 text-amber-500 border-amber-500/20" : "bg-violet-500/10 text-violet-500 border-violet-500/20"
+                        }`}>
+                          {chatMode === "fast" ? t("chat.fast") : t("chat.thinking")}
+                        </span>
+                      )}
+                    </div>
                     <div className="text-[15px] leading-7 text-foreground">
                       {msg.role === "assistant" ? (
                         <div className="space-y-2">

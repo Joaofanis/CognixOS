@@ -6,7 +6,7 @@ import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version, x-aios-signature, x-aios-timestamp",
 };
 
 // Validation constants
@@ -212,7 +212,7 @@ serve(async (req: Request) => {
     }
 
     // @ts-expect-error: Deno is available at runtime in Supabase Edge Functions
-    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
+    let OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
     if (!OPENROUTER_API_KEY)
       throw new Error("OPENROUTER_API_KEY not configured");
 
@@ -385,6 +385,21 @@ serve(async (req: Request) => {
     // Use service role for data operations
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    // --- BYOK: Check User AI Settings ---
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("ai_settings")
+      .eq("id", userId)
+      .single();
+
+    if (profile?.ai_settings) {
+      const settings = profile.ai_settings as any;
+      if (settings.active_provider === "custom" && settings.custom_openrouter_key) {
+        console.log(`[BYOK] Using custom API key for user ${userId}`);
+        OPENROUTER_API_KEY = settings.custom_openrouter_key;
+      }
+    }
+
     let brain = null;
     if (hasBrain) {
       // Get brain info and verify ownership
@@ -463,6 +478,21 @@ serve(async (req: Request) => {
           if (values.length > 0) chronicleContext += `- VALORES INEGOCIÁVEIS: ${values.join(", ")}\n`;
           if (heuristics.length > 0) chronicleContext += `- HEURÍSTICAS DE DECISÃO: ${heuristics.join(", ")}\n`;
 
+          // Inject Procedural Skills
+          const skills = nodes.filter((n: any) => n.type === 'skill');
+          if (skills.length > 0) {
+            chronicleContext += "\n[HABILIDADES COGNITIVAS - PLAYBOOKS]\n";
+            skills.forEach((s: any) => {
+              chronicleContext += `### ${s.data?.label || s.label}\n`;
+              if (s.data?.prerequisites?.length > 0) chronicleContext += `- PRÉ-REQUISITOS: ${s.data.prerequisites.join(", ")}\n`;
+              if (s.data?.steps?.length > 0) {
+                chronicleContext += `- PROTOCOLO DE EXECUÇÃO:\n  ${s.data.steps.map((step: string, i: number) => `${i+1}. ${step}`).join("\n  ")}\n`;
+              }
+              if (s.data?.pitfalls?.length > 0) chronicleContext += `- PONTOS DE ATENÇÃO: ${s.data.pitfalls.join(", ")}\n`;
+              chronicleContext += "\n";
+            });
+          }
+
           // Inject key associations (Edges)
           const keyEdges = edges.slice(0, 10).map((e: any) => {
             const src = nodes.find((n: any) => n.id === e.source)?.label || e.source;
@@ -489,17 +519,32 @@ serve(async (req: Request) => {
       contextTexts = contextTexts.slice(0, MAX_CONTEXT_CHARS) + "\n\n[...contexto truncado]";
     }
 
-    // Mode modifiers
+    // --- COGNITIVE MODES (CRITICAL OVERRIDE) ---
     const chatMode = mode === "thinking" ? "thinking" : mode === "fast" ? "fast" : "default";
     
-    // IMPORTANT: Instructions are placed at the END of the system prompt to ensure high attention.
-    const modeInstruction = chatMode === "thinking"
-      ? `\n\n[ATIVADO: MODO PENSAMENTO PROFUNDO — OBRIGATÓRIO]\nAntes de me responder, você DEVE analisar o problema passo a passo usando as tags <raciocinio> e </raciocinio>. Sua resposta final deve vir APÓS o raciocínio.\nExemplo de formato:\n<raciocinio>\n[seu pensamento lógico aqui]\n</raciocinio>\n[sua resposta clara aqui]`
-      : chatMode === "fast"
-      ? `\n\n[ATIVADO: MODO RÁPIDO — OBRIGATÓRIO]\nSeja extremamente conciso e direto ao ponto. Use poucas palavras, formatos de lista e evite qualquer tipo de introdução ou conclusão educada. Resposta curta e funcional apenas.`
-      : "";
+    let modeInstruction = "";
+    let chatTemperature = 0.7;
 
-    const chatTemperature = chatMode === "fast" ? 0.2 : chatMode === "thinking" ? 0.9 : 0.7;
+    if (chatMode === "thinking") {
+      chatTemperature = 1.0; // Higher temp for broader reasoning tree
+      modeInstruction = `
+[COGNITIVE OVERRIDE: THINKING MODE]
+Você deve agir como um sistema de raciocínio profundo. 
+Sua resposta DEVE ser dividida em duas partes:
+1. Comece com <raciocinio>. Dentro desta tag, faça uma análise exaustiva, de nível doutoral, explorando todas as variáveis, axiomas e implicações da pergunta do usuário. Não economize palavras aqui.
+2. Termine com </raciocinio>. Após o fechamento da tag, forneça a resposta final, polida e precisa.
+FORMATO OBRIGATÓRIO:
+<raciocinio>
+[Sua análise mental profunda aqui]
+</raciocinio>
+[Sua resposta final aqui]`;
+    } else if (chatMode === "fast") {
+      chatTemperature = 0.1; // Low temp for maximum predictability
+      modeInstruction = `
+[COGNITIVE OVERRIDE: FAST MODE]
+Sua prioridade total é VELOCIDADE e BREVIDADE. 
+Responda de forma telegráfica. Sem saudações. Sem conclusões. Use bullet points se necessário. Máximo de 2 parágrafos curtos. Vá direto ao ponto.`;
+    }
 
     if (hasBrain && brain) {
       if (brain.system_prompt && brain.system_prompt.trim()) {
@@ -547,16 +592,19 @@ serve(async (req: Request) => {
 
     const models = chatMode === "thinking" 
       ? [
+          "openrouter/auto",
           "liquid/lfm-2.5-1.2b-thinking:free",
           "google/gemini-2.0-flash-thinking-exp-1219:free",
           "meta-llama/llama-3.3-70b-instruct:free",
         ]
       : chatMode === "fast"
       ? [
+          "openrouter/auto",
           "liquid/lfm-2.5-1.2b-instruct:free",
           "google/gemini-2.0-flash-lite-001:free",
         ]
       : [
+          "openrouter/auto",
           "google/gemini-2.0-flash-001",
           "meta-llama/llama-3.3-70b-instruct:free",
           "google/gemini-flash-1.5-8b",

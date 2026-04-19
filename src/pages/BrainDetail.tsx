@@ -11,7 +11,7 @@ import {
   ArrowLeft, MessageSquare, FileText, BarChart3, MoreVertical,
   Pencil, Trash2, PlusCircle, Brain as BrainIcon, Sparkles,
   PanelLeftClose, PanelLeft, Menu, Settings, Check, X,
-  Fingerprint,
+  Fingerprint, GitBranch,
 } from "lucide-react";
 import FeedTexts from "@/components/FeedTexts";
 import ChatInterface from "@/components/ChatInterface";

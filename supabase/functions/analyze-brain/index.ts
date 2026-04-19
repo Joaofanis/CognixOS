@@ -139,9 +139,8 @@ Retorne APENAS um objeto JSON com:
     "modal_preference": "preferência verbal"
   }
 - "identity_chronicle": {
-    "core_beliefs": [],
-    "value_hierarchy": [],
-    "archetypal_narrative": "descrição do papel social"
+    "nodes": [{"id": "uuid-aqui", "type": "belief|value|heuristic|skill", "label": "Conceito Central"}],
+    "edges": [{"source": "id-origem", "target": "id-destino", "label": "Como se conectam"}]
   }
 - "fidelity_scores": {
     "adherence": 0-100,
@@ -153,7 +152,7 @@ Retorne APENAS um objeto JSON com:
 - "enneagram": "Tipo",
 - "communication_style": { "formalidade": 0-10, "humor": 0-10, "diretividade": 0-10 },
 - "voice_patterns": { "aberturas": [], "expressoes": [] },
-- "signature_phrases": [],
+- "signature_phrases": ["Mapeie AQUI TODAS as expressões, gírias, jargões e bordões recorrentes. NÃO limite a quantidade, mapeie exaustivamente"],
 - "frequent_themes": [{"name": "tema", "count": X}]`;
 
   const userPrompt = `Baseado nos dados reais: ${allText}`;
@@ -227,7 +226,7 @@ Intensificadores: ${stylo.intensifiers.join(", ")}`;
       knowledge_areas: brainType !== "person_clone" ? radarData : null,
       communication_style: analysisData.communication_style,
       voice_patterns: analysisData.voice_patterns,
-      signature_phrases: (analysisData.signature_phrases || []).slice(0, 10),
+      signature_phrases: analysisData.signature_phrases || [],
       disc_profile: analysisData.disc_profile,
       mbti: analysisData.mbti,
       enneagram: analysisData.enneagram,

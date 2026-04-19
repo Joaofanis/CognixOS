@@ -28,8 +28,13 @@ import {
   Target,
   ShieldAlert,
   Shield,
-  Fingerprint
+  Fingerprint,
+  Factory,
+  Send,
+  HardDrive,
+  MonitorOff
 } from "lucide-react";
+import { LocalSyncService } from "@/lib/localSync";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import SecurityDashboard from "@/components/SecurityDashboard";
@@ -51,12 +56,105 @@ const SQUAD_STATIONS = [
   { id: "Prompter", name: "Engenharia Final", icon: Zap, color: "text-yellow-500", bg: "bg-yellow-500/10" },
 ];
 
+
+interface AiSettings {
+  active_provider: "system" | "custom" | "local";
+  custom_openrouter_key: string | null;
+  local_ai_endpoint: string;
+}
+
 export default function AIOS() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("subagents");
   const { isSyncing, currentAgent, message, logs, progress } = useSquadSync();
+  const [hasLinkedFile, setHasLinkedFile] = useState(false);
+  const [aiSettings, setAiSettings] = useState<AiSettings>({
+    active_provider: "system",
+    custom_openrouter_key: "",
+    local_ai_endpoint: "http://localhost:11434"
+  });
+
+  useEffect(() => {
+    const checkLocalFile = async () => {
+      const active = await LocalSyncService.hasLinkedFile();
+      setHasLinkedFile(active);
+    };
+    checkLocalFile();
+  }, []);
+
+  const handleLinkLocalFile = async () => {
+    try {
+      const success = await LocalSyncService.selectFile();
+      if (success) {
+        setHasLinkedFile(true);
+        toast.success("Arquivo de backup vinculado com sucesso!");
+      }
+    } catch (err) {
+      const error = err as Error;
+      toast.error("Falha ao vincular arquivo: " + error.message);
+    }
+  };
+
+  const handleRequestLocalPermission = async () => {
+    const granted = await LocalSyncService.requestPermission();
+    if (granted) {
+      toast.success("Permissão de escrita concedida.");
+    } else {
+      toast.error("Permissão negada pelo sistema.");
+    }
+  };
+  const handleSaveAiSettings = async () => {
+    if (!user) return;
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ ai_settings: aiSettings as unknown as object })
+        .eq("id", user.id);
+      if (error) throw error;
+      toast.success("Configurações de soberania neural salvas!");
+    } catch (error) {
+      const err = error as Error;
+      toast.error("Erro ao salvar: " + err.message);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      const fetchSettings = async () => {
+        const { data } = await supabase
+          .from("profiles")
+          .select("ai_settings")
+          .eq("id", user.id)
+          .single();
+        if (data?.ai_settings) {
+          setAiSettings(data.ai_settings as unknown as AiSettings);
+        }
+      };
+      fetchSettings();
+    }
+  }, [user]);
+
+  const handleConnectTelegram = async () => {
+    if (!user) return;
+    try {
+      const token = crypto.randomUUID();
+      const { error } = await supabase
+        .from('profiles')
+        .update({ telegram_link_token: token })
+        .eq('id', user.id);
+      
+      if (error) throw error;
+      
+      const telegramUrl = `https://t.me/CognixOSBot?start=${token}`;
+      window.open(telegramUrl, '_blank');
+      toast.success("Uma ponte com o Telegram foi solicitada. Conclua pelo app!");
+    } catch (error) {
+      const err = error as Error;
+      toast.error("Erro ao linkar Telegram: " + err.message);
+    }
+  };
 
   // Fetch Subagents
   const { data: subagents, isLoading: loadingAgents } = useQuery({
@@ -179,7 +277,7 @@ export default function AIOS() {
               </p>
             </div>
             
-            <TabsList className="shrink-0 bg-white/5 p-1 rounded-2xl border border-white/5 border-0 gap-1 h-auto">
+            <TabsList className="shrink-0 bg-white/5 p-1 rounded-2xl border border-white/5 gap-1 h-auto">
               <TabsTrigger value="production" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-white font-bold text-xs uppercase tracking-wider transition-all">
                 <Activity className="h-3.5 w-3.5 mr-2" /> Live Line
               </TabsTrigger>
@@ -192,8 +290,14 @@ export default function AIOS() {
               <TabsTrigger value="dna" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-white font-bold text-xs uppercase tracking-wider transition-all">
                 <Fingerprint className="h-3.5 w-3.5 mr-2" /> DNA Hub
               </TabsTrigger>
-              <TabsTrigger value="security" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-red-500 data-[state=active]:text-white font-bold text-xs uppercase tracking-wider transition-all">
+              <TabsTrigger value="telegram" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-blue-600 data-[state=active]:text-white font-bold text-xs uppercase tracking-wider transition-all">
+                <Send className="h-3.5 w-3.5 mr-2" /> Telegram
+              </TabsTrigger>
+               <TabsTrigger value="security" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-red-500 data-[state=active]:text-white font-bold text-xs uppercase tracking-wider transition-all">
                 <Shield className="h-3.5 w-3.5 mr-2" /> Segurança
+              </TabsTrigger>
+              <TabsTrigger value="settings" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-white/20 data-[state=active]:text-white font-bold text-xs uppercase tracking-wider transition-all">
+                <Cog className="h-3.5 w-3.5 mr-2" /> Configurações
               </TabsTrigger>
             </TabsList>
           </div>
@@ -497,6 +601,194 @@ export default function AIOS() {
               Nenhum clone selecionado para análise.
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="telegram" className="space-y-6 animate-in fade-in duration-500">
+          <div className="flex flex-col items-center justify-center p-12 bg-white/[0.02] border border-white/5 rounded-3xl text-center space-y-6 min-h-[400px]">
+             <div className="w-20 h-20 bg-blue-500/10 rounded-full flex items-center justify-center border-2 border-blue-500/20 mb-4 animate-pulse">
+               <Send className="h-8 w-8 text-blue-500 relative left-[-2px]" />
+             </div>
+             <h2 className="text-3xl font-black italic tracking-tighter">INTEGRAÇÃO COM TELEGRAM</h2>
+             <p className="text-muted-foreground text-sm max-w-md font-medium leading-relaxed">
+               Conecte seus clones ao seu celular. Após vincular a conta, você pode conversar em tempo real com seu Cérebro ativo e enviar áudios/textos para ingestão nativamente.
+             </p>
+             <Button
+                onClick={handleConnectTelegram}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-6 px-10 rounded-xl uppercase tracking-widest text-xs h-auto min-w-[250px] border-0"
+             >
+                <Send className="w-4 h-4 mr-2 relative left-[-2px]" /> Gerar Link de Autenticação
+             </Button>
+             <p className="text-[10px] text-muted-foreground/50 max-w-xs font-mono uppercase tracking-[0.2em] mt-4">
+               Requisito: Token do Webhook ativo na Supabase.
+             </p>
+          </div>
+        </TabsContent>
+        <TabsContent value="settings" className="space-y-6 animate-in fade-in duration-500">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <Card className="bg-white/[0.02] border-white/5 rounded-3xl p-8 space-y-6">
+              <div className="space-y-2">
+                <h3 className="text-xl font-black italic tracking-tighter uppercase">Motor de Inteligência</h3>
+                <p className="text-xs text-muted-foreground font-medium">Selecione onde o processamento neural deve ocorrer.</p>
+              </div>
+
+              <div className="space-y-4">
+                <div 
+                  onClick={() => setAiSettings({...aiSettings, active_provider: "system"})}
+                  className={cn(
+                    "p-4 rounded-2xl border cursor-pointer transition-all flex items-center justify-between",
+                    aiSettings.active_provider === "system" ? "bg-primary/10 border-primary" : "bg-white/5 border-white/5 hover:border-white/10"
+                  )}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-primary/20 rounded-lg"><Factory className="h-4 w-4 text-primary" /></div>
+                    <div>
+                      <p className="font-bold text-sm italic">Padrão CognixOS</p>
+                      <p className="text-[10px] text-muted-foreground uppercase font-mono">Nuvem Otimizada</p>
+                    </div>
+                  </div>
+                  {aiSettings.active_provider === "system" && <CheckCircle2 className="h-5 w-5 text-primary" />}
+                </div>
+
+                <div 
+                  onClick={() => setAiSettings({...aiSettings, active_provider: "custom"})}
+                  className={cn(
+                    "p-4 rounded-2xl border cursor-pointer transition-all flex items-center justify-between",
+                    aiSettings.active_provider === "custom" ? "bg-blue-500/10 border-blue-500" : "bg-white/5 border-white/5 hover:border-white/10"
+                  )}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-blue-500/20 rounded-lg"><Zap className="h-4 w-4 text-blue-500" /></div>
+                    <div>
+                      <p className="font-bold text-sm italic">BYOK (Própria Key)</p>
+                      <p className="text-[10px] text-muted-foreground uppercase font-mono">OpenRouter Proxy</p>
+                    </div>
+                  </div>
+                  {aiSettings.active_provider === "custom" && <CheckCircle2 className="h-5 w-5 text-blue-500" />}
+                </div>
+
+                <div 
+                  onClick={() => setAiSettings({...aiSettings, active_provider: "local"})}
+                  className={cn(
+                    "p-4 rounded-2xl border cursor-pointer transition-all flex items-center justify-between",
+                    aiSettings.active_provider === "local" ? "bg-orange-500/10 border-orange-500" : "bg-white/5 border-white/5 hover:border-white/10"
+                  )}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-orange-500/20 rounded-lg"><Terminal className="h-4 w-4 text-orange-500" /></div>
+                    <div>
+                      <p className="font-bold text-sm italic">IA Local (Ollama)</p>
+                      <p className="text-[10px] text-muted-foreground uppercase font-mono">Zero Nuvem / 100% Offline</p>
+                    </div>
+                  </div>
+                  {aiSettings.active_provider === "local" && <CheckCircle2 className="h-5 w-5 text-orange-500" />}
+                </div>
+              </div>
+
+              <Button onClick={handleSaveAiSettings} className="w-full bg-white/10 hover:bg-white/20 text-white rounded-xl font-bold uppercase tracking-widest text-xs py-6">
+                Salvar Preferências
+              </Button>
+            </Card>
+
+            <Card className="bg-white/[0.02] border-white/5 rounded-3xl p-8 space-y-6">
+              <div className="space-y-2">
+                <h3 className="text-xl font-black italic tracking-tighter uppercase">Parâmetros de Acesso</h3>
+                <p className="text-xs text-muted-foreground font-medium">Configure suas credenciais privadas.</p>
+              </div>
+
+              <div className="space-y-5">
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">OpenRouter API Key</Label>
+                  <Input 
+                    type="password"
+                    placeholder="sk-or-v1-..."
+                    value={aiSettings.custom_openrouter_key || ""}
+                    onChange={(e) => setAiSettings({...aiSettings, custom_openrouter_key: e.target.value})}
+                    className="bg-white/5 border-white/10 rounded-xl font-mono text-xs py-5"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Ollama Endpoint</Label>
+                  <Input 
+                    placeholder="http://localhost:11434"
+                    value={aiSettings.local_ai_endpoint || ""}
+                    onChange={(e) => setAiSettings({...aiSettings, local_ai_endpoint: e.target.value})}
+                    className="bg-white/5 border-white/10 rounded-xl font-mono text-xs py-5"
+                  />
+                  <p className="text-[9px] text-muted-foreground/50 italic">Certifique-se que o Ollama permite CORS do seu domínio.</p>
+                </div>
+              </div>
+
+              <div className="p-4 bg-yellow-500/5 border border-yellow-500/20 rounded-2xl flex gap-3">
+                <ShieldAlert className="h-5 w-5 text-yellow-500 shrink-0" />
+                <p className="text-[10px] text-yellow-500/80 leading-relaxed font-medium">
+                  Suas chaves são enviadas criptografadas para a Edge Function apenas no momento do chat. Nunca as compartilhamos.
+                </p>
+              </div>
+            </Card>
+
+            <Card className="col-span-1 md:col-span-2 bg-gradient-to-br from-blue-500/5 to-purple-500/5 border-white/5 rounded-3xl p-8 space-y-6">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <HardDrive className="h-5 w-5 text-blue-400" />
+                    <h3 className="text-xl font-black italic tracking-tighter uppercase">Soberania de Dados: Backup Físico</h3>
+                  </div>
+                  <p className="text-xs text-muted-foreground font-medium">Sincronize suas conversas diretamente no sistema de arquivos do seu computador.</p>
+                </div>
+                
+                {!LocalSyncService.isSupported() && (
+                  <div className="flex items-center gap-2 bg-orange-500/10 border border-orange-500/20 p-3 rounded-xl">
+                    <MonitorOff className="h-4 w-4 text-orange-500" />
+                    <p className="text-[10px] text-orange-500 font-bold uppercase italic">Incompatível: Celular ou Navegador Restrito</p>
+                  </div>
+                )}
+              </div>
+
+              {LocalSyncService.isSupported() ? (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="md:col-span-2 p-6 bg-white/5 border border-white/10 rounded-2xl flex flex-col justify-center">
+                    <p className="text-xs leading-relaxed text-muted-foreground mb-4">
+                      Esta funcionalidade vence a sandbox do navegador criando um link direto com um arquivo no seu notebook. 
+                      A cada resposta do assistente, oCognixOS atualizará automaticamente o arquivo JSON local.
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <div className={cn("w-2 h-2 rounded-full", hasLinkedFile ? "bg-green-500 animate-pulse" : "bg-red-500")} />
+                      <span className="text-[10px] font-mono uppercase tracking-widest font-bold">
+                        {hasLinkedFile ? "Link Ativo com o Sistema de Arquivos" : "Nenhum arquivo vinculado"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-3">
+                    <Button 
+                      onClick={handleLinkLocalFile}
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-bold h-14 rounded-xl text-xs uppercase tracking-widest"
+                    >
+                      {hasLinkedFile ? "Alterar Arquivo" : "Vincular Arquivo (.json)"}
+                    </Button>
+                    
+                    {hasLinkedFile && (
+                      <Button 
+                        onClick={handleRequestLocalPermission}
+                        variant="outline"
+                        className="bg-white/5 border-white/10 text-white font-bold h-14 rounded-xl text-xs uppercase tracking-widest"
+                      >
+                        Reautorizar Escrita
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="p-8 bg-black/40 border border-white/5 rounded-2xl text-center space-y-4">
+                  <p className="text-sm text-muted-foreground italic">
+                    "Este dispositivo móvel restringe a modificação direta de arquivos pelo navegador. 
+                    A soberania física de dados está disponível apenas em versões Desktop (Notebook/PC) no Chrome ou Edge."
+                  </p>
+                </div>
+              )}
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </main>

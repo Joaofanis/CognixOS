@@ -40,7 +40,7 @@ class SecurityErrorBoundary extends Component<Props, State> {
             <ShieldAlert className="h-10 w-10 text-red-500" />
           </div>
           
-          <h1 className="text-4xl font-black italic tracking-tighter mb-4 italic uppercase">NÚCLEO DE SEGURANÇA ATIVADO</h1>
+          <h1 className="text-4xl font-black italic tracking-tighter mb-4 uppercase">NÚCLEO DE SEGURANÇA ATIVADO</h1>
           <p className="text-muted-foreground max-w-md mb-8 text-sm leading-relaxed font-medium">
             Uma falha crítica foi detectada e isolada pelos protocolos de segurança. 
             Todos os logs técnicos foram protegidos para evitar exposição de dados.

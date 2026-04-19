@@ -17,7 +17,9 @@ import '@xyflow/react/dist/style.css';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { Save, Trash2, Plus, GitBranch, ShieldCheck, Zap } from 'lucide-react';
+import { Save, Trash2, Plus, GitBranch, ShieldCheck, Zap, AlertTriangle } from 'lucide-react';
+import { dnaRegistry } from '@/services/neural-dna/Registry';
+import { IdentityChronicle, DNANode } from '@/services/neural-dna/types';
 
 // Tipos de Nodos Personalizados para CognixOS
 const nodeTypes = {
@@ -48,7 +50,7 @@ export default function IdentityGraphEditor({ brainId }: IdentityGraphEditorProp
         if (error) throw error;
 
         if (data?.identity_chronicle) {
-          const chronicle = data.identity_chronicle as any;
+          const chronicle = data.identity_chronicle as unknown as IdentityChronicle;
           setNodes(chronicle.nodes || []);
           setEdges(chronicle.edges || []);
         }
@@ -70,7 +72,22 @@ export default function IdentityGraphEditor({ brainId }: IdentityGraphEditorProp
   const saveChronicle = async () => {
     setSaving(true);
     try {
-      const chronicle = { nodes, edges, updated_at: new Date().toISOString() };
+      const chronicle: IdentityChronicle = { 
+        nodes: nodes as DNANode[], 
+        edges, 
+        updated_at: new Date().toISOString(),
+        version: '3.1'
+      };
+
+      // Validação via Engine
+      const engine = dnaRegistry.getEngine();
+      const validation = engine.validate(chronicle);
+      
+      if (!validation.valid) {
+        validation.errors?.forEach(err => toast.error(err, { icon: <AlertTriangle className="h-4 w-4 text-destructive" /> }));
+        return;
+      }
+
       const { error } = await supabase
         .from('brain_analysis')
         .update({ identity_chronicle: chronicle })
@@ -85,25 +102,10 @@ export default function IdentityGraphEditor({ brainId }: IdentityGraphEditorProp
     }
   };
 
-  const addAxiom = () => {
-    const id = `axiom-${Date.now()}`;
-    const newNode: Node = {
-      id,
-      position: { x: Math.random() * 400, y: Math.random() * 400 },
-      data: { label: 'Novo Axioma' },
-      style: { 
-        background: 'rgba(139, 92, 246, 0.2)', 
-        color: '#fff', 
-        border: '1px solid #8b5cf6',
-        borderRadius: '12px',
-        padding: '10px',
-        fontSize: '12px',
-        fontWeight: 'bold',
-        width: 150,
-        textAlign: 'center',
-        backdropFilter: 'blur(4px)'
-      },
-    };
+  const injectAxiom = (type: DNANodeType = 'axiom') => {
+    const label = type === 'axiom' ? 'Novo Axioma' : 
+                 type === 'skill' ? 'Nova Habilidade' : 'Nova Crença';
+    const newNode = dnaRegistry.getEngine().createNode(label, type);
     setNodes((nds) => nds.concat(newNode));
   };
 
@@ -130,7 +132,7 @@ export default function IdentityGraphEditor({ brainId }: IdentityGraphEditorProp
         <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="rgba(139, 92, 246, 0.1)" />
         <Controls />
         <MiniMap 
-          nodeColor={(n: any) => {
+          nodeColor={(n: DNANode) => {
             if (n.id.includes('axiom')) return '#8b5cf6';
             return '#333';
           }}
@@ -140,12 +142,20 @@ export default function IdentityGraphEditor({ brainId }: IdentityGraphEditorProp
         
         <Panel position="top-right" className="flex gap-2">
           <Button 
-            onClick={addAxiom} 
+            onClick={() => injectAxiom('axiom')} 
             variant="outline" 
             size="sm" 
             className="gap-2 bg-background/50 backdrop-blur-md border-primary/30 hover:bg-primary/20 transition-all rounded-xl"
           >
             <Plus className="h-4 w-4" /> Injetar Axioma
+          </Button>
+          <Button 
+            onClick={() => injectAxiom('skill')} 
+            variant="outline" 
+            size="sm" 
+            className="gap-2 bg-background/50 backdrop-blur-md border-blue-500/30 hover:bg-blue-500/20 transition-all rounded-xl"
+          >
+            <Plus className="h-4 w-4" /> Crystallize Skill
           </Button>
           <Button 
             onClick={saveChronicle} 
