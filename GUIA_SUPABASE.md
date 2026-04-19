@@ -1,95 +1,86 @@
-# 🗄️ Guia de Implantação do Banco de Dados (Supabase)
+# 🗄️ Guia de Implantação e Replicação (Supabase 4.0)
 
-Como o **CognixOS** foi migrado para um formato aberto, quem for clonar o repositório precisará replicar o banco de dados. Este guia foi criado para usuários no modo "Free Tier" (plano gratuito) recriarem toda a estrutura de tabelas, funções e IA perfeitamente.
-
-A infraestrutura utiliza o **Supabase** (PostgreSQL) com a extensão `pgvector` e Edge Functions.
+Este guia é o manual definitivo para clonar e replicar a infraestrutura do **CognixOS 4.0** em um novo projeto Supabase.
 
 ---
 
-## 1. Configurando o Projeto no Supabase
-1. Crie uma conta gratuita em [Supabase.com](https://supabase.com).
-2. Clique em **"New Project"**, escolha um nome (ex: `cognixos-db`) e crie uma senha forte (guarde-a bem).
-3. Espere o banco terminar de provisionar (pode levar cerca de 2 minutos).
-4. Vá em **Project Settings -> API** e copie dois dados vitais:
-   - `Project URL`
-   - `Project API Keys (anon / public)`
+## 1. Preparação (Supabase Cloud)
 
-Na pasta na raiz do código (onde você fez o git clone), crie um arquivo `.env` baseado no `.env.example` e cole as chaves:
+1. Crie um projeto em [Supabase.com](https://supabase.com).
+2. Vá em **Project Settings -> API** e obtenha sua `URL` e `anon key`.
+3. Configure seu arquivo local `.env`:
 
-```env
-VITE_SUPABASE_URL=sua_url_aqui
-VITE_SUPABASE_ANON_KEY=sua_chave_aqui
-```
+   ```env
+   VITE_SUPABASE_URL=seu_url_aqui
+   VITE_SUPABASE_ANON_KEY=sua_chave_aqui
+   ```
 
 ---
 
-## 2. Replicando todas as Tabelas (Supabase CLI)
-Você não precisará criar tabelas manualmente! Todas as configurações, Políticas de Segurança (RLS) e a ativação da IA (PgVector) já estão prontas nos arquivos de "migration" dentro da pasta `/supabase/migrations`.
+## 2. Replicação Automática do Banco (CLI)
 
-1. Instale o **Supabase CLI** no seu sistema. (Se já usa o `npm` basta utilizar o `npx`).
-   Se precisar logar no CLI rode:
+O CognixOS 4.0 utiliza migrações estruturadas para garantir que o banco seja idêntico ao original.
+
+1. **Login e Link**:
+
    ```bash
    npx supabase login
+   npx supabase link --project-ref "SEU_REF_ID"
    ```
 
-2. Vincule seu código local ao projeto remoto que acabou de criar:
-   ```bash
-   npx supabase link --project-ref "SEU_REFERENCE_ID"
-   ```
-   *(O "Reference ID" é aquela parte de letras da URL do seu projeto Supabase: `https://[ESTE_CODIGO].supabase.co`)*
+2. **Empurrar Estrutura (SNA Cognitivo + Soberania)**:
 
-3. Aplique (empurre) a estrutura do banco de dados:
    ```bash
    npx supabase db push
    ```
-   > ✅ **Pronto!** A estrutura OPME v2.0 foi replicada. Suas tabelas (`brains`, `brain_analysis`, `subagents`, etc) com vetores e políticas restritas já foram criadas.
+
+   > 💡 Este comando cria automaticamente todas as tabelas (`brains`, `profiles`, `subagents`, `messages`) e ativa as extensões `pgvector` e `uuid-ossp`.
 
 ---
 
-## 3. Provisionando a Inteligência (Edge Functions)
-A "mágica" das criações de clone acontece totalmente isolada nos servidores do backend através das **Edge Functions**. Como é um projeto *Open-Source*, você precisa usar a sua própria chave de IA (OpenRouter).
+## 3. Configuração de Variáveis Sensíveis (Secrets)
 
-1. Crie uma conta no [OpenRouter](https://openrouter.ai/) e pegue uma API Key gratuita.
-2. Injeta essa chave como um "Segredo" direto no servidor do Supabase (para que as Edge Functions possam usá-la com segurança, sem expor no frontend):
-   ```bash
-   npx supabase secrets set OPENROUTER_API_KEY="sk-or-v1-SuaChaveAqui"
-   ```
-   *(Substitua pela sua chave real).*
-
-3. Suba (Deploy) as suas Edge Functions de Inteligência:
-   ```bash
-   npx supabase functions deploy
-   ```
-   Isso vai garantir as rotas principais:
-   - `auto-clone` (Esteira de Produção de DNA OPME v2.0)
-   - `analyze-brain` (Biometria Psicométrica / Mapeamento DISC)
-   - `brain-chat` (O cérebro sintético falando e buscando vetores - RAG)
-
----
-
-## 4. Avisos Importantes de Segurança (RLS)
-O banco foi configurado com **Row Level Security (RLS)**. As regras dizem que **apenas o criador do 'brain' pode editá-lo ou ler seus dados originais**. Isso significa que a privacidade do código foi modelada para ser o núcleo do CognixOS, permitindo que vários usuários criem clones independentemente sob a mesma instância sem visualizarem as "mentes digitais" uns dos outros.
-
----
-
-## 5. Resumo Rápido para Rodar Localmente (DEV)
+Para que as funções de IA e Telegram funcionem, você precisa injetar suas chaves privadas no cofre (Vault) do Supabase:
 
 ```bash
-# 1. Clonar
-git clone https://github.com/SeuGitHub/CognixOS.git && cd CognixOS
-npm install
+# Necessário para IA Cloud (Gemini, Llama, etc)
+npx supabase secrets set OPENROUTER_API_KEY="sk-or-v1-..."
 
-# 2. Conectar BD
-npx supabase login
-npx supabase link --project-ref [ID]
-npx supabase db push
-
-# 3. Chave de IA e Deploy Functions
-npx supabase secrets set OPENROUTER_API_KEY="sk-..."
-npx supabase functions deploy
-
-# 4. Rodar o OS
-npm run dev
+# Necessário para a Ponte Telegram
+npx supabase secrets set TELEGRAM_BOT_TOKEN="seu_token_do_botfather"
 ```
 
-Estará rodando em **`http://localhost:8080`**. Faça o seu primeiro login e bem-vindo à era das Mentes Sintéticas!
+---
+
+## 4. Deploy de Edge Functions (IA e Webhooks)
+
+Suba o código das funções para o servidor:
+
+```bash
+npx supabase functions deploy auto-clone --no-verify-jwt
+npx supabase functions deploy brain-chat --no-verify-jwt
+npx supabase functions deploy analyze-brain --no-verify-jwt
+npx supabase functions deploy telegram-webhook --no-verify-jwt
+```
+
+### 🛰️ Ativando o Webhook do Telegram
+
+Após o deploy da função `telegram-webhook`, você deve registrar a URL no Telegram:
+
+```bash
+# Execute este comando (substituindo os valores)
+curl "https://api.telegram.org/bot<SEU_TOKEN>/setWebhook?url=https://<SEU_PROJECT_ID>.functions.supabase.co/telegram-webhook"
+```
+
+---
+
+## 5. Resumo da Estrutura 4.0
+
+O banco replicado inclui as seguintes melhorias da versão 4.0:
+
+1. **Tabela `profiles`**: Novos campos para persistência de tokens Telegram e configurações de Soberania (BYOK/Local).
+2. **Segurança (RLS)**: Todas as tabelas possuem Políticas de Segurança de Nível de Linha ativas, garantindo que usuários nunca vejam clones ou configurações de terceiros.
+
+---
+
+**Pronto!** Seu backend está agora espelhado com o motor oficial do CognixOS 4.0.

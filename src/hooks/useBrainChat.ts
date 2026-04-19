@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { generateSecuritySignature } from "@/lib/security";
+import { LocalSyncService } from "@/lib/localSync";
 
 export type Message = { role: "user" | "assistant"; content: string };
 export type ChatMode = "fast" | "thinking" | "default";
@@ -109,20 +110,46 @@ export function useBrainChat({
       const timestamp = Date.now();
       const signature = await generateSecuritySignature(JSON.stringify(payloadMessages), timestamp);
 
-      const resp = await fetch(CHAT_URL, {
+      // --- BYOK / Local AI Routing ---
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("ai_settings")
+        .eq("id", session?.user?.id)
+        .single();
+      
+      const aiSettings = (profile?.ai_settings as any) || { active_provider: "system" };
+      
+      let fetchUrl = CHAT_URL;
+      let fetchHeaders: Record<string, string> = {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session?.access_token}`,
+        "X-AIOS-Signature": signature,
+        "X-AIOS-Timestamp": timestamp.toString(),
+      };
+      let fetchBody = JSON.stringify({
+        brainId,
+        mode: currentMode,
+        messages: payloadMessages,
+      });
+
+      if (aiSettings.active_provider === "local" && aiSettings.local_ai_endpoint) {
+        console.log("[Local AI] Routing to:", aiSettings.local_ai_endpoint);
+        fetchUrl = `${aiSettings.local_ai_endpoint}/v1/chat/completions`;
+        fetchHeaders = {
+          "Content-Type": "application/json",
+        };
+        fetchBody = JSON.stringify({
+          model: "ollama", // Generic for local
+          messages: payloadMessages,
+          stream: true,
+        });
+      }
+
+      const resp = await fetch(fetchUrl, {
         method: "POST",
         signal: controller.signal,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session?.access_token}`,
-          "X-AIOS-Signature": signature,
-          "X-AIOS-Timestamp": timestamp.toString(),
-        },
-        body: JSON.stringify({
-          brainId,
-          mode: currentMode,
-          messages: payloadMessages,
-        }),
+        headers: fetchHeaders,
+        body: fetchBody,
       });
 
       if (!resp.ok || !resp.body) {
@@ -179,6 +206,12 @@ export function useBrainChat({
           role: "assistant",
           content: assistantSoFar,
         });
+      }
+
+      // --- Offline Sovereignty: Sync to Local File ---
+      if (LocalSyncService.isSupported()) {
+        const fullHistory = [...messages, userMsg, { role: "assistant" as const, content: assistantSoFar }];
+        LocalSyncService.syncChatToLocal(fullHistory);
       }
     } catch (err: any) {
       // Ignore abort errors — user cancelled intentionally
