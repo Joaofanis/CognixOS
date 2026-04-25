@@ -1,6 +1,6 @@
-# 🔌 Guia Completo: MCP Gateway & Antigravity Kit (CognixOS 5.0)
+# 🔌 Guia Completo: MCP Gateway & Antigravity Kit (CognixOS 7.0)
 
-Este guia cobre a nova arquitetura extensível do CognixOS, permitindo que seus clones conectem-se a ferramentas externas e incorporem conhecimentos especializados usando o **Model Context Protocol (MCP)** e o **Antigravity Kit**.
+Este guia cobre a nova arquitetura extensível E2E do CognixOS, permitindo que seus clones conectem-se a ferramentas externas e operem de forma durável usando o **Model Context Protocol (MCP)** e o **Antigravity Kit**.
 
 ---
 
@@ -23,7 +23,7 @@ Não basta registrar um MCP; ele precisa ser ativado para um cérebro (clone) es
 1. Navegue até a tela principal do seu Cérebro e acesse as **Configurações (Brain Settings)**.
 2. Role até a seção **Integrações MCP (Ferramentas Externas)**.
 3. Você verá o painel *Elite Specialist Squad*. Clique em **Vincular** no MCP que deseja disponibilizar para esse clone.
-4. A partir de agora, nas conversas de chat, esse clone saberá quais ferramentas existem ali e poderá invocá-las de forma autônoma.
+4. **NOVO NA V7.0 (Native StructOut):** O clone não precisa mais "adivinhar" tags XML no chat para disparar ações. A Edge Function mapeará diretamente suas ferramentas vinculadas para os parâmetros nativos B2B de `tools:` e `tool_choice: auto` em Strict Mode. Isso liquida as alucinações sintáticas.
 
 ---
 
@@ -55,6 +55,7 @@ O Gateway é projetado para operar com total segurança (Sovereignty).
   - Para MCPs na Web, use **SSE** ou **HTTP**.
   - O CognixOS também prevê transporte **Stdio** para cenários onde a plataforma roda em ambiente desktop/local.
 - **Roteamento Controlado**: Cada chamada de ferramenta feita pela IA é gravada e isolada por politicas de segurança em nível de linha (RLS). Nenhuma tabela MCP pode ser acessada por outro usuário.
+- **Sandbox Executor (V7.0)**: Execuções potencialmente destrutivas operam via proxy em microVMs. Se o `sandbox-executor` intercepta comandos hostis (`rm -rf`, `drop table`), o loop E2E é trancado mudando o estado no DB para `suspended_hitl`. Um humano deve aprová-lo via Log Audits para destravar a *Agent Thread*.
 
 ---
 

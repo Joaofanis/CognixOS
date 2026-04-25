@@ -1,6 +1,6 @@
-# Guia de Replicação Supabase - CognixOS (OPME v2.0)
+# Guia de Replicação Supabase - CognixOS (AIOS v7.0)
 
-Este guia fornece as instruções necessárias para replicar o banco de dados e as funções de borda (Edge Functions) em um novo projeto Supabase (incluindo planos Gratuitos).
+Este guia fornece as instruções atualizadas para replicar o banco de dados e as edge functions em um novo projeto Supabase, incluindo as novas tabelas de Execução Durável (State Machines) e Memória (v7.0).
 
 ## 1. Configuração do Banco de Dados (SQL)
 
@@ -90,6 +90,46 @@ create table public.messages (
   role text check (role in ('user', 'assistant')),
   content text not null,
   created_at timestamptz default now()
+);
+
+-- ==========================================
+-- NOVO NA V7.0: ESTRATIFICAÇÃO DE MEMÓRIA (MemGPT Style)
+-- ==========================================
+
+-- 1. Core Memory (RAM do Agente)
+create table public.memories (
+  id uuid default gen_random_uuid() primary key,
+  brain_id uuid references public.brains(id) on delete cascade,
+  category varchar(50), 
+  content text not null,
+  importance int default 1,
+  created_at timestamptz default now(),
+  expires_at timestamptz,
+  access_count int default 0
+);
+
+-- 2. Recall Storage (HD de Conversas Brutas)
+create table public.conversation_logs (
+  id uuid default gen_random_uuid() primary key,
+  session_id uuid not null, 
+  role varchar(20), 
+  content text,
+  token_count int,
+  metadata jsonb,
+  created_at timestamptz default now()
+);
+
+-- 3. Checkpointing de Execução Durável (Grafo de LangGraph)
+create table public.agent_threads (
+  id uuid default gen_random_uuid() primary key,
+  brain_id uuid references public.brains(id) on delete cascade,
+  user_id uuid references auth.users(id) on delete cascade,
+  status varchar(30) default 'pending', -- pending, running, suspended_hitl, completed, failed
+  goal text not null,
+  checkpoint_state jsonb default '{}'::jsonb,
+  last_node varchar(50),
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
 );
 ```
 

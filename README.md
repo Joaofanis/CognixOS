@@ -12,7 +12,7 @@
 
 ## 🌌 Visão Geral: De Chatbots a Execução Autônoma E2E
 
-O **CognixOS 7.0** marca a transição definitiva de projetos acadêmicos para produtos B2B de classe mundial. O framework abandona as limitações críticas de LLMs (como Content Collapse, Serverless Death e Tool Hallucinations) adotando uma verdadeira arquitetura E2E (End-to-End). 
+O **CognixOS 7.0** marca a transição definitiva de projetos acadêmicos para produtos B2B de classe mundial. O framework abandona as limitações críticas de LLMs (como Content Collapse, Serverless Death e Tool Hallucinations) adotando uma verdadeira arquitetura E2E (End-to-End).
 
 Nossos clones operam agora como **Agentes Assíncronos Duráveis**, dotados de paginação de memória e isolamento seguro de hardware para automações corporativas sensíveis.
 
@@ -21,28 +21,37 @@ Nossos clones operam agora como **Agentes Assíncronos Duráveis**, dotados de p
 ## 🧬 Novos Pilares do Paradigma 7.0
 
 ### 1. Hierarquia de Memória Virtual (MemGPT Style)
+
 O Gargalo do *Context Collapse* acabou. O agente gerencia proativamente sua janela de contexto escrevendo e puxando registros entre:
+
 - **Core Memory** (`memories`): A RAM do agente (Identity, Facts, Preferences).
 - **Recall Storage** (`conversation_logs`): O HD do agente, acessado remotamente por busca estruturada, dispensando empilhar 100 mensagens na API.
 
 ### 2. Strict Native Tool Calling
-Fim do *Blind Tool Calling*. Não usamos mais _prompt injection_ (Tags Regex) suscetíveis à alucinações. 
+
+Fim do *Blind Tool Calling*. Não usamos mais *prompt injection* (Tags Regex) suscetíveis à alucinações.
+
 - O CognixOS força os LLMs via **Strict Structured Outputs** diretamente no payload das APIs (OpenRouter, OpenAI). A falha no formato da ferramenta é bloqueada matematicamente pelo JSON Schema antes de quebrar a lógica.
 
 ### 3. Execução Durável (Durable Loop Machine)
+
 O *Serverless Death* (Timeouts da Edge Function após 15s) foi mitigado pelo padrão **Submit-Poll**:
-- A invocação do Agente abre uma Thread (`agent_threads`). 
+
+- A invocação do Agente abre uma Thread (`agent_threads`).
 - Um cron worker processa chamadas LLM e salva os **Checkpoints** de Raciocínio (LangGraph-style).
 - O agente pode rodar por dias, adormecendo e acordando sem perder a cadeia de raciocínio.
 
 ### 4. Sandbox Executor e HITL (Segurança)
+
 Para operações corporativas B2B sensíveis (ex: Deletar repositórios, disparar e-mails em massa), as intenções brutas cruzam o `sandbox-executor`.
+
 - **E2E Isolation**: Envia chamadas bash/python para microVMs (Firecracker/gVisor).
 - **HITL (Human-in-the-Loop)**: Se o agente tentar um comando restrito, o Sandbox suspende o loop no DB e solicita autorização manual (Suspend-and-Review).
 
 ### 6. Universal MCP Gateway & Omnichannel
 
 Conecte **qualquer ferramenta externa** aos seus clones:
+
 | Método | Como funciona |
 | :--- | :--- |
 | **Manual** | Formulário com nome, emoji, transporte (SSE/HTTP/WebSocket/Stdio) |
@@ -52,8 +61,8 @@ Conecte **qualquer ferramenta externa** aos seus clones:
 
 ### 4. Soberania de IA: BYOK & Local First
 
-* **BYOK (Bring Your Own Key)**: Conecte sua própria API Key do OpenRouter diretamente no painel.
-* **IA Local (Ollama)**: Execute modelos 100% offline em sua máquina com privacidade absoluta.
+- **BYOK (Bring Your Own Key)**: Conecte sua própria API Key do OpenRouter diretamente no painel.
+- **IA Local (Ollama)**: Execute modelos 100% offline em sua máquina com privacidade absoluta.
 
 ### 5. Sincronização Física de Dados
 
@@ -82,7 +91,7 @@ O processo de clonagem é executado por uma sequência determinística de 8 agen
 
 ## 🏗️ Arquitetura V7.0
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │                        FRONTEND (Vite + React)                  │
 │  Setup Wizard │ Omni Dashboard │ Graph Visualizer │ Setup Hub   │
@@ -131,9 +140,9 @@ O processo de clonagem é executado por uma sequência determinística de 8 agen
 
 ### 1. Pré-requisitos
 
-* **Node.js 18+** (Ambiente de execução)
-* **Supabase CLI** (Para gerenciar o banco de dados e Edge Functions)
-* **Ollama** (Opcional, para soberania local)
+- **Node.js 18+** (Ambiente de execução)
+- **Supabase CLI** (Para gerenciar o banco de dados e Edge Functions)
+- **Ollama** (Opcional, para soberania local)
 
 ### 2. Setup Rápido
 
@@ -155,12 +164,17 @@ O CognixOS exige uma infraestrutura Supabase configurada com `pgvector` para a m
 
 👉 **[Guia Completo de Implantação Supabase](./GUIA_SUPABASE.md)**
 
-### 3. Soberania e Novas Funções
+### 3. Guias de Configuração Avançada do AIOS (B2B)
 
-Aprenda a configurar a IA Local (Ollama), Sincronização Física, BYOK e Telegram:
-👉 **[Guia de Configuração CognixOS](./GUIA_SOBERANIA_4.0.md)**
+Você deve ler a documentação complementar listada abaixo para dominar o Deploy e o uso do sistema E2E de clonagem do CognixOS:
+
+- 👉 **[1. Guia Completo de Banco de Dados e Replicação SQL](./REPLICAR_BANCO_DADOS.md)** (Essencial para V7)
+- 👉 **[2. Guia de MCP & Antigravity Kit (Automação Nativa)](./GUIA_MCP_ANTIGRAVITY.md)**
+- 👉 **[3. Guia de Soberania (Ollama Local, BYOK, Arquivos Físicos, Webhooks)](./GUIA_SOBERANIA_4.0.md)**
+- 👉 **[4. Architecture Design System (Personas & HITL Rules)](./DESIGN.md)**
 
 ### 4. Setup Gráfico do Antigravity Kit (V6.0+)
+
 Esqueça comandos no terminal. Acesse a rota visual de Setup no navegador para injetar o framework no DB:
 Acesse: `/setup` no webapp.
 
@@ -179,11 +193,11 @@ Acesse: `/setup` no webapp.
 
 ## 🛡️ Segurança: Neural Shield Alpha
 
-* **Lógica Epistêmica**: O agente sabe **o porquê** sabe, gerando auditorias de raciocínio justificadas.
-* **Prompt Armor**: Proteção multicamada contra ataques de injeção de prompt e jailbreaks.
-* **Data Sovereignty**: Políticas rigorosas de RLS (Row Level Security) em todas as tabelas.
-* **MCP Sandbox**: Secrets de MCP armazenados com isolamento por usuário, nunca expostos ao frontend.
-* **Audit Logging**: Toda invocação de ferramenta MCP é registrada em `security_audit_logs`.
+- **Lógica Epistêmica**: O agente sabe **o porquê** sabe, gerando auditorias de raciocínio justificadas.
+- **Prompt Armor**: Proteção multicamada contra ataques de injeção de prompt e jailbreaks.
+- **Data Sovereignty**: Políticas rigorosas de RLS (Row Level Security) em todas as tabelas.
+- **MCP Sandbox**: Secrets de MCP armazenados com isolamento por usuário, nunca expostos ao frontend.
+- **Audit Logging**: Toda invocação de ferramenta MCP é registrada em `security_audit_logs`.
 
 ---
 
@@ -191,16 +205,16 @@ Acesse: `/setup` no webapp.
 
 O CognixOS é a ferramenta definitiva para:
 
-* **Imortalidade Digital**: Preservação de legados intelectuais.
-* **Educação Hiper-Personalizada**: Clones de professores reais que ensinam com sua metodologia exata.
-* **Enterprise Sovereignty**: Agentes corporativos que seguem playbooks rígidos sem alucinações.
-* **Dev Automation**: Clones que operam como squads de desenvolvimento com skills especializadas e ferramentas MCP reais.
+- **Imortalidade Digital**: Preservação de legados intelectuais.
+- **Educação Hiper-Personalizada**: Clones de professores reais que ensinam com sua metodologia exata.
+- **Enterprise Sovereignty**: Agentes corporativos que seguem playbooks rígidos sem alucinações.
+- **Dev Automation**: Clones que operam como squads de desenvolvimento com skills especializadas e ferramentas MCP reais.
 
 ---
 
 ## 📁 Estrutura do Projeto
 
-```
+```text
 CognixOS/
 ├── src/
 │   ├── components/          # React components

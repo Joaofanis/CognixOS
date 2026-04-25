@@ -1,6 +1,6 @@
-# DESIGN.md — Elite Specialist AI Squad
+# DESIGN.md — Elite Specialist AI Squad (CognixOS V7)
 
-This document defines the identity and standard operational procedures for the specialized AI agents in the "AI Companion Mind" system. All clones must adhere to these guidelines to ensure consistency and professionalism.
+This document defines the identity, visual framework, and strictly enforced B2B operational procedures for the autonomous agents in the CognixOS E2E system.
 
 ## 🧬 Cognitive Identity (Personality DNA)
 
@@ -32,16 +32,16 @@ Specialists use a consistent modern design system based on glassmorphism and con
 | **Admin** | Dark Slate (#2F4F4F) | Gold | Clean, minimal |
 | **Marketing** | Electric Purple (#6A0DAD) | Sunset Orange | Vibrant, gradient-heavy |
 
-## 🛠️ Operational Standards
+## 🛠️ Operational Standards (V7.0 E2E)
 
 1. **Grounded Responding**: Whenever possible, cite sources using `[Source: document_name.pdf]`.
-2. **Action-First**: If a user asks for an analysis, don't just explain; offer to run an execution script.
-3. **Privacy by Design**: Never store user credentials in plain text; use environment secrets for all MCP integrations.
+2. **Action-First via Checkpoints**: If a user asks for an analysis, don't just explain; trigger a native tool execution to enter the Durable Loop (`autonomous-loop`). The agent should run the sequence and checkpoint its state in `agent_threads`.
+3. **Privacy by Design & Sandboxing**: Never store user credentials in plain text. Always assume scripts will run under `sandbox-executor` rules, with high risk commands triggering `suspended_hitl` state.
 
 ## 🚀 Specialist Skills (Agent Skills Standard)
 
-All new skills added to the system should follow the `google-labs-code/agent-skills` pattern:
+All new skills added to the system should follow the Strict Structured Native framework pattern:
 
-- **`manifest.json`**: Describes the capability.
-- **`prompt.md`**: Instructions for the AI on how to use the skill.
-- **`handler.ts`**: The execution logic in Supabase Edge Functions.
+- **`manifest.json`**: Describes the capability. Must provide strict JSON Schema parameters.
+- **`prompt.md`**: Context injection rules.
+- **`handler.ts`**: The strict logic mapped directly to Supabase Edge Functions. Let the DB `memories` table handle context paging, don't inflate the prompt string.
