@@ -393,7 +393,7 @@ serve(async (req: Request) => {
       .single();
 
     if (profile?.ai_settings) {
-      const settings = profile.ai_settings as any;
+      const settings = profile.ai_settings as Record<string, string>;
       if (settings.active_provider === "custom" && settings.custom_openrouter_key) {
         console.log(`[BYOK] Using custom API key for user ${userId}`);
         OPENROUTER_API_KEY = settings.custom_openrouter_key;
@@ -405,7 +405,7 @@ serve(async (req: Request) => {
       // Get brain info and verify ownership
       const { data, error: brainErr } = await supabase
         .from("brains")
-        .select("name, type, description, user_id, system_prompt")
+        .select("name, type, description, user_id, system_prompt, execution_mode, specialist_role, mcp_config")
         .eq("id", brainId)
         .single();
 
@@ -461,28 +461,30 @@ serve(async (req: Request) => {
         .maybeSingle();
 
       if (analysis?.identity_chronicle) {
-        const cron = analysis.identity_chronicle as any;
-        const nodes = cron.nodes || [];
-        const edges = cron.edges || [];
+        interface ChronicleNode { id: string; type: string; label: string; data?: { label?: string; prerequisites?: string[]; steps?: string[]; pitfalls?: string[]; }; }
+        interface ChronicleEdge { source: string; target: string; label: string; }
+        const cron = analysis.identity_chronicle as { nodes?: ChronicleNode[]; edges?: ChronicleEdge[] };
+        const nodes: ChronicleNode[] = cron.nodes || [];
+        const edges: ChronicleEdge[] = cron.edges || [];
 
         if (nodes.length > 0) {
           chronicleContext = "\n[CRÔNICA DE IDENTIDADE - AXIOMAS & ASSOCIAÇÕES MENTAIS]\n";
           chronicleContext += "Você deve ancorar suas respostas nestes pilares fundamentais:\n";
           
           // Inject Nodes by Type
-          const beliefs = nodes.filter((n: any) => n.type === 'belief').map((n: any) => n.label);
-          const values = nodes.filter((n: any) => n.type === 'value').map((n: any) => n.label);
-          const heuristics = nodes.filter((n: any) => n.type === 'heuristic').map((n: any) => n.label);
+          const beliefs = nodes.filter((n) => n.type === 'belief').map((n) => n.label);
+          const values = nodes.filter((n) => n.type === 'value').map((n) => n.label);
+          const heuristics = nodes.filter((n) => n.type === 'heuristic').map((n) => n.label);
 
           if (beliefs.length > 0) chronicleContext += `- CRENÇAS CENTRAIS: ${beliefs.join(", ")}\n`;
           if (values.length > 0) chronicleContext += `- VALORES INEGOCIÁVEIS: ${values.join(", ")}\n`;
           if (heuristics.length > 0) chronicleContext += `- HEURÍSTICAS DE DECISÃO: ${heuristics.join(", ")}\n`;
 
           // Inject Procedural Skills
-          const skills = nodes.filter((n: any) => n.type === 'skill');
+          const skills = nodes.filter((n) => n.type === 'skill');
           if (skills.length > 0) {
             chronicleContext += "\n[HABILIDADES COGNITIVAS - PLAYBOOKS]\n";
-            skills.forEach((s: any) => {
+            skills.forEach((s) => {
               chronicleContext += `### ${s.data?.label || s.label}\n`;
               if (s.data?.prerequisites?.length > 0) chronicleContext += `- PRÉ-REQUISITOS: ${s.data.prerequisites.join(", ")}\n`;
               if (s.data?.steps?.length > 0) {
@@ -494,9 +496,9 @@ serve(async (req: Request) => {
           }
 
           // Inject key associations (Edges)
-          const keyEdges = edges.slice(0, 10).map((e: any) => {
-            const src = nodes.find((n: any) => n.id === e.source)?.label || e.source;
-            const tgt = nodes.find((n: any) => n.id === e.target)?.label || e.target;
+          const keyEdges = edges.slice(0, 10).map((e) => {
+            const src = nodes.find((n) => n.id === e.source)?.label || e.source;
+            const tgt = nodes.find((n) => n.id === e.target)?.label || e.target;
             return `${src} -> [${e.label}] -> ${tgt}`;
           });
           if (keyEdges.length > 0) {
@@ -582,8 +584,107 @@ Responda de forma telegráfica. Sem saudações. Sem conclusões. Use bullet poi
       }
     }
 
+    let nativeTools: any[] = [];
+    // --- SPECIALIST SQUAD ENHANCEMENTS ---
+    if (hasBrain && brain) {
+
+      if (brain.execution_mode !== "none") {
+        modeInstruction += `
+[SPECIALIST PROTOCOL: EXECUTION ENABLED]
+Você tem permissão para executar tarefas reais. Se a solicitação do usuário exigir ações práticas (cálculos complexos, automação n8n), você deve incluir o seguinte bloco de ferramenta no final da sua resposta:
+<execute>
+{
+  "skillType": "${brain.specialist_role === 'finance' ? 'python_analysis' : 'n8n_integration'}",
+  "reason": "Explicação curta do motivo da execução"
+}
+</execute>`;
+      }
+
+      // --- MCP GATEWAY INTEGRATION ---
+      const { data: mcpLinks } = await supabase
+        .from("brain_mcp_links")
+        .select("mcp_id, config_overrides, enabled, mcp_registry:mcp_id(id, name, description, tools_manifest, server_config, category, icon_emoji)")
+        .eq("brain_id", brainId)
+        .eq("enabled", true);
+
+      if (mcpLinks && mcpLinks.length > 0) {
+        let mcpToolsBlock = "\n[FERRAMENTAS MCP DISPONÍVEIS]\nVocê tem acesso às seguintes ferramentas de sistema. O Framework solicitará as chamadas de forma nativa.\n";
+        
+        for (const link of mcpLinks) {
+          const mcp = link.mcp_registry as { id: string; name: string; description: string | null; tools_manifest: any[]; server_config: Record<string, unknown>; category: string; icon_emoji: string } | null;
+          if (!mcp) continue;
+          
+          mcpToolsBlock += `\n${mcp.icon_emoji || '🔌'} **${mcp.name}** (${mcp.category})\n`;
+          
+          const tools = mcp.tools_manifest;
+          if (tools && tools.length > 0) {
+            for (const tool of tools.slice(0, 10)) {
+              nativeTools.push({
+                type: "function",
+                function: {
+                  name: `${mcp.id}__${tool.name}`,
+                  description: tool.description || `Ferramenta ${tool.name}`,
+                  parameters: tool.inputSchema || { type: "object", properties: {}, additionalProperties: false },
+                  strict: true
+                }
+              });
+            }
+          }
+
+          if (mcp.server_config?.type === "skill_md" && mcp.server_config?.content) {
+            const skillContent = (mcp.server_config.content as string).slice(0, 5000);
+            contextParts.push(`[CONHECIMENTO MCP: ${mcp.name}]\n${skillContent}`);
+          }
+        }
+        modeInstruction += mcpToolsBlock;
+      }
+
+
+      if ((brain as Record<string, unknown>).agent_template_id) {
+        const { data: agentTemplate } = await supabase
+          .from("agent_templates")
+          .select("name, persona_md, skills")
+          .eq("id", (brain as Record<string, unknown>).agent_template_id as string)
+          .single();
+
+        if (agentTemplate?.persona_md) {
+          const persona = agentTemplate.persona_md.slice(0, 8000);
+          modeInstruction += `\n\n[ESPECIALIZAÇÃO ATIVA: ${agentTemplate.name}]
+O template a seguir COMPLEMENTA sua personalidade existente. Mantenha suas características e voz únicos, mas incorpore os conhecimentos e protocolos deste especialista:
+${persona}`;
+        }
+
+        // Load active skills
+        if (agentTemplate?.skills && agentTemplate.skills.length > 0) {
+          const { data: skills } = await supabase
+            .from("skill_templates")
+            .select("name, description, content_md")
+            .in("id", agentTemplate.skills)
+            .limit(5);
+
+          if (skills && skills.length > 0) {
+            let skillsBlock = "\n\n[SKILLS ATIVAS]\n";
+            for (const skill of skills) {
+              const content = skill.content_md?.slice(0, 3000) || "";
+              skillsBlock += `### ${skill.name}\n${skill.description || ""}\n${content}\n---\n`;
+            }
+            modeInstruction += skillsBlock;
+          }
+        }
+      }
+
+      // Legacy: grounded knowledge from mcp_config
+      if (brain.mcp_config && Object.keys(brain.mcp_config as object).length > 0) {
+        modeInstruction += `
+[SPECIALIST PROTOCOL: GROUNDED KNOWLEDGE]
+Você está conectado a uma base de conhecimento externa (NotebookLM). 
+Para cada afirmação técnica, você DEVE fornecer uma citação no formato: [Fonte: Titulo_Documento.pdf, pág. X].`;
+      }
+    }
+
     // Append mode instruction at the very end of the system prompt for maximum weight
     systemPrompt += modeInstruction;
+
 
     // Finally, truncate system prompt if it's too large (safety check)
     if (systemPrompt.length > 30000) {
@@ -634,6 +735,7 @@ Responda de forma telegráfica. Sem saudações. Sem conclusões. Use bullet poi
                 { role: "system", content: systemPrompt },
                 ...sanitizedMessages,
               ],
+              tools: nativeTools.length > 0 ? nativeTools : undefined,
               stream: true,
               temperature: chatTemperature,
               max_tokens: 16_000,

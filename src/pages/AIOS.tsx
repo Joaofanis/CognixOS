@@ -63,6 +63,8 @@ interface AiSettings {
   local_ai_endpoint: string;
 }
 
+type OllamaStatus = 'idle' | 'checking' | 'online' | 'offline' | 'cors_error';
+
 export default function AIOS() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -75,6 +77,7 @@ export default function AIOS() {
     custom_openrouter_key: "",
     local_ai_endpoint: "http://localhost:11434"
   });
+  const [ollamaStatus, setOllamaStatus] = useState<OllamaStatus>('idle');
 
   useEffect(() => {
     const checkLocalFile = async () => {
@@ -153,6 +156,43 @@ export default function AIOS() {
     } catch (error) {
       const err = error as Error;
       toast.error("Erro ao linkar Telegram: " + err.message);
+    }
+  };
+
+  const testOllamaConnection = async () => {
+    setOllamaStatus('checking');
+    try {
+      // First attempt with CORS
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      
+      const response = await fetch(`${aiSettings.local_ai_endpoint}/api/tags`, {
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      
+      if (response.ok) {
+        setOllamaStatus('online');
+        toast.success("Ollama está online e acessível!");
+      } else {
+        setOllamaStatus('offline');
+      }
+    } catch (err) {
+      // Possible CORS or actual offline
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2000);
+        await fetch(`${aiSettings.local_ai_endpoint}/api/tags`, { 
+          mode: 'no-cors',
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        setOllamaStatus('cors_error');
+        toast.error("Erro de CORS: O Ollama está rodando, mas bloqueando o navegador.");
+      } catch {
+        setOllamaStatus('offline');
+        toast.error("Ollama não foi encontrado. Verifique se o servidor está rodando.");
+      }
     }
   };
 
@@ -709,12 +749,40 @@ export default function AIOS() {
 
                 <div className="space-y-2">
                   <Label className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Ollama Endpoint</Label>
-                  <Input 
-                    placeholder="http://localhost:11434"
-                    value={aiSettings.local_ai_endpoint || ""}
-                    onChange={(e) => setAiSettings({...aiSettings, local_ai_endpoint: e.target.value})}
-                    className="bg-white/5 border-white/10 rounded-xl font-mono text-xs py-5"
-                  />
+                  <div className="flex gap-2">
+                    <Input 
+                      placeholder="http://localhost:11434"
+                      value={aiSettings.local_ai_endpoint || ""}
+                      onChange={(e) => setAiSettings({...aiSettings, local_ai_endpoint: e.target.value})}
+                      className="bg-white/5 border-white/10 rounded-xl font-mono text-xs py-5"
+                    />
+                    <Button 
+                      onClick={testOllamaConnection}
+                      disabled={ollamaStatus === 'checking'}
+                      className={`px-4 bg-white/5 border border-white/10 hover:bg-white/10 rounded-xl transition-all ${
+                        ollamaStatus === 'online' ? 'border-green-500/50 text-green-500' : 
+                        ollamaStatus === 'offline' ? 'border-red-500/50 text-red-500' :
+                        ollamaStatus === 'cors_error' ? 'border-yellow-500/50 text-yellow-500' : ''
+                      }`}
+                    >
+                      {ollamaStatus === 'checking' ? <Activity className="h-4 w-4 animate-spin" /> : <Wifi className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                  
+                  {ollamaStatus !== 'idle' && (
+                    <div className={`text-[9px] font-bold uppercase flex items-center gap-1.5 mt-1 ${
+                      ollamaStatus === 'online' ? 'text-green-500' : 
+                      ollamaStatus === 'offline' ? 'text-red-500' : 'text-yellow-500'
+                    }`}>
+                      <div className={`h-1.5 w-1.5 rounded-full animate-pulse ${
+                        ollamaStatus === 'online' ? 'bg-green-500' : 
+                        ollamaStatus === 'offline' ? 'bg-red-500' : 'bg-yellow-500'
+                      }`} />
+                      {ollamaStatus === 'online' ? 'Conexão Estável' : 
+                       ollamaStatus === 'offline' ? 'Servidor Offline' : 'Erro de Origem (CORS)'}
+                    </div>
+                  )}
+
                   <p className="text-[9px] text-muted-foreground/50 italic">Certifique-se que o Ollama permite CORS do seu domínio.</p>
                 </div>
               </div>

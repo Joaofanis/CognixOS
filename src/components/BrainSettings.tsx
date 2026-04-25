@@ -29,6 +29,7 @@ import { toast } from "sonner";
 import TagInput from "@/components/TagInput";
 import { BRAIN_TYPE_CONFIG, BrainType } from "@/lib/brain-types";
 import QuotesDatabase from "@/components/QuotesDatabase";
+import McpRegistryPanel from "@/components/McpRegistryPanel";
 
 interface Brain {
   id: string;
@@ -36,6 +37,9 @@ interface Brain {
   description: string | null;
   type: string;
   tags?: string[] | null;
+  execution_mode?: string;
+  specialist_role?: string;
+  mcp_config?: any;
 }
 
 interface Props {
@@ -52,6 +56,20 @@ export default function BrainSettings({ brain }: Props) {
   const [tags, setTags] = useState<string[]>((brain.tags as string[]) || []);
   const [savingIdentity, setSavingIdentity] = useState(false);
   const [generatingDesc, setGeneratingDesc] = useState(false);
+  const [executionMode, setExecutionMode] = useState(brain.execution_mode || "none");
+  const [specialistRole, setSpecialistRole] = useState(brain.specialist_role || "");
+  const [mcpConfig, setMcpConfig] = useState(JSON.stringify(brain.mcp_config || {}));
+  const [notebookId, setNotebookId] = useState(brain.mcp_config?.notebook_id || "");
+  const [linkedMcpIds, setLinkedMcpIds] = useState<string[]>([]);
+
+  const fetchLinkedMcps = async () => {
+    const { data } = await supabase
+      .from("brain_mcp_links" as any)
+      .select("mcp_id")
+      .eq("brain_id", brain.id)
+      .eq("enabled", true);
+    if (data) setLinkedMcpIds(data.map((d: any) => d.mcp_id));
+  };
 
   // Prompt fields
   const [prompt, setPrompt] = useState("");
@@ -80,6 +98,7 @@ export default function BrainSettings({ brain }: Props) {
       setSavedPrompt(p);
       setLoadingPrompt(false);
     })();
+    fetchLinkedMcps();
   }, [brain.id]);
 
   // ── Sync if brain prop changes ─────────────────────────────────────────────
@@ -87,6 +106,9 @@ export default function BrainSettings({ brain }: Props) {
     setName(brain.name);
     setDescription(brain.description || "");
     setTags((brain.tags as string[]) || []);
+    setExecutionMode(brain.execution_mode || "none");
+    setSpecialistRole(brain.specialist_role || "");
+    setNotebookId(brain.mcp_config?.notebook_id || "");
   }, [brain]);
 
   // ── Identity save ──────────────────────────────────────────────────────────
@@ -100,6 +122,9 @@ export default function BrainSettings({ brain }: Props) {
           name: name.trim(),
           description: description.trim() || null,
           tags,
+          execution_mode: executionMode,
+          specialist_role: specialistRole || null,
+          mcp_config: notebookId ? { notebook_id: notebookId } : {},
           updated_at: new Date().toISOString(),
         })
         .eq("id", brain.id);
@@ -249,7 +274,10 @@ export default function BrainSettings({ brain }: Props) {
   const hasIdentityChanges =
     name !== brain.name ||
     description !== (brain.description || "") ||
-    JSON.stringify(tags) !== JSON.stringify((brain.tags as string[]) || []);
+    JSON.stringify(tags) !== JSON.stringify((brain.tags as string[]) || []) ||
+    executionMode !== (brain.execution_mode || "none") ||
+    specialistRole !== (brain.specialist_role || "") ||
+    notebookId !== (brain.mcp_config?.notebook_id || "");
 
   const hasPromptChanges = prompt !== savedPrompt;
 
@@ -329,6 +357,89 @@ export default function BrainSettings({ brain }: Props) {
             <Save className="h-4 w-4" />
           )}
           Salvar Informações
+        </Button>
+      </section>
+
+      {/* ── Elite Specialist Squad section ───────────────────────────────── */}
+      <section className="space-y-5 rounded-2xl border border-primary/30 bg-primary/5 p-5">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/20">
+            <Sparkles className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <h3 className="font-bold text-foreground">Elite Specialist Squad</h3>
+            <p className="text-xs text-muted-foreground">Converta este cérebro em um Especialista Autônomo</p>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>Pilar de Especialidade (DESIGN.md)</Label>
+            <select 
+              value={specialistRole}
+              onChange={(e) => setSpecialistRole(e.target.value)}
+              className="w-full rounded-xl border border-border/60 bg-background/60 px-4 py-2.5 text-sm focus:outline-none focus:border-primary/50"
+            >
+              <option value="">Nenhum</option>
+              <option value="admin">Administrador (Automação & Processos)</option>
+              <option value="finance">Financeiro (Análise & Cálculos)</option>
+              <option value="marketing">Marketing (Copy & Estratégia)</option>
+            </select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Poder de Execução (Engine Autônoma)</Label>
+            <div className="flex gap-2">
+              <Button 
+                variant={executionMode === "none" ? "default" : "outline"}
+                size="sm"
+                className="flex-1 rounded-lg"
+                onClick={() => setExecutionMode("none")}
+              >
+                Bloqueado
+              </Button>
+              <Button 
+                variant={executionMode === "jules" ? "default" : "outline"}
+                size="sm"
+                className="flex-1 rounded-lg border-primary/40 text-primary"
+                onClick={() => setExecutionMode("jules")}
+              >
+                Jules (Nativo)
+              </Button>
+              <Button 
+                variant={executionMode === "sandbox" ? "default" : "outline"}
+                size="sm"
+                className="flex-1 rounded-lg border-primary/40 text-primary"
+                onClick={() => setExecutionMode("sandbox")}
+              >
+                Sandbox Python
+              </Button>
+            </div>
+            <p className="text-[10px] text-muted-foreground px-1">
+              * Permite que o especialista execute ferramentas reais via Specialist Executor.
+            </p>
+          </div>
+
+          <div className="space-y-1.5 pt-2">
+            <Label>Integrações MCP (Ferramentas Externas)</Label>
+            <div className="bg-background/40 rounded-xl border border-border/40 p-3">
+              <McpRegistryPanel
+                brainId={brain.id}
+                linkedMcpIds={linkedMcpIds}
+                onLinksChanged={fetchLinkedMcps}
+              />
+            </div>
+          </div>
+        </div>
+
+        <Button
+          onClick={handleSaveIdentity}
+          disabled={savingIdentity || !hasIdentityChanges}
+          variant="outline"
+          className="w-full gap-2 rounded-xl border-primary/30 text-primary hover:bg-primary/10"
+        >
+           {savingIdentity ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+           Salvar Configurações Especialistas
         </Button>
       </section>
 

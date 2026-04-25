@@ -15,6 +15,8 @@ import AIOS from "./pages/AIOS";
 import VirtualOffice from "./pages/VirtualOffice";
 import UserProfileAI from "./pages/UserProfileAI";
 import Settings from "./pages/Settings";
+import McpHub from "./pages/McpHub";
+import OnboardingWizard from "./pages/OnboardingWizard";
 import { ThemeProvider } from "./components/ThemeProvider";
 import { SettingsProvider } from "./hooks/useSettings";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -50,6 +52,7 @@ const AppLayout = () => (
           <Sonner />
           <Routes>
             <Route path="/auth" element={<AuthRoute><Auth /></AuthRoute>} />
+            <Route path="/setup" element={<ProtectedRoute><OnboardingWizard /></ProtectedRoute>} />
             <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/brain/:id" element={<ProtectedRoute><BrainDetail /></ProtectedRoute>} />
             <Route path="/compare" element={<ProtectedRoute><Compare /></ProtectedRoute>} />
@@ -59,6 +62,7 @@ const AppLayout = () => (
             <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
             <Route path="/aios" element={<ProtectedRoute><AIOS /></ProtectedRoute>} />
             <Route path="/virtual-office" element={<ProtectedRoute><VirtualOffice /></ProtectedRoute>} />
+            <Route path="/mcp-hub" element={<ProtectedRoute><McpHub /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </TooltipProvider>
