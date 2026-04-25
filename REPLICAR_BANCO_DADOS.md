@@ -23,6 +23,7 @@ create table public.profiles (
   id uuid references auth.users on delete cascade primary key,
   display_name text,
   avatar_url text,
+  ai_settings jsonb default '{}'::jsonb, -- Configurações de Soberania (BYOK/Ollama)
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
@@ -131,6 +132,49 @@ create table public.agent_threads (
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
+
+-- ==========================================
+-- NOVO NA V7.0: SQUADS & VIRTUAL OFFICE
+-- ==========================================
+
+-- 1. Squads (Missões do Escritório Virtual)
+create table public.squads (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references auth.users(id) on delete cascade not null,
+  name text not null,
+  challenge text,
+  status text default 'planning',
+  final_report text,
+  metadata jsonb default '{}'::jsonb,
+  created_at timestamptz default now()
+);
+
+-- 2. Subagentes (Unidades de Execução da Fábrica)
+create table public.subagents (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references auth.users(id) on delete cascade not null,
+  squad_id uuid references public.squads(id) on delete set null,
+  name text not null,
+  role text not null,
+  cloned_from text,
+  system_prompt text,
+  preferred_model text default 'google/gemini-1.5-flash',
+  is_autonomous boolean default true,
+  task_output text,
+  status text default 'idle',
+  created_at timestamptz default now()
+);
+
+-- 3. Mensagens de Squad (Comunicação entre Agentes)
+create table public.squad_messages (
+  id uuid default gen_random_uuid() primary key,
+  squad_id uuid references public.squads(id) on delete cascade not null,
+  sender_id uuid references public.subagents(id) on delete set null,
+  receiver_id uuid references public.subagents(id) on delete set null,
+  content text not null,
+  type text default 'task', -- task, report, discussion
+  created_at timestamptz default now()
+);
 ```
 
 ## 2. Configurações de Segurança (RLS)
@@ -171,6 +215,8 @@ supabase functions deploy auto-clone --no-verify-jwt
 supabase functions deploy analyze-brain --no-verify-jwt
 supabase functions deploy generate-description --no-verify-jwt
 supabase functions deploy process-rag --no-verify-jwt
+supabase functions deploy virtual-office --no-verify-jwt
+supabase functions deploy agent-squad --no-verify-jwt
 ```
 
 > [!IMPORTANT]

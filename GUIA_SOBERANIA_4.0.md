@@ -1,73 +1,71 @@
-# 🛠️ Guia de Configuração CognixOS 4.0
+# 🛡️ Guia de Soberania CognixOS 7.0 (Local First & Privacy)
 
-Este guia ensina como ativar e configurar as novas funcionalidades de Soberania de IA e Conectividade.
+O CognixOS 7.0 foi projetado sob o princípio da **Soberania Digital**. Este guia detalha como configurar a infraestrutura para que sua inteligência e dados nunca dependam exclusivamente de servidores de terceiros.
 
 ---
 
-## 1. IA Local (Ollama)
+## 1. IA Local (Ollama) — Processamento 100% Offline
 
-O CognixOS permite processamento 100% offline. Para funcionar, você precisa do Ollama rodando localmente.
+A integração com o Ollama permite que seus clones rodem diretamente na sua GPU/CPU, garantindo que nada saia da sua máquina.
 
-### A. Instalação
-
-1. Baixe o Ollama em [ollama.com](https://ollama.com).
-2. Baixe os modelos recomendados:
-
+### A. Instalação e Modelos
+1. Baixe o software em [ollama.com](https://ollama.com).
+2. Recomendamos os modelos treinados para o protocolo CognixOS:
    ```bash
-   ollama run llama3.1
-   ollama run qwen2.5
+   ollama run llama3.1:8b       # Equilíbrio entre lógica e velocidade
+   ollama run qwen2.5:7b        # Excelente para raciocínio técnico
+   ollama run deepseek-v2:16b   # Para análises financeiras densas (requer +12GB VRAM)
    ```
 
-### B. Habilitando o Acesso (CORS) - CRÍTICO
-
-Por padrão, o Ollama bloqueia conexões do navegador. Você **DEVE** habilitar as origens:
+### B. Habilitando a Ponte de Dados (CORS)
+O navegador bloqueia conexões externas por segurança. Você deve autorizar o CognixOS a falar com o Ollama:
 
 **Windows (PowerShell):**
-
 ```powershell
 [System.Environment]::SetEnvironmentVariable('OLLAMA_ORIGINS', '*', 'User')
-# Reinicie o Ollama após este comando
+# IMPORTANTE: Reinicie o Ollama (feche no ícone da bandeja e abra de novo)
 ```
 
-**Linux/Mac:**
-
+**Mac/Linux:**
 ```bash
 OLLAMA_ORIGINS="*" ollama serve
 ```
 
 ---
 
-## 2. Sincronização Física (Backup Offline)
+## 2. Paging de Memória Virtual (Local Sync)
 
-Esta funcionalidade salva seu chat em um arquivo físico no seu PC.
+Diferente de chats comuns, o CognixOS 7.0 utiliza a **File System Access API** para espelhar suas conversas sensíveis em arquivos locais estruturados.
 
-1. No Dashboard, vá em **Configurações**.
-2. Clique em **Vincular Arquivo (.json)**.
-3. Escolha uma pasta segura e crie um arquivo (ex: `meu_backup_cognix.json`).
-4. **Nota**: Toda vez que você reiniciar o navegador, clique em "Reautorizar Escrita" para confirmar a permissão de segurança do Chrome/Edge.
+### Como Ativar:
+1. No Dashboard, acesse **Configurações > Sincronização Física**.
+2. Clique em **Vincular Arquivo JSON**.
+3. Selecione um diretório seguro (recomendamos uma pasta criptografada ou um drive físico).
+4. O sistema salvará o estado `Core Memory` de cada clone no arquivo toda vez que houver uma alteração.
 
----
-
-## 3. Soberania BYOK (OpenRouter)
-
-Se você não quer depender do servidor central para créditos de IA:
-
-1. Pegue sua chave em [OpenRouter.ai](https://openrouter.ai).
-2. No CognixOS Dashboard -> Configurações -> **Parâmetros de Acesso**.
-3. Cole sua chave no campo **OpenRouter API Key** e salve.
-4. Selecione o modo **BYOK (Própria Key)**. Suas conversas agora usarão seus próprios créditos diretamente.
+> [!TIP]
+> Isso permite que você mude de navegador ou de domínio e recupere toda a "alma" (memory pool) dos seus clones apenas apontando para o arquivo físico.
 
 ---
 
-## 4. Ponte Telegram
+## 3. Soberania BYOK (Bring Your Own Key)
 
-Para falar com seus clones via celular:
+Se você utiliza modelos de nuvem, não use créditos de terceiros. Use suas próprias chaves para garantir autonomia total sobre os limites de tokens e custos.
 
-1. Crie um Bot no [@BotFather](https://t.me/botfather) e pegue o Token.
-2. Certifique-se que o administrador do sistema configurou o segredo `TELEGRAM_BOT_TOKEN` no Supabase (veja `GUIA_SUPABASE.md`).
-3. No dashboard do CognixOS, vá em **Telegram** e clique em **Gerar Link de Autenticação**.
-4. Siga as instruções no bot para vincular sua conta.
+1. Vá para **Configurações > Perfil IA**.
+2. Insira sua chave do **OpenRouter** ou **OpenAI**.
+3. Selecione o provedor no painel de controle.
+4. **Segurança**: Suas chaves são armazenadas localmente no navegador (LocalStorage) ou no seu cofre pessoal no Supabase, protegidas por criptografia de ponta e RLS.
 
 ---
 
-**CognixOS 4.0: Sua mente, sua máquina, suas regras.**
+## 4. Ponte Omnichannel (Telegram & Webhooks)
+
+Seus agentes podem atuar enquanto você está offline através do **Durable Execution Loop**.
+
+- **Telegram:** Localize seu `Chat ID` no bot de configuração e vincule-o ao seu perfil.
+- **Webhooks:** O CognixOS fornece endpoints únicos para receber alertas de n8n, Make ou Zapier, disparando raciocínios nos seus clones de forma assíncrona.
+
+---
+
+**CognixOS 7.0: A inteligência é sua. O hardware é seu. O destino é seu.**

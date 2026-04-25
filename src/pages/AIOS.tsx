@@ -32,7 +32,8 @@ import {
   Factory,
   Send,
   HardDrive,
-  MonitorOff
+  MonitorOff,
+  Wifi
 } from "lucide-react";
 import { LocalSyncService } from "@/lib/localSync";
 import { toast } from "sonner";
@@ -249,9 +250,28 @@ export default function AIOS() {
     try {
       const { error } = await supabase.from("subagents").delete().eq("id", id);
       if (error) throw error;
-      toast.success("Subagente removido");
       queryClient.invalidateQueries({ queryKey: ["subagents", user?.id] });
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Erro interno"); }
+      toast.success("Agente removido da linha de fábrica.");
+    } catch (error: any) {
+      toast.error("Erro ao remover: " + error.message);
+    }
+  };
+
+  const handleOperationalize = async (agent: any) => {
+    try {
+      const { error } = await supabase.from("brains").insert({
+        user_id: user?.id,
+        name: agent.name,
+        description: `Agente Gerado na Fábrica: ${agent.role}`,
+        system_prompt: agent.system_prompt,
+        type: 'person_clone'
+      });
+      if (error) throw error;
+      toast.success("Agente operacionalizado! Agora ele está disponível no Dashboard.");
+      navigate("/"); // Redirect to dashboard to see it
+    } catch (error: any) {
+      toast.error("Erro ao operacionalizar: " + error.message);
+    }
   };
 
   const handleDeleteSkill = async (id: string) => {
@@ -512,6 +532,19 @@ export default function AIOS() {
              </Dialog>
           </div>
 
+          <div className="bg-primary/5 border border-primary/10 rounded-3xl p-5 mb-8 flex items-start gap-4 animate-in slide-in-from-top duration-700">
+            <div className="p-3 bg-primary/10 rounded-2xl">
+              <ShieldCheck className="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <h3 className="text-sm font-black uppercase italic tracking-wider text-primary">Controle de Ativos Cognitivos</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed mt-1">
+                Aqui você forja as <b>unidades de processamento</b> (Agentes) e <b>playbooks</b> (Skills). 
+                Para interagir com um agente no dia-a-dia, utilize o botão <b>Operacionalizar</b> para enviá-lo ao seu Dashboard principal.
+              </p>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {loadingAgents ? (
               [1,2,3].map(i => <div key={i} className="h-48 bg-white/5 rounded-3xl animate-pulse" />)
@@ -541,6 +574,26 @@ export default function AIOS() {
                   <p className="text-[11px] text-muted-foreground/80 line-clamp-3 leading-relaxed italic">
                     "{agent.system_prompt}"
                   </p>
+                  <div className="pt-2 flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full rounded-xl border-primary/20 hover:bg-primary/10 hover:border-primary/50 text-[10px] font-bold uppercase gap-2 h-9"
+                      onClick={() => handleOperationalize(agent)}
+                    >
+                      <Zap className="h-3 w-3 text-primary animate-pulse" />
+                      OPERACIONALIZAR
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full rounded-xl border-white/10 hover:bg-white/5 text-[10px] font-bold uppercase gap-2 h-9"
+                      onClick={() => navigate("/")}
+                    >
+                      <MessageSquare className="h-3 w-3" />
+                      CHAT
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             ))}

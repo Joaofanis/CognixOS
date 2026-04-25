@@ -40,7 +40,7 @@ export default function PsychometricRadar({ brainId }: PsychometricRadarProps) {
         .from("brain_analysis")
         .select("*")
         .eq("brain_id", brainId)
-        .single();
+        .maybeSingle();
       if (error && error.code !== "PGRST116") throw error;
       return data;
     },

@@ -35,6 +35,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
+import { supabase } from "@/integrations/supabase/client";
+
 interface OfficeEvent {
   type: string;
   message?: string;
@@ -73,10 +75,10 @@ export default function VirtualOffice() {
   // Sync existing data on mount (Last Active Squad)
   useEffect(() => {
     const syncOffice = async () => {
-      const { data: { session } } = await (window as any).supabase.auth.getSession();
+      const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
-      const { data: latestSquad } = await (window as any).supabase
+      const { data: latestSquad } = await supabase
         .from('squads')
         .select('*')
         .order('created_at', { ascending: false })
@@ -85,7 +87,7 @@ export default function VirtualOffice() {
 
       if (latestSquad) {
         // Fetch Agents
-        const { data: agents } = await (window as any).supabase
+        const { data: agents } = await supabase
           .from('subagents')
           .select('*')
           .eq('squad_id', latestSquad.id);
@@ -100,7 +102,7 @@ export default function VirtualOffice() {
         }
 
         // Fetch Messages/Reports
-        const { data: messages } = await (window as any).supabase
+        const { data: messages } = await supabase
           .from('squad_messages')
           .select('*')
           .eq('squad_id', latestSquad.id)
@@ -129,7 +131,7 @@ export default function VirtualOffice() {
     setFinalReport(null);
 
     try {
-      const { data: { session } } = await (window as any).supabase.auth.getSession();
+      const { data: { session } } = await supabase.auth.getSession();
       
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/virtual-office`, {
         method: "POST",

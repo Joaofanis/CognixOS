@@ -46,6 +46,40 @@ Ao selecionar um template de agente nas configurações do clone:
 
 ---
 
+## 3. Linha de Fábrica (Factory Line): Escalonando Agentes
+
+A V7.0 do CognixOS introduz o conceito de **Fábrica de Agentes**. Enquanto os "Cérebros" (Brains) são sua identidade central, os **Subagentes** são unidades operacionais de curto prazo.
+
+### A. Forjando Subagentes
+Na aba **Linha de Fábrica**, você pode criar agentes especialistas (ex: Arquiteto de Vendas, Especialista em Código, Pesquisador de Mercado).
+- **Ativos de Fábrica**: Estes agentes residem na fábrica para serem usados em **Squads** (Missões complexas onde vários agentes colaboram).
+
+### B. Operacionalização (Ativação)
+Se você criou um subagente na fábrica e deseja transformá-lo em um companheiro de chat direto no Dashboard móvel:
+1. Localize o card do Agente na aba **Fábrica**.
+2. Clique no botão azul **OPERACIONALIZAR** (ícone de Raio ⚡).
+3. O sistema criará instantaneamente um Cérebro (Brain) correspondente, mantendo todo o DNA e o prompt de sistema forjado. Ele passará a ser listado na sua tela inicial de operações.
+
+---
+
+## 4. O Motor de 8 Estágios: A Ciência por trás do DNA Neural
+
+A clonagem no CognixOS não é um prompt simples. Quando você alimenta uma mente com textos, o **Antigravity Engine** executa uma sequência determinística de 8 agentes invisíveis para destilar o prompt final:
+
+1. **Pesquisador**: Minera cronologia e fatos biográficos/técnicos.
+2. **Analista**: Mapeia o domínio de conhecimento e competências.
+3. **Psicanalista**: Extrai o *Shadow DNA* (motivações e medos latentes).
+4. **Linguista**: Decodifica sintaxe, rimas, gírias e cadência rítmica.
+5. **Cronista**: Tece a "Crônica de Identidade" em um grafo de relações.
+6. **Estrategista**: Forja cenários de teste de estresse psicológico.
+7. **Verificador**: Audita inconsistências analíticas e alucinações.
+8. **Arquiteto (Prompter)**: Consolida tudo em um *System Prompt* de elite.
+
+> [!IMPORTANT]
+> Este processo garante que o clone responda com o **Tom de Voz** exato, e não apenas com a informação técnica.
+
+---
+
 ## 3. Segurança e Execução Local vs Nuvem
 
 O Gateway é projetado para operar com total segurança (Sovereignty).
@@ -59,7 +93,7 @@ O Gateway é projetado para operar com total segurança (Sovereignty).
 
 ---
 
-## 4. Deploy: Como Popular o Antigravity Kit (via Script)
+## 5. Deploy: Como Popular o Antigravity Kit (via Script)
 
 Se você acabou de fazer o deploy do CognixOS, o banco de dados estará vazio. Para carregar todos os 20 agentes e 36 skills no sistema, rode o Seed Script disponibilizado:
 
